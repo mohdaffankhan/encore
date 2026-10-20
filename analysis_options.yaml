@@ -1,0 +1,13 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - windows/**
+    - linux/**
+
+linter:
+  rules:
+    - directives_ordering
+
