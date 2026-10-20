@@ -187,6 +187,8 @@ Future<void> _checkBackgroundPlayback() async {
     reason: 'position advances in background',
   );
   _log('background playback', 'ok (+${advanced.inSeconds}s with screen off)');
+  // Stay alive while the host presses the media "next" key.
+  await Future<void>.delayed(const Duration(seconds: 20));
 }
 
 bool isWideLayout(WidgetTester tester) =>

@@ -4,6 +4,7 @@
 # reports the media session state. Usage: tool/android_background_check.sh <device-id>
 set -u
 device=$1
+host_fail=0
 log=build/e2e_android.log
 mkdir -p build
 flutter test integration_test/app_test.dart -d "$device" \
@@ -19,13 +20,43 @@ if grep -q 'background: ready' "$log"; then
   sleep 2
   adb -s "$device" shell input keyevent KEYCODE_SLEEP
   sleep 8
-  echo "[host] media session while screen off:"
-  adb -s "$device" shell dumpsys media_session | grep -A3 "dev.encore.app" | grep -E "package|state=" | head -4
-  echo "[host] notification posted:"
-  adb -s "$device" shell dumpsys notification --noredact | grep -c "pkg=dev.encore.app"
+  # The player must be visible to the system: an active media session that
+  # is PLAYING (lock screen / panel controls) and a media notification.
+  session=$(adb -s "$device" shell dumpsys media_session | grep -A12 "package=dev.encore.app")
+  echo "$session" | grep -E "active=|state=PlaybackState" | sed 's/^ */[host] /'
+  echo "$session" | grep -q "active=true" || { echo "[host] FAIL: media session not active"; host_fail=1; }
+  echo "$session" | grep -q "state=PLAYING" || { echo "[host] FAIL: media session not PLAYING"; host_fail=1; }
+  # Keep only Encore's own notification record (the full dump includes
+  # other apps' notifications).
+  adb -s "$device" shell dumpsys notification --noredact     | awk '/NotificationRecord\(.*pkg=dev.encore.app/{n=45} n&&n--' > build/encore_notification.txt
+  grep -E "android.template|^ *\[[0-9]\] " build/encore_notification.txt | sed 's/^ */[host] /'
+  # Exactly previous / play-pause / next, and no stop button anywhere.
+  buttons=$(grep -cE '^ *\[[0-9]\] "' build/encore_notification.txt)
+  [ "$buttons" = 3 ] || { echo "[host] FAIL: expected 3 notification buttons, got $buttons"; host_fail=1; }
+  if grep -qiE '"Stop"' build/encore_notification.txt || echo "$session" | grep -q "mName='Stop"; then
+    echo "[host] FAIL: stop button present"; host_fail=1
+  fi
+  # Next via the media session (same path as the notification's button).
+  title() { adb -s "$device" shell dumpsys media_session | grep -A12 "package=dev.encore.app" | grep -o "description=[^,]*" | head -1; }
+  until grep -q 'background playback' "$log" 2>/dev/null; do
+    kill -0 $test_pid 2>/dev/null || break
+    sleep 1
+  done
+  before=$(title)
+  adb -s "$device" shell input keyevent KEYCODE_MEDIA_NEXT
+  sleep 6
+  after=$(title)
+  echo "[host] next: '$before' -> '$after'"
+  [ -n "$after" ] && [ "$before" != "$after" ] || { echo "[host] FAIL: next did not change the song"; host_fail=1; }
+  if grep -q "MediaStyle" build/encore_notification.txt; then
+    echo "[host] media notification: shown"
+  else
+    echo "[host] FAIL: no media notification"; host_fail=1
+  fi
 fi
 wait $test_pid
 status=$?
 adb -s "$device" shell input keyevent KEYCODE_WAKEUP
 grep -E '\[e2e\]|Expected:|Actual:|TestFailure|All tests|Some tests' "$log"
+[ "$host_fail" = 0 ] || status=1
 exit $status

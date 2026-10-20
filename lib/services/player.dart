@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 import '../api/innertube.dart' as yt;
 import '../api/stream.dart';
@@ -150,22 +149,16 @@ class Player {
     final track = queue.value[i];
     loading.value = true;
     try {
-      await audio.stop();
-      final tag = MediaItem(
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        album: track.album,
-        duration: track.duration,
-        artUri: Uri.parse(track.artUrl),
-      );
+      // Silence the previous song while this one loads. Pause, not stop:
+      // stopping would end the system media session (media_session.dart).
+      await audio.pause();
       final AudioSource source;
       if (await downloads.fileFor(track) case final file?) {
-        source = AudioSource.file(file.path, tag: tag);
+        source = AudioSource.file(file.path, tag: track);
       } else {
         // Stream URLs expire, so resolve only when the track is about to play.
         final stream = await audioStream(track.id);
-        source = YouTubeAudioSource(stream, tag: tag);
+        source = YouTubeAudioSource(stream, tag: track);
       }
       if (index.value != i) return; // skipped while resolving
       await audio.setAudioSource(source).timeout(const Duration(seconds: 20));

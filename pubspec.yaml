@@ -7,10 +7,10 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  audio_service: ^0.18.19
   flutter:
     sdk: flutter
   just_audio: ^0.10.6
-  just_audio_background: ^0.0.1-beta.17
   just_audio_media_kit: ^2.1.0
   media_kit_libs_audio: ^1.0.7
   path_provider: ^2.1.6
