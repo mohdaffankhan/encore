@@ -18,11 +18,21 @@ class UserLibrary {
   File? _file;
   Future<void> _lastWrite = Future.value();
 
+  /// Completes when everything changed so far is saved.
+  Future<void> get saved => _lastWrite;
+
   Future<void> load() async {
     final dir = await dataDir();
     _file = File('${dir.path}${Platform.pathSeparator}library.json');
+    final file = _file!;
     try {
-      final json = jsonDecode(await _file!.readAsString());
+      if (!await file.exists()) {
+        // First run, or a crash after the old file was replaced: the last
+        // finished save is the temporary file.
+        final temp = File('${file.path}.tmp');
+        if (await temp.exists()) await temp.rename(file.path);
+      }
+      final json = jsonDecode(await file.readAsString());
       List<Track> tracks(String key) => [
         for (final t in json[key] as List? ?? []) Track.fromJson(t),
       ];
@@ -30,8 +40,14 @@ class UserLibrary {
       liked.value = tracks('liked');
       downloads.value = tracks('downloads');
       searches.value = List<String>.from(json['searches'] ?? []);
-    } catch (_) {
-      // First run, or an unreadable file: start empty.
+    } on PathNotFoundException {
+      // First run: start empty.
+    } catch (e) {
+      // Unreadable: keep it aside rather than overwrite it on the next save.
+      debugPrint('Library unreadable, starting empty: $e');
+      try {
+        await file.rename('${file.path}.unreadable');
+      } catch (_) {}
     }
     for (final n in [history, liked, searches, downloads]) {
       n.addListener(_save);
@@ -67,9 +83,13 @@ class UserLibrary {
       'downloads': downloads.value,
     });
     // Chain writes so an older snapshot can never land after a newer one.
+    // Write a temporary file, then swap it in: if the app is killed
+    // mid-save, the previous library file is still whole.
     _lastWrite = _lastWrite.then((_) async {
       try {
-        await file.writeAsString(json);
+        final temp = File('${file.path}.tmp');
+        await temp.writeAsString(json, flush: true);
+        await temp.rename(file.path);
       } catch (e) {
         debugPrint('Saving library failed: $e');
       }

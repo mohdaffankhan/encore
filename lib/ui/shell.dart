@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/downloads.dart';
 import '../services/player.dart';
 import 'pages/artist_page.dart';
 import 'pages/collection_page.dart';
@@ -54,21 +55,30 @@ class ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
-    player.error.addListener(_showError);
+    for (final errors in _errors) {
+      errors.addListener(_showErrors);
+    }
   }
 
   @override
   void dispose() {
-    player.error.removeListener(_showError);
+    for (final errors in _errors) {
+      errors.removeListener(_showErrors);
+    }
     super.dispose();
   }
 
-  void _showError() {
-    final message = player.error.value;
-    if (message == null) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-    player.error.value = null;
+  /// Error messages from the services, each shown once as a snackbar.
+  final _errors = [player.error, downloads.error];
+
+  void _showErrors() {
+    for (final errors in _errors) {
+      if (errors.value case final message?) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+        errors.value = null;
+      }
+    }
   }
 
   void _open(Widget page, AppTab? tab) {

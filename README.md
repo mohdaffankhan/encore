@@ -20,6 +20,9 @@
 - No ads, no account, no tracking
 - Home feed, search with suggestions (songs, albums, artists, playlists)
 - Song radio, up next, shuffle and repeat
+- Swipe the player left or right for the next or previous song; on phones,
+  swipe up for lyrics
+- Sleep timer
 - Artist, album and playlist pages
 - Synced lyrics
 - Likes, history and downloads for offline listening, kept on your device
@@ -80,6 +83,7 @@ mkdir -p ~/encore && tar -xzf encore-linux-x64.tar.gz -C ~/encore
 | Ctrl + ← / → | Previous / next song |
 | Ctrl + ↑ / ↓ | Volume |
 | L | Like the current song |
+| Esc | Leave the search box (keys type there while it is active) |
 
 ## Good to know
 
@@ -138,6 +142,7 @@ Android releases are signed with a key stored as repository secrets
 | End-to-end on Android, with background playback | `sh tool/android_background_check.sh <device>` (never plain `flutter test` on a phone with Encore installed: it uninstalls it) |
 | Android release APK | `sh tool/android_release_check.sh <apk> <device>` |
 | Windows release build | `powershell -File tool/windows_release_check.ps1 <folder>` |
+| Windows end-to-end with real key presses | `powershell -File tool/windows_keyboard_check.ps1` |
 | Any release binary | `encore --self-test` (plays a song, exits 0 or 1) |
 | Linux, in Docker | `docker build -t encore-linux-test tool/linux_test` then `docker run --rm -v "$PWD:/src" encore-linux-test` |
 | Frame timings | `flutter drive --profile --no-dds --no-uninstall --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |

@@ -64,10 +64,18 @@ Future<Map<String, dynamic>?> _get(
   String path,
   Map<String, String> query,
 ) async {
-  final req = await _http.getUrl(Uri.https('lrclib.net', path, query));
-  final res = await req.close();
-  final body = await utf8.decodeStream(res);
-  if (res.statusCode != HttpStatus.ok) return null;
+  Future<(int, String)> request() async {
+    final req = await _http.getUrl(Uri.https('lrclib.net', path, query));
+    final res = await req.close();
+    return (res.statusCode, await utf8.decodeStream(res));
+  }
+
+  // A stalled connection fails instead of spinning forever.
+  final (status, body) = await request().timeout(const Duration(seconds: 15));
+  if (status == HttpStatus.notFound) return null;
+  // Anything else (server trouble) is an error, not "no lyrics", so it
+  // isn't cached and can be retried.
+  if (status != HttpStatus.ok) throw HttpException('Lyrics: HTTP $status');
   final json = jsonDecode(body);
   // /api/search returns a list; wrap it to keep one return type.
   return json is List ? {'results': json} : json;

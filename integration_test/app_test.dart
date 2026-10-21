@@ -4,12 +4,14 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:encore/main.dart' as app;
+import 'package:encore/models.dart';
 import 'package:encore/services/downloads.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/services/sleep_timer.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shell.dart';
+import 'package:encore/ui/shortcuts.dart';
 import 'package:encore/ui/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -78,6 +80,7 @@ void main() {
     // Search for a song.
     await tester.tap(find.text('Search').first);
     await tester.pumpAndSettle();
+    if (_keyboardCheck) await _checkRealTyping(tester);
     await tester.enterText(find.byType(TextField), 'daft punk get lucky');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await _step('search results', () => _until(tester, find.byType(TrackTile)));
@@ -119,13 +122,46 @@ void main() {
     _log('keyboard shortcuts', 'ok');
 
     // Full player with lyrics and up next.
-    final bar = find.byType(isWideLayout(tester) ? NowPlayingBar : MiniPlayer);
+    // Decided before the full player covers the player bar.
+    final wide = isWideLayout(tester);
+    final bar = find.byType(wide ? NowPlayingBar : MiniPlayer);
     await tester.tap(
       find.descendant(of: bar, matching: find.byType(Artwork)).first,
     );
     await tester.pumpAndSettle();
     expect(find.byType(FullPlayer), findsOneWidget);
     await shots.take(tester, '4_full_player');
+
+    // Swiping the artwork left plays the next song, right the previous one.
+    final art = find.descendant(
+      of: find.byType(FullPlayer),
+      matching: find.byType(SwipeToSkip),
+    );
+    final swipedFrom = player.index.value;
+    await tester.drag(art, const Offset(-300, 0));
+    await _step(
+      'swipe left: next song',
+      () => _untilTrue(
+        tester,
+        () => player.index.value == swipedFrom + 1 && player.audio.playing,
+      ),
+    );
+    await tester.drag(art, const Offset(300, 0));
+    await _step(
+      'swipe right: previous song',
+      () => _untilTrue(
+        tester,
+        () => player.index.value == swipedFrom && player.audio.playing,
+      ),
+    );
+
+    // Phones: swiping up on the song shows its lyrics.
+    if (!wide) {
+      await tester.fling(art, const Offset(0, -300), 1500);
+      await tester.pumpAndSettle();
+      expect(find.byType(LyricsView), findsOneWidget, reason: 'swipe up');
+      _log('swipe up: lyrics', 'ok');
+    }
     await tester.tap(find.text('Lyrics').last);
     await _step(
       'lyrics load',
@@ -207,6 +243,32 @@ void main() {
     expect(sleepTimer.setting.value, isNull);
     player.audio.play();
 
+    // A song that can't play is skipped when playback moves on by itself.
+    const unplayable = Track(
+      id: 'encoretest0',
+      title: 'Unplayable',
+      artist: 'Nobody',
+      artUrl: '',
+    );
+    await player.playList([player.current!, unplayable, track], 0);
+    await _untilTrue(
+      tester,
+      () => player.audio.playing && player.audio.duration != null,
+    );
+    await player.audio.seek(
+      player.audio.duration! - const Duration(seconds: 2),
+    );
+    await _step(
+      'unplayable song skipped',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.index.value == 2 &&
+            player.audio.playing &&
+            player.audio.position.inSeconds >= 1,
+      ),
+    );
+
     // Download, then play offline from the file.
     downloads.download([track]);
     await _step(
@@ -265,6 +327,33 @@ Future<void> _checkBackgroundPlayback() async {
   _log('sleep timer in background', 'ok');
 }
 
+/// Set by tool/windows_keyboard_check.ps1, which types into the search box
+/// with real key presses from Windows when this test says it is ready.
+const _keyboardCheck = bool.fromEnvironment('ENCORE_KEYBOARD_CHECK');
+
+/// Real keystrokes reach the search box: Space, K and L are typed (not
+/// play/pause and like) and the arrows move the cursor (not seek).
+Future<void> _checkRealTyping(WidgetTester tester) async {
+  await tester.tap(find.byType(TextField));
+  await tester.pump();
+  final wasPlaying = player.audio.playing;
+  final likes = userLibrary.liked.value.length;
+  _log('keyboard', 'ready');
+  // The host types "get lucky kl", Left, Left, "x".
+  String text() =>
+      tester.widget<EditableText>(find.byType(EditableText)).controller.text;
+  await _untilTrue(
+    tester,
+    () => text() == 'get lucky xkl',
+    timeout: const Duration(seconds: 60),
+  ).catchError((Object e) {
+    throw TestFailure('Typed "${text()}", expected "get lucky xkl"');
+  });
+  expect(player.audio.playing, wasPlaying, reason: 'Space/K did not toggle');
+  expect(userLibrary.liked.value.length, likes, reason: 'L did not like');
+  _log('real typing', 'ok');
+}
+
 bool isWideLayout(WidgetTester tester) =>
     find.byType(NowPlayingBar).evaluate().isNotEmpty &&
     tester.view.physicalSize.width / tester.view.devicePixelRatio >= 900;
@@ -299,7 +388,9 @@ Future<void> _untilTrue(
         '(player: ${player.audio.processingState.name}, '
         'playing: ${player.audio.playing}, '
         'position: ${player.audio.position}, '
-        'error: ${player.error.value})',
+        'error: ${player.error.value}, '
+        'typing: ${PlayerShortcuts.isTyping}, '
+        'focus: ${FocusManager.instance.primaryFocus})',
       );
     }
     await tester.pump(const Duration(milliseconds: 100));

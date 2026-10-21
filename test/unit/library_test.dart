@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:encore/models.dart';
 import 'package:encore/services/library.dart';
+import 'package:encore/services/storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Track track(String id) =>
@@ -45,4 +48,69 @@ void main() {
     library.removeSearch('q5');
     expect(library.searches.value, isNot(contains('q5')));
   });
+
+  group('saving', () {
+    late Directory dir;
+    late File file;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('encore_library_test');
+      useDataDir(dir);
+      file = File('${dir.path}${Platform.pathSeparator}library.json');
+    });
+    tearDown(() => dir.delete(recursive: true));
+
+    Future<UserLibrary> loaded() async {
+      final library = UserLibrary();
+      await library.load();
+      return library;
+    }
+
+    test('saves and loads again, replacing the old file', () async {
+      final first = await loaded();
+      first.toggleLike(track('a'));
+      await first.saved;
+      first
+        ..addPlayed(track('b'))
+        ..addSearch('daft punk');
+      await first.saved;
+
+      final second = await loaded();
+      expect(second.liked.value.map((t) => t.id), ['a']);
+      expect(second.history.value.map((t) => t.id), ['b']);
+      expect(second.searches.value, ['daft punk']);
+      expect(File('${file.path}.tmp').existsSync(), isFalse);
+    });
+
+    test(
+      'a crash between writing and swapping in keeps the new save',
+      () async {
+        // Killed after the temporary file was written, before the rename.
+        await File('${file.path}.tmp').writeAsString(
+          '{"liked": [${_json('a')}], "history": [], "searches": [], '
+          '"downloads": []}',
+        );
+        final library = await loaded();
+        expect(library.liked.value.map((t) => t.id), ['a']);
+        expect(file.existsSync(), isTrue);
+      },
+    );
+
+    test('an unreadable file is kept aside, not overwritten', () async {
+      await file.writeAsString('{"liked": [${_json('a')}');
+      final library = await loaded();
+      expect(library.liked.value, isEmpty);
+      library.toggleLike(track('b'));
+      await library.saved;
+      expect(
+        File('${file.path}.unreadable').readAsStringSync(),
+        contains('"a"'),
+        reason: 'the old data is still there to recover',
+      );
+      expect((await loaded()).liked.value.map((t) => t.id), ['b']);
+    });
+  });
 }
+
+String _json(String id) =>
+    '{"id": "$id", "title": "Song $id", "artist": "Artist", "artUrl": ""}';

@@ -15,6 +15,9 @@ class Downloads {
   /// Songs waiting or downloading, with progress from 0 to 1.
   final progress = ValueNotifier<Map<String, double>>({});
 
+  /// A message when a download failed, shown once by the app frame.
+  final error = ValueNotifier<String?>(null);
+
   final _queue = <Track>[];
   bool _running = false;
   Directory? _dir;
@@ -50,7 +53,13 @@ class Downloads {
     final file = File(
       '${(await _folder()).path}${Platform.pathSeparator}${track.id}',
     );
-    if (await file.exists()) await file.delete();
+    try {
+      if (await file.exists()) await file.delete();
+    } on FileSystemException catch (e) {
+      // Still open (e.g. playing on Windows): it is no longer listed, and
+      // a later download of the song simply replaces it.
+      debugPrint('Could not delete ${file.path}: $e');
+    }
   }
 
   Future<void> _run() async {
@@ -63,6 +72,7 @@ class Downloads {
         userLibrary.downloads.value = [track, ...userLibrary.downloads.value];
       } catch (e) {
         debugPrint('Download failed for ${track.id}: $e');
+        error.value = 'Couldn\'t download "${track.title}"';
       }
       progress.value = {...progress.value}..remove(track.id);
     }
@@ -84,8 +94,12 @@ class Downloads {
         // Only notify every 5% to keep rebuilds cheap.
         if (p - reported >= 0.05) _setProgress(track.id, reported = p);
       }
-    } finally {
       await sink.close();
+    } catch (_) {
+      await sink.close();
+      // Don't leave half a song behind.
+      if (await part.exists()) await part.delete();
+      rethrow;
     }
     await part.rename('${dir.path}${Platform.pathSeparator}${track.id}');
   }

@@ -9,6 +9,7 @@ import '../widgets/widgets.dart';
 import 'buttons.dart';
 import 'controls.dart';
 import 'lyrics_view.dart';
+import 'swipe_to_skip.dart';
 import 'up_next.dart';
 
 enum PlayerView { song, lyrics, queue }
@@ -53,8 +54,30 @@ class FullPlayer extends StatefulWidget {
 class _FullPlayerState extends State<FullPlayer> {
   late var _view = widget.initialView;
 
+  /// How far the current vertical drag has gone (negative is up).
+  double _dragUp = 0;
+
+  /// Phones: swiping up on the song shows its lyrics.
+  void _endSwipeUp(DragEndDetails details) {
+    final v = details.primaryVelocity ?? 0;
+    if (_dragUp < -80 || v < -500) setState(() => _view = PlayerView.lyrics);
+    _dragUp = 0;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    // Phones: Back from lyrics or up next returns to the song first.
+    return PopScope(
+      canPop: wide || _view == PlayerView.song,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _view = PlayerView.song);
+      },
+      child: _scaffold(),
+    );
+  }
+
+  Widget _scaffold() {
     return Scaffold(
       body: ValueListenableBuilder(
         valueListenable: player.index,
@@ -91,8 +114,12 @@ class _FullPlayerState extends State<FullPlayer> {
         ),
         Expanded(
           child: tabs
+              // Shrinks to fit narrow phones beside the buttons.
               ? Center(
-                  child: _ViewTabs(_view, (v) => setState(() => _view = v)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _ViewTabs(_view, (v) => setState(() => _view = v)),
+                  ),
                 )
               : const SizedBox.shrink(),
         ),
@@ -103,6 +130,16 @@ class _FullPlayerState extends State<FullPlayer> {
   );
 
   Widget _narrow(Track track) {
+    final onSong = _view == PlayerView.song;
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragUpdate: onSong ? (d) => _dragUp += d.delta.dy : null,
+      onVerticalDragEnd: onSong ? _endSwipeUp : null,
+      child: _narrowContent(track, onSong),
+    );
+  }
+
+  Widget _narrowContent(Track track, bool onSong) {
     return Column(
       children: [
         _topBar(track),
@@ -113,7 +150,7 @@ class _FullPlayerState extends State<FullPlayer> {
               PlayerView.song => Padding(
                 key: const ValueKey('song'),
                 padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-                child: Center(child: _BigArt(track)),
+                child: Center(child: SwipeToSkip(child: _BigArt(track))),
               ),
               PlayerView.lyrics => LyricsView(track, key: ValueKey(track.id)),
               PlayerView.queue => const UpNext(key: ValueKey('queue')),
@@ -121,6 +158,8 @@ class _FullPlayerState extends State<FullPlayer> {
           ),
         ),
         _NowPlayingInfo(track),
+        if (onSong)
+          _LyricsHint(() => setState(() => _view = PlayerView.lyrics)),
       ],
     );
   }
@@ -139,7 +178,9 @@ class _FullPlayerState extends State<FullPlayer> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(48, 8, 48, 16),
-                        child: Center(child: _BigArt(track)),
+                        child: Center(
+                          child: SwipeToSkip(child: _BigArt(track)),
+                        ),
                       ),
                     ),
                     ConstrainedBox(
@@ -179,6 +220,41 @@ class _FullPlayerState extends State<FullPlayer> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The "swipe up for lyrics" cue under the controls on phones.
+class _LyricsHint extends StatelessWidget {
+  const _LyricsHint(this.onTap);
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.keyboard_arrow_up_rounded,
+              color: EncoreColors.textTertiary,
+            ),
+            Text(
+              'Lyrics',
+              style: TextStyle(
+                color: EncoreColors.textTertiary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

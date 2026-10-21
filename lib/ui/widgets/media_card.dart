@@ -132,7 +132,13 @@ void openItem(Object item) => switch (item) {
 Future<void> playItem(Object item) async {
   switch (item) {
     case MediaRef(kind: MediaKind.album || MediaKind.playlist, :final id):
-      final collection = await yt.collection(id);
+      final Collection collection;
+      try {
+        collection = await yt.collection(id);
+      } catch (e) {
+        player.error.value = "Couldn't load this album or playlist";
+        return;
+      }
       if (collection.tracks.isNotEmpty) {
         await player.playList(collection.tracks, 0);
       }

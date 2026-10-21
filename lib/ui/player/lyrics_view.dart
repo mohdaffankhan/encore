@@ -20,7 +20,7 @@ class LyricsView extends StatefulWidget {
 }
 
 class _LyricsViewState extends State<LyricsView> {
-  late final Future<Lyrics?> _lyrics = lyricsFor(widget.track);
+  late Future<Lyrics?> _lyrics = lyricsFor(widget.track);
   final _keys = <GlobalKey>[];
   StreamSubscription<Duration>? _position;
   int _line = -1;
@@ -59,6 +59,12 @@ class _LyricsViewState extends State<LyricsView> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(
             child: CircularProgressIndicator(color: EncoreColors.text),
+          );
+        }
+        if (snapshot.hasError) {
+          return ErrorRetry(
+            message: "Couldn't load lyrics.",
+            onRetry: () => setState(() => _lyrics = lyricsFor(widget.track)),
           );
         }
         final lyrics = snapshot.data;

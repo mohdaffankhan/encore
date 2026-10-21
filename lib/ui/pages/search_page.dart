@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../api/innertube.dart' as yt;
 import '../../models.dart';
@@ -55,7 +56,7 @@ class _SearchPageState extends State<SearchPage> {
     query = query.trim();
     if (query.isEmpty) return;
     _debounce?.cancel();
-    _controller.text = query;
+    _setText(query);
     _focus.unfocus();
     userLibrary.addSearch(query);
     setState(() {
@@ -70,6 +71,12 @@ class _SearchPageState extends State<SearchPage> {
       if (_query case final q?) _results = yt.search(q, filter);
     });
   }
+
+  /// Replaces the text with the cursor at the end, ready to keep typing.
+  void _setText(String text) => _controller.value = TextEditingValue(
+    text: text,
+    selection: TextSelection.collapsed(offset: text.length),
+  );
 
   void _clear() {
     _controller.clear();
@@ -92,28 +99,38 @@ class _SearchPageState extends State<SearchPage> {
               padding: EdgeInsets.fromLTRB(pad, 8, pad, 12),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 640),
-                child: SearchBar(
-                  controller: _controller,
-                  focusNode: _focus,
-                  hintText: 'Songs, albums, artists',
-                  leading: const Icon(
-                    Icons.search_rounded,
-                    color: EncoreColors.textSecondary,
-                  ),
-                  trailing: [
-                    ListenableBuilder(
-                      listenable: _controller,
-                      builder: (context, _) => _controller.text.isEmpty
-                          ? const SizedBox.shrink()
-                          : IconButton(
-                              tooltip: 'Clear',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: _clear,
-                            ),
+                child: CallbackShortcuts(
+                  // Esc leaves the box, so the player keys work again.
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape):
+                        _focus.unfocus,
+                  },
+                  child: SearchBar(
+                    controller: _controller,
+                    focusNode: _focus,
+                    // Clicking anywhere else leaves the box too (on desktop
+                    // the text field would otherwise keep the keyboard).
+                    onTapOutside: (_) => _focus.unfocus(),
+                    hintText: 'Songs, albums, artists',
+                    leading: const Icon(
+                      Icons.search_rounded,
+                      color: EncoreColors.textSecondary,
                     ),
-                  ],
-                  onChanged: _onChanged,
-                  onSubmitted: _submit,
+                    trailing: [
+                      ListenableBuilder(
+                        listenable: _controller,
+                        builder: (context, _) => _controller.text.isEmpty
+                            ? const SizedBox.shrink()
+                            : IconButton(
+                                tooltip: 'Clear',
+                                icon: const Icon(Icons.close_rounded),
+                                onPressed: _clear,
+                              ),
+                      ),
+                    ],
+                    onChanged: _onChanged,
+                    onSubmitted: _submit,
+                  ),
                 ),
               ),
             ),
@@ -189,8 +206,9 @@ class _SearchPageState extends State<SearchPage> {
                 icon: const Icon(Icons.north_west_rounded, size: 18),
                 color: EncoreColors.textTertiary,
                 onPressed: () {
-                  _controller.text = '$s ';
+                  _setText('$s ');
                   _onChanged(_controller.text);
+                  _focus.requestFocus();
                 },
               ),
             ),

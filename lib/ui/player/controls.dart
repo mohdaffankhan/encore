@@ -104,9 +104,17 @@ class _SeekBarState extends State<SeekBar> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             max: max > 0 ? max : 1,
             value: pos.clamp(0, max > 0 ? max : 1),
-            onChanged: max > 0 ? (v) => setState(() => _dragging = v) : null,
+            // Always enabled, ignoring drags while the length is unknown
+            // (a song loading): flipping the slider between enabled and
+            // disabled on every song change broke Flutter's accessibility
+            // tree for the hidden player bar under the full player.
+            onChanged: (v) {
+              if (max > 0) setState(() => _dragging = v);
+            },
             onChangeEnd: (v) {
-              player.audio.seek(Duration(milliseconds: v.round()));
+              if (max > 0) {
+                player.audio.seek(Duration(milliseconds: v.round()));
+              }
               setState(() => _dragging = null);
             },
           );
