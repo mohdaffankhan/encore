@@ -5,6 +5,9 @@
 # library). Each is checked by playing music in the installed app.
 # Usage: sh tool/install_latest.sh [android-device-id]
 set -u
+# No path rewriting by Git Bash, so /DAppVersion and /VERYSILENT reach the
+# Windows tools as written (with it, //VERYSILENT arrives as is and the
+# installer shows its wizard instead of installing silently).
 export MSYS_NO_PATHCONV=1
 device=${1:-}
 fail=0
@@ -16,8 +19,8 @@ iscc="$LOCALAPPDATA/Programs/Inno Setup 6/ISCC.exe"
 log "--- Windows $version"
 flutter build windows --release > build/install_windows.log 2>&1 || { log "FAIL: build"; exit 1; }
 "$iscc" "/DAppVersion=$version" windows/installer.iss > build/install_iscc.log 2>&1 || { log "FAIL: installer"; exit 1; }
-taskkill //IM encore.exe //F > /dev/null 2>&1
-build/installer/encore-windows-setup.exe //VERYSILENT //SUPPRESSMSGBOXES //NORESTART || fail=1
+taskkill /IM encore.exe /F > /dev/null 2>&1
+build/installer/encore-windows-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART || fail=1
 installed="$LOCALAPPDATA/Programs/Encore"
 powershell -ExecutionPolicy Bypass -File tool/windows_release_check.ps1 "$(cygpath -w "$installed")" || fail=1
 

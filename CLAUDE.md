@@ -40,6 +40,8 @@ After changes are tested, keep the newest build installed on the phone
 (`adb install -r` of the release APK, keeping the library) whenever it is
 connected, and on this PC (the Windows installer, replacing the old one).
 
-Bump `version:` in pubspec.yaml (name and +build number) for every build
-installed on the owner's devices; GitHub builds use that same number, so
+Versions in pubspec.yaml (`name+build`): the name is the next release
+(it only moves on after that release is published); the build number goes
+up for every build installed on the owner's devices (Android needs it to be
+the same or higher to update). GitHub builds use that same build number, so
 an official release always installs over a test build.

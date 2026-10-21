@@ -20,6 +20,14 @@ a install -r "$apk" > /dev/null || { log "FAIL: install"; exit 1; }
 a logcat -c
 a logcat -b crash -c
 a shell input keyevent KEYCODE_WAKEUP
+# The app can't be seen (or tapped) behind the lock screen.
+if a shell dumpsys window | grep -q 'isKeyguardShowing=true'; then
+  log "FAIL: the phone is locked; unlock it and run again"
+  exit 1
+fi
+# No screen timeout during the check (put back at the end).
+a shell svc power stayon usb
+trap 'a shell svc power stayon false' EXIT
 a shell am force-stop $pkg
 a shell am start -n $pkg/.MainActivity > /dev/null
 
