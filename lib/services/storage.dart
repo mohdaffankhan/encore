@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-/// Builds with `--dart-define=ENCORE_TEST=true` (the integration tests) keep
-/// their data apart from the user's library.
-const _isTest = bool.fromEnvironment('ENCORE_TEST');
+/// Builds with `--dart-define=ENCORE_TEST=true` (the integration tests) and
+/// `encore --self-test` keep their data apart from the user's library.
+var _isTest = const bool.fromEnvironment('ENCORE_TEST');
+
+void useTestData() => _isTest = true;
 
 Directory? _dir;
 

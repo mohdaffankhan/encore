@@ -1,5 +1,7 @@
 # Builds Encore for Android, Windows and Linux.
-# - Push a tag like v0.2.0 to publish a GitHub release with the downloads.
+# - Push a tag like v0.2.0 to create a DRAFT release with the downloads.
+#   Nobody sees it until tool/release_check.sh has played music with those
+#   exact files on real devices and published it.
 # - Run it manually (Actions → Build → Run workflow) to just build and test.
 name: Build
 
@@ -63,6 +65,8 @@ jobs:
           flutter build apk --release $VERSION_FLAGS
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/encore-android.apk
+      # Release builds shrink resources; debug builds (and tests) don't.
+      - run: sh tool/check_apk_resources.sh dist/encore-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android
@@ -89,7 +93,9 @@ jobs:
           version=$(grep '^version:' pubspec.yaml | sed 's/version: //; s/+.*//')
           [[ "$GITHUB_REF" == refs/tags/v* ]] && version="${GITHUB_REF_NAME#v}"
           mkdir -p dist
-          powershell -Command "Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/encore-windows-portable.zip"
+          # 7z, not Compress-Archive: that writes backslash paths, which
+          # some unzip tools turn into flat file names.
+          (cd build/windows/x64/runner/Release && 7z a -tzip ../../../../../dist/encore-windows-portable.zip . > /dev/null)
           command -v iscc || choco install innosetup -y --no-progress
           # Keep Git Bash from turning the /D switch into a file path.
           MSYS_NO_PATHCONV=1 iscc "/DAppVersion=$version" windows/installer.iss
@@ -115,6 +121,11 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: echo "VERSION_FLAGS=--build-name=${GITHUB_REF_NAME#v} --build-number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
       - run: flutter build linux --release $VERSION_FLAGS
+      - name: Check bundled libraries
+        run: |
+          if ldd build/linux/x64/release/bundle/encore build/linux/x64/release/bundle/lib/*.so | grep 'not found'; then
+            exit 1
+          fi
       - run: |
           mkdir -p dist
           tar -czf dist/encore-linux-x64.tar.gz -C build/linux/x64/release/bundle .
@@ -136,6 +147,7 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          draft: true
           files: dist/*
           body: |
             | Device | Download |

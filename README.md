@@ -102,12 +102,25 @@ See [DESIGN.md](DESIGN.md) for the structure and design decisions.
 
 ### Releases
 
-Push a version tag; GitHub Actions (`.github/workflows/build.yml`) tests,
-builds every platform and publishes a release:
+Never publish a build that hasn't played music on real devices. Debug builds
+(and the tests that use them) can pass while the release build is broken:
+release builds shrink code and resources, which debug builds don't.
 
-```sh
-git tag v0.2.0 && git push origin v0.2.0
-```
+1. Bump `version:` in `pubspec.yaml`, commit, then push a tag:
+   ```sh
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+   GitHub Actions (`.github/workflows/build.yml`) tests, builds every
+   platform, checks the APK keeps its notification icons and the Linux build
+   has its libraries, and creates a **draft** release. Nobody can see it yet.
+2. With the Android phone connected, on Windows:
+   ```sh
+   sh tool/release_check.sh v0.2.0 <adb-device-id>
+   ```
+   This downloads the draft's exact files, plays music with the APK on the
+   phone (in the background, screen off, notification controls) and with the
+   Windows zip and installer (`encore.exe --self-test`), and publishes the
+   release only if everything passes.
 
 Android releases are signed with a key stored as repository secrets
 (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
@@ -123,6 +136,9 @@ Android releases are signed with a key stored as repository secrets
 | Live API checks | `flutter test test/live` |
 | End-to-end, real audio | `flutter test integration_test/app_test.dart --dart-define=ENCORE_TEST=true -d <device>` |
 | Android background playback | `sh tool/android_background_check.sh <device>` |
+| Android release APK | `sh tool/android_release_check.sh <apk> <device>` |
+| Windows release build | `powershell -File tool/windows_release_check.ps1 <folder>` |
+| Any release binary | `encore --self-test` (plays a song, exits 0 or 1) |
 | Linux, in Docker | `docker build -t encore-linux-test tool/linux_test` then `docker run --rm -v "$PWD:/src" encore-linux-test` |
 | Frame timings | `flutter drive --profile --no-dds --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |
 

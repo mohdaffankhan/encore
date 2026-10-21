@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'app.dart';
+import 'self_test.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
+import 'services/storage.dart';
 import 'ui/art_colors.dart';
 
-Future<void> main() async {
+Future<void> main([List<String> args = const []]) async {
+  final selfTest = args.contains('--self-test');
+  if (selfTest) useTestData();
   WidgetsFlutterBinding.ensureInitialized();
   // A song is ~3-8 MB; mpv's default 32 MB read-ahead buffer is wasted RAM.
   JustAudioMediaKit.bufferSize = 8 * 1024 * 1024;
@@ -34,4 +38,5 @@ Future<void> main() async {
   await userLibrary.load();
   watchNowPlayingColor();
   runApp(const EncoreApp());
+  if (selfTest) await runSelfTest();
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The notification icons are looked up by name at runtime, so the release
+     resource shrinker can't see they are used. Without them Android rejects
+     the player notification and kills the app as playback starts. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_encore,@drawable/audio_service_*" />
