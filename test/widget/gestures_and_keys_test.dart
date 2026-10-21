@@ -1,5 +1,6 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/ui/pages/search_page.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shortcuts.dart';
 import 'package:encore/ui/theme.dart';
@@ -54,6 +55,21 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       expect(cursor(tester), lessThan(8));
+    });
+
+    testWidgets('the search box spans the page on desktop', (tester) async {
+      await focusSearch(tester);
+      final page = tester.getSize(find.byType(SearchPage));
+      final box = tester.getSize(find.byType(SearchBar));
+      // Only the page's side padding is left over.
+      expect(box.width, greaterThan(page.width - 2 * 48));
+    });
+
+    testWidgets('the search box spans the page on phones', (tester) async {
+      await pumpApp(tester, const Size(400, 860));
+      await tester.tap(find.text('Search').last);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byType(SearchBar)).width, 400 - 2 * 16);
     });
 
     testWidgets('Esc leaves the search box', (tester) async {
