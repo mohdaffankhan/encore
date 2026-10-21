@@ -96,6 +96,7 @@ class _FullPlayerState extends State<FullPlayer> {
                 )
               : const SizedBox.shrink(),
         ),
+        const SleepTimerButton(size: 24, color: EncoreColors.text),
         TrackMenu(track, color: EncoreColors.text),
       ],
     ),

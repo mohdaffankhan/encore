@@ -7,6 +7,7 @@ import 'package:encore/main.dart' as app;
 import 'package:encore/services/downloads.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/sleep_timer.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shell.dart';
 import 'package:encore/ui/widgets/widgets.dart';
@@ -15,6 +16,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 
 // End-to-end journey through the real app: real network, real audio.
@@ -44,6 +46,34 @@ void main() {
       () => _until(tester, find.byType(ShelfView)),
     );
     await shots.take(tester, '1_home');
+
+    // A song from a home section queues the rest of that section after it.
+    final section = tester
+        .widgetList<ShelfView>(find.byType(ShelfView))
+        .map((v) => v.shelf.tracks)
+        .firstWhere((t) => t.length >= 3);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byWidgetPredicate(
+              (w) => w is ShelfView && identical(w.shelf.tracks, section),
+            ),
+            matching: find.byType(TrackTile),
+          )
+          .at(1),
+    );
+    await _step(
+      'section song plays',
+      () => _untilTrue(
+        tester,
+        () => player.audio.playing && player.current == section[1],
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+    // The whole section is queued, starting at the tapped song.
+    expect(player.queue.value.take(section.length).toList(), section);
+    expect(player.index.value, 1);
+    await player.audio.pause();
 
     // Search for a song.
     await tester.tap(find.text('Search').first);
@@ -140,6 +170,43 @@ void main() {
     );
     _log('next track', 'ok');
 
+    // Sleep timer, end of song: pauses there with the next song lined up.
+    final ending = player.index.value;
+    sleepTimer.untilEndOfSong();
+    await _untilTrue(tester, () => player.audio.duration != null);
+    await player.audio.seek(
+      player.audio.duration! - const Duration(seconds: 3),
+    );
+    await _step(
+      'sleep timer: end of song',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.index.value == ending + 1 &&
+            !player.loading.value &&
+            player.audio.processingState == ProcessingState.ready,
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+    expect(player.audio.playing, isFalse, reason: 'paused at the song end');
+    expect(sleepTimer.setting.value, isNull, reason: 'timer turned off');
+
+    // Sleep timer, timed: fades out, pauses, then gives the volume back.
+    player.audio.play();
+    await _untilTrue(tester, () => player.audio.playing);
+    final volume = player.audio.volume;
+    sleepTimer.set(const Duration(seconds: 12));
+    await tester.pump(const Duration(seconds: 6));
+    expect(player.audio.playing, isTrue);
+    await _step(
+      'sleep timer: fades and pauses',
+      () => _untilTrue(tester, () => !player.audio.playing),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(player.audio.volume, volume, reason: 'volume restored');
+    expect(sleepTimer.setting.value, isNull);
+    player.audio.play();
+
     // Download, then play offline from the file.
     downloads.download([track]);
     await _step(
@@ -189,6 +256,13 @@ Future<void> _checkBackgroundPlayback() async {
   _log('background playback', 'ok (+${advanced.inSeconds}s with screen off)');
   // Stay alive while the host presses the media "next" key.
   await Future<void>.delayed(const Duration(seconds: 20));
+
+  // The sleep timer still fires with the screen off.
+  expect(player.audio.playing, isTrue);
+  sleepTimer.set(const Duration(seconds: 12));
+  await Future<void>.delayed(const Duration(seconds: 16));
+  expect(player.audio.playing, isFalse, reason: 'sleep timer, screen off');
+  _log('sleep timer in background', 'ok');
 }
 
 bool isWideLayout(WidgetTester tester) =>

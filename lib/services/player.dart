@@ -8,6 +8,7 @@ import '../api/stream.dart';
 import '../models.dart';
 import 'downloads.dart';
 import 'library.dart';
+import 'sleep_timer.dart';
 import 'youtube_audio_source.dart';
 
 final player = Player();
@@ -73,14 +74,17 @@ class Player {
     queue.value = q;
   }
 
-  Future<void> next() async {
+  /// Moves to the next song; with [autoplay] false it is loaded paused.
+  Future<void> next({bool autoplay = true}) async {
     if (index.value + 1 < queue.value.length) {
-      await _playAt(index.value + 1);
+      await _playAt(index.value + 1, autoplay: autoplay);
     } else if (repeat.value == Repeat.all && queue.value.isNotEmpty) {
-      await _playAt(0);
+      await _playAt(0, autoplay: autoplay);
     } else if (current case final track?) {
       await _extendWithRadio(track);
-      if (index.value + 1 < queue.value.length) await _playAt(index.value + 1);
+      if (index.value + 1 < queue.value.length) {
+        await _playAt(index.value + 1, autoplay: autoplay);
+      }
     }
   }
 
@@ -123,7 +127,11 @@ class Player {
   }
 
   void _onCompleted() {
-    if (repeat.value == Repeat.one) {
+    // Sleep timer set to the end of the song: line up the next one, paused.
+    if (sleepTimer.takeEndOfSong()) {
+      audio.pause();
+      next(autoplay: false);
+    } else if (repeat.value == Repeat.one) {
       audio.seek(Duration.zero);
       audio.play();
     } else {
@@ -143,7 +151,7 @@ class Player {
     }
   }
 
-  Future<void> _playAt(int i) async {
+  Future<void> _playAt(int i, {bool autoplay = true}) async {
     if (i < 0 || i >= queue.value.length) return;
     index.value = i;
     final track = queue.value[i];
@@ -162,8 +170,10 @@ class Player {
       }
       if (index.value != i) return; // skipped while resolving
       await audio.setAudioSource(source).timeout(const Duration(seconds: 20));
-      audio.play();
-      userLibrary.addPlayed(track);
+      if (autoplay) {
+        audio.play();
+        userLibrary.addPlayed(track);
+      }
       if (i == queue.value.length - 1 && repeat.value != Repeat.all) {
         unawaited(_extendWithRadio(track));
       }

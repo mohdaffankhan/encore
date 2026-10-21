@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
 import '../../services/player.dart';
+import '../pages/collection_page.dart';
+import '../shell.dart';
 import '../theme.dart';
 import 'artwork.dart';
 import 'common.dart';
@@ -21,8 +24,14 @@ class ShelfView extends StatelessWidget {
         title: shelf.title,
         tracks: shelf.tracks,
         action: TextButton(
-          onPressed: () => player.playList(shelf.tracks, 0),
-          child: const Text('Play all'),
+          onPressed: () => openPage(
+            CollectionPage.local(
+              title: shelf.title,
+              icon: Icons.queue_music_rounded,
+              tracks: FixedValue(shelf.tracks),
+            ),
+          ),
+          child: const Text('View all'),
         ),
       );
     }
@@ -36,7 +45,7 @@ class ShelfView extends StatelessWidget {
 }
 
 /// Songs as horizontally paged columns of four rows, like YouTube Music's
-/// quick picks.
+/// quick picks. Tapping one plays the section from there, then its radio.
 class TrackPages extends StatelessWidget {
   const TrackPages({
     super.key,
@@ -75,7 +84,7 @@ class TrackPages extends StatelessWidget {
                 child: TrackTile(
                   track: tracks[i],
                   padding: EdgeInsets.zero,
-                  onTap: () => player.playRadio(tracks[i]),
+                  onTap: () => player.playList(tracks, i),
                 ),
               ),
           ],
@@ -83,6 +92,20 @@ class TrackPages extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A list that never changes, for pages that take a [ValueListenable].
+class FixedValue<T> implements ValueListenable<T> {
+  const FixedValue(this.value);
+
+  @override
+  final T value;
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
 }
 
 /// Compact tiles in a grid for jumping back into recent songs.
@@ -111,8 +134,11 @@ class QuickGrid extends StatelessWidget {
             spacing: spacing,
             runSpacing: spacing,
             children: [
-              for (final t in tracks.take(columns * 2))
-                SizedBox(width: tileWidth, child: _QuickTile(t)),
+              for (final (i, t) in tracks.take(columns * 2).indexed)
+                SizedBox(
+                  width: tileWidth,
+                  child: _QuickTile(t, () => player.playList(tracks, i)),
+                ),
             ],
           ),
         );
@@ -122,9 +148,10 @@ class QuickGrid extends StatelessWidget {
 }
 
 class _QuickTile extends StatelessWidget {
-  const _QuickTile(this.track);
+  const _QuickTile(this.track, this.onTap);
 
   final Track track;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +160,7 @@ class _QuickTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => player.playRadio(track),
+        onTap: onTap,
         child: Row(
           children: [
             Artwork(track.artUrl, size: 56, radius: 0),

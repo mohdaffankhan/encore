@@ -92,6 +92,7 @@ class NowPlayingBar extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    const SleepTimerButton(size: 20),
                     IconButton(
                       tooltip: 'Lyrics',
                       iconSize: 20,

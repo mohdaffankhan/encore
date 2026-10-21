@@ -51,6 +51,14 @@ android {
     }
 
     buildTypes {
+        // Test builds install next to the real app (never over it, which
+        // would wipe its likes, history and downloads).
+        debug {
+            applicationIdSuffix = ".test"
+        }
+        getByName("profile") {
+            applicationIdSuffix = ".test"
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
                 ?: signingConfigs.getByName("debug")

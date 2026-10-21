@@ -134,13 +134,13 @@ Android releases are signed with a key stored as repository secrets
 |---|---|
 | Unit + widget (offline) | `flutter test test/unit test/widget` |
 | Live API checks | `flutter test test/live` |
-| End-to-end, real audio | `flutter test integration_test/app_test.dart --dart-define=ENCORE_TEST=true -d <device>` |
-| Android background playback | `sh tool/android_background_check.sh <device>` |
+| End-to-end, real audio (desktop) | `flutter test integration_test/app_test.dart --dart-define=ENCORE_TEST=true -d windows` |
+| End-to-end on Android, with background playback | `sh tool/android_background_check.sh <device>` (never plain `flutter test` on a phone with Encore installed: it uninstalls it) |
 | Android release APK | `sh tool/android_release_check.sh <apk> <device>` |
 | Windows release build | `powershell -File tool/windows_release_check.ps1 <folder>` |
 | Any release binary | `encore --self-test` (plays a song, exits 0 or 1) |
 | Linux, in Docker | `docker build -t encore-linux-test tool/linux_test` then `docker run --rm -v "$PWD:/src" encore-linux-test` |
-| Frame timings | `flutter drive --profile --no-dds --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |
+| Frame timings | `flutter drive --profile --no-dds --no-uninstall --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |
 
 `ENCORE_TEST` keeps the tests' likes, history and downloads separate from
 your own. End-to-end tests run a debug build, so they look slower than the
