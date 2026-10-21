@@ -27,10 +27,14 @@ powershell -ExecutionPolicy Bypass -File tool/windows_release_check.ps1 \
   "$(cygpath -w "$dir/portable")" || fail=1
 
 log "--- Windows: installer"
-# Installs into the check folder and uninstalls after, so it would replace
-# a real Encore install on this PC; skip the installer then.
+# Like a user updating: run it over the Encore installed on this PC and
+# play a song in it. With none installed, install into a test folder and
+# remove it after.
 if reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1E2A57-3C8B-4E7D-9A41-2B5C0D8E9F13}_is1' > /dev/null 2>&1; then
-  log "skipped: Encore is installed on this PC"
+  taskkill //IM encore.exe //F > /dev/null 2>&1
+  "$dir/encore-windows-setup.exe" //VERYSILENT //SUPPRESSMSGBOXES //NORESTART || fail=1
+  powershell -ExecutionPolicy Bypass -File tool/windows_release_check.ps1 \
+    "$(cygpath -w "$LOCALAPPDATA/Programs/Encore")" || fail=1
 else
   installed=$(cygpath -w "$PWD/$dir/installed")
   "$dir/encore-windows-setup.exe" //VERYSILENT //SUPPRESSMSGBOXES //NORESTART \

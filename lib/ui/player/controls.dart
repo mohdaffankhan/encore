@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/player.dart';
 import '../theme.dart';
@@ -19,12 +20,15 @@ class TransportControls extends StatelessWidget {
       mainAxisSize: large ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          tooltip: 'Shuffle up next',
-          iconSize: side,
-          color: EncoreColors.textSecondary,
-          icon: const Icon(Icons.shuffle_rounded),
-          onPressed: player.shuffleUpNext,
+        ValueListenableBuilder(
+          valueListenable: player.shuffle,
+          builder: (context, on, _) => _ModeButton(
+            tooltip: on ? 'Shuffle on' : 'Shuffle off',
+            icon: Icons.shuffle_rounded,
+            size: side,
+            on: on,
+            onPressed: player.toggleShuffle,
+          ),
         ),
         IconButton(
           tooltip: 'Previous',
@@ -41,25 +45,77 @@ class TransportControls extends StatelessWidget {
         ),
         ValueListenableBuilder(
           valueListenable: player.repeat,
-          builder: (context, mode, _) => IconButton(
+          builder: (context, mode, _) => _ModeButton(
             tooltip: switch (mode) {
-              Repeat.off => 'Repeat',
+              Repeat.off => 'Repeat off',
               Repeat.all => 'Repeat all',
               Repeat.one => 'Repeat one',
             },
-            iconSize: side,
-            icon: Icon(
-              mode == Repeat.one
-                  ? Icons.repeat_one_rounded
-                  : Icons.repeat_rounded,
-            ),
-            color: mode == Repeat.off
-                ? EncoreColors.textSecondary
-                : EncoreColors.accent,
+            icon: mode == Repeat.one
+                ? Icons.repeat_one_rounded
+                : Icons.repeat_rounded,
+            size: side,
+            on: mode != Repeat.off,
             onPressed: player.cycleRepeat,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shuffle and repeat: orange with a dot under it while on (like Spotify),
+/// a pop when pressed, and a light tap on phones, so the change is felt.
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    required this.tooltip,
+    required this.icon,
+    required this.size,
+    required this.on,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final double size;
+  final bool on;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = on ? EncoreColors.accent : EncoreColors.textSecondary;
+    return IconButton(
+      tooltip: tooltip,
+      isSelected: on,
+      onPressed: () {
+        HapticFeedback.selectionClick();
+        onPressed();
+      },
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Keyed by state, so each change pops in.
+          TweenAnimationBuilder<double>(
+            key: ValueKey('$icon $on'),
+            tween: Tween(begin: 0.7, end: 1),
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.elasticOut,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: Icon(icon, size: size, color: color),
+          ),
+          const SizedBox(height: 2),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: on ? EncoreColors.accent : Colors.transparent,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

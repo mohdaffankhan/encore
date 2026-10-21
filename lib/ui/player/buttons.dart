@@ -5,6 +5,7 @@ import '../../services/library.dart';
 import '../../services/player.dart';
 import '../../services/sleep_timer.dart';
 import '../theme.dart';
+import '../widgets/sleep_timer_picker.dart';
 
 /// Play/pause, with a spinner while a song loads. [circle] draws it as the
 /// white disc used for primary controls.
@@ -84,92 +85,26 @@ class LikeButton extends StatelessWidget {
   }
 }
 
-/// The sleep timer: pause after a while, or at the end of the song.
-/// Highlighted while it is set.
-class SleepTimerButton extends StatelessWidget {
-  const SleepTimerButton({super.key, this.size = 22, this.color});
+/// A moon shown while the sleep timer is on (it is set from the ⋯ menu);
+/// tap it to change or turn off the timer.
+class SleepTimerIndicator extends StatelessWidget {
+  const SleepTimerIndicator({super.key, this.size = 22});
 
   final double size;
-  final Color? color;
-
-  static const _durations = [
-    Duration(minutes: 15),
-    Duration(minutes: 30),
-    Duration(minutes: 45),
-    Duration(hours: 1),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
       valueListenable: sleepTimer.setting,
-      builder: (context, setting, _) => PopupMenuButton<VoidCallback>(
-        tooltip: setting == null ? 'Sleep timer' : _status(),
-        icon: Icon(
-          setting == null ? Icons.bedtime_outlined : Icons.bedtime_rounded,
-          size: size,
-          color: setting == null
-              ? color ?? EncoreColors.textSecondary
-              : EncoreColors.accent,
-        ),
-        position: PopupMenuPosition.under,
-        onSelected: (action) => action(),
-        itemBuilder: (_) {
-          PopupMenuItem<VoidCallback> item(
-            String label,
-            VoidCallback action, {
-            bool selected = false,
-          }) => PopupMenuItem(
-            value: action,
-            height: 44,
-            child: Row(
-              children: [
-                Expanded(child: Text(label)),
-                if (selected)
-                  const Icon(
-                    Icons.check_rounded,
-                    size: 18,
-                    color: EncoreColors.accent,
-                  ),
-              ],
+      builder: (context, setting, _) => setting == null
+          ? const SizedBox.shrink()
+          : IconButton(
+              tooltip: sleepTimerStatus() ?? 'Sleep timer',
+              iconSize: size,
+              color: EncoreColors.accent,
+              icon: const Icon(Icons.bedtime_rounded),
+              onPressed: () => showSleepTimer(context),
             ),
-          );
-          return [
-            if (setting != null) ...[
-              PopupMenuItem(
-                enabled: false,
-                height: 36,
-                child: Text(
-                  _status(),
-                  style: const TextStyle(
-                    color: EncoreColors.accent,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              item('Turn off', sleepTimer.cancel),
-              const PopupMenuDivider(),
-            ],
-            for (final d in _durations)
-              item(
-                d.inMinutes < 60 ? '${d.inMinutes} minutes' : '1 hour',
-                () => sleepTimer.set(d),
-              ),
-            item(
-              'End of song',
-              sleepTimer.untilEndOfSong,
-              selected: setting?.endOfSong ?? false,
-            ),
-          ];
-        },
-      ),
     );
-  }
-
-  static String _status() {
-    final left = sleepTimer.remaining;
-    if (left == null) return 'Pausing at the end of this song';
-    final minutes = (left.inSeconds / 60).ceil();
-    return 'Pausing in $minutes min';
   }
 }

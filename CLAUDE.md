@@ -24,3 +24,22 @@ project's app id, which removes the REAL app. Use
 test app, fails if the real app goes missing), or add `--no-uninstall` and
 remove `dev.encore.app.test` yourself. Release checks use `adb install -r`,
 which keeps data.
+
+## Features and tests
+
+`FEATURES.md` lists every feature and fixed bug with the tests covering it.
+Each change adds or updates its row and its tests (a test that fails
+without the change). Before saying something works, run the offline tests,
+the Windows e2e (`tool/windows_keyboard_check.ps1`) and, with the phone
+connected, the Android e2e and release check. When a test fails, find the
+cause before running it again.
+
+## Latest build on the owner's devices
+
+After changes are tested, keep the newest build installed on the phone
+(`adb install -r` of the release APK, keeping the library) whenever it is
+connected, and on this PC (the Windows installer, replacing the old one).
+
+Bump `version:` in pubspec.yaml (name and +build number) for every build
+installed on the owner's devices; GitHub builds use that same number, so
+an official release always installs over a test build.

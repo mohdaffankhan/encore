@@ -8,6 +8,7 @@ import '../theme.dart';
 import '../widgets/widgets.dart';
 import 'buttons.dart';
 import 'controls.dart';
+import 'lyrics_sheet.dart';
 import 'lyrics_view.dart';
 import 'swipe_to_skip.dart';
 import 'up_next.dart';
@@ -18,6 +19,8 @@ enum PlayerView { song, lyrics, queue }
 void openFullPlayer(BuildContext context, {PlayerView view = PlayerView.song}) {
   Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder(
+      // Not opaque: pulling the player down shows the app behind it.
+      opaque: false,
       transitionDuration: const Duration(milliseconds: 280),
       reverseTransitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (_, _, _) => FullPlayer(initialView: view),
@@ -51,36 +54,89 @@ class FullPlayer extends StatefulWidget {
   State<FullPlayer> createState() => _FullPlayerState();
 }
 
-class _FullPlayerState extends State<FullPlayer> {
+class _FullPlayerState extends State<FullPlayer>
+    with SingleTickerProviderStateMixin {
   late var _view = widget.initialView;
 
-  /// How far the current vertical drag has gone (negative is up).
-  double _dragUp = 0;
+  /// Phones: how far the player is pulled down (to close it).
+  late final _pull = AnimationController.unbounded(vsync: this);
 
-  /// Phones: swiping up on the song shows its lyrics.
-  void _endSwipeUp(DragEndDetails details) {
+  /// Phones: lyrics are a sheet over the song, not a view of their own.
+  final _lyrics = LyricsSheetController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialView == PlayerView.lyrics) _lyrics.open.value = true;
+  }
+
+  @override
+  void dispose() {
+    _lyrics.dispose();
+    _pull.dispose();
+    super.dispose();
+  }
+
+  /// Phones: a vertical drag on the song pulls the lyrics sheet up or, with
+  /// the sheet closed, pulls the player down to close it. Both follow the
+  /// finger.
+  void _dragUpdate(DragUpdateDetails details) {
+    final dy = details.delta.dy;
+    if (_pull.value > 0 || (dy > 0 && _lyrics.isClosed)) {
+      _pull.value = (_pull.value + dy).clamp(0, double.infinity);
+    } else {
+      _lyrics.dragBy(dy);
+    }
+  }
+
+  void _dragEnd(DragEndDetails details) {
     final v = details.primaryVelocity ?? 0;
-    if (_dragUp < -80 || v < -500) setState(() => _view = PlayerView.lyrics);
-    _dragUp = 0;
+    if (_pull.value > 0) {
+      if (_pull.value > 150 || v > 700) {
+        Navigator.pop(context);
+      } else {
+        _pull.animateTo(
+          0,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    } else {
+      _lyrics.endDrag(v);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
-    // Phones: Back from lyrics or up next returns to the song first.
-    return PopScope(
-      canPop: wide || _view == PlayerView.song,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _view = PlayerView.song);
-      },
-      child: _scaffold(),
+    // Phones: Back closes the lyrics or up next before the player.
+    return ValueListenableBuilder(
+      valueListenable: _lyrics.open,
+      builder: (context, lyricsOpen, child) => PopScope(
+        canPop: wide || (_view != PlayerView.queue && !lyricsOpen),
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (lyricsOpen) {
+            _lyrics.close();
+          } else {
+            setState(() => _view = PlayerView.song);
+          }
+        },
+        child: child!,
+      ),
+      child: AnimatedBuilder(
+        animation: _pull,
+        builder: (context, child) =>
+            Transform.translate(offset: Offset(0, _pull.value), child: child),
+        child: _scaffold(),
+      ),
     );
   }
 
   Widget _scaffold() {
     return Scaffold(
       body: ValueListenableBuilder(
-        valueListenable: player.index,
+        valueListenable: player.nowPlaying,
         builder: (context, _, _) {
           final track = player.current;
           if (track == null) return const SizedBox.expand();
@@ -118,48 +174,70 @@ class _FullPlayerState extends State<FullPlayer> {
               ? Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: _ViewTabs(_view, (v) => setState(() => _view = v)),
+                    child: _ViewTabs(
+                      _view == PlayerView.queue
+                          ? PlayerView.queue
+                          : PlayerView.song,
+                      (v) => setState(() => _view = v),
+                      includeLyrics: false,
+                    ),
                   ),
                 )
               : const SizedBox.shrink(),
         ),
-        const SleepTimerButton(size: 24, color: EncoreColors.text),
-        TrackMenu(track, color: EncoreColors.text),
+        const SleepTimerIndicator(size: 24),
+        TrackMenu(track, color: EncoreColors.text, inPlayer: true),
       ],
     ),
   );
 
   Widget _narrow(Track track) {
-    final onSong = _view == PlayerView.song;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onVerticalDragUpdate: onSong ? (d) => _dragUp += d.delta.dy : null,
-      onVerticalDragEnd: onSong ? _endSwipeUp : null,
-      child: _narrowContent(track, onSong),
-    );
-  }
-
-  Widget _narrowContent(Track track, bool onSong) {
-    return Column(
+    final onSong = _view != PlayerView.queue;
+    return Stack(
       children: [
-        _topBar(track),
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: switch (_view) {
-              PlayerView.song => Padding(
-                key: const ValueKey('song'),
-                padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-                child: Center(child: SwipeToSkip(child: _BigArt(track))),
+        Column(
+          children: [
+            _topBar(track),
+            Expanded(
+              // Swipe up on the song for lyrics, down to close the player.
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragUpdate: onSong ? _dragUpdate : null,
+                onVerticalDragEnd: onSong ? _dragEnd : null,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: onSong
+                            ? Padding(
+                                key: const ValueKey('song'),
+                                padding: const EdgeInsets.fromLTRB(
+                                  28,
+                                  24,
+                                  28,
+                                  8,
+                                ),
+                                child: Center(
+                                  child: SwipeToSkip(child: _BigArt(track)),
+                                ),
+                              )
+                            : const UpNext(key: ValueKey('queue')),
+                      ),
+                    ),
+                    _NowPlayingInfo(track),
+                    // Room for the closed lyrics sheet.
+                    if (onSong) const SizedBox(height: LyricsSheet.barHeight),
+                  ],
+                ),
               ),
-              PlayerView.lyrics => LyricsView(track, key: ValueKey(track.id)),
-              PlayerView.queue => const UpNext(key: ValueKey('queue')),
-            },
-          ),
+            ),
+          ],
         ),
-        _NowPlayingInfo(track),
         if (onSong)
-          _LyricsHint(() => setState(() => _view = PlayerView.lyrics)),
+          Positioned.fill(
+            child: LyricsSheet(track: track, controller: _lyrics),
+          ),
       ],
     );
   }
@@ -224,48 +302,21 @@ class _FullPlayerState extends State<FullPlayer> {
   }
 }
 
-/// The "swipe up for lyrics" cue under the controls on phones.
-class _LyricsHint extends StatelessWidget {
-  const _LyricsHint(this.onTap);
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: const Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.keyboard_arrow_up_rounded,
-              color: EncoreColors.textTertiary,
-            ),
-            Text(
-              'Lyrics',
-              style: TextStyle(
-                color: EncoreColors.textTertiary,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Pill tabs: Song / Lyrics / Up next.
+/// Pill tabs: Song / Lyrics / Up next (Song / Up next on phones).
 class _ViewTabs extends StatelessWidget {
-  const _ViewTabs(this.selected, this.onSelect, {this.includeSong = true});
+  const _ViewTabs(
+    this.selected,
+    this.onSelect, {
+    this.includeSong = true,
+    this.includeLyrics = true,
+  });
 
   final PlayerView selected;
   final ValueChanged<PlayerView> onSelect;
   final bool includeSong;
+
+  /// Phones show lyrics in a sheet instead of a tab.
+  final bool includeLyrics;
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +335,8 @@ class _ViewTabs extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final view in labels.keys)
-            if (includeSong || view != PlayerView.song)
+            if ((includeSong || view != PlayerView.song) &&
+                (includeLyrics || view != PlayerView.lyrics))
               GestureDetector(
                 onTap: () => onSelect(view),
                 child: AnimatedContainer(

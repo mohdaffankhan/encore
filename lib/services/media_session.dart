@@ -12,7 +12,7 @@ class EncoreAudioHandler extends BaseAudioHandler with SeekHandler {
     audio.playbackEventStream.listen((_) => _broadcastState());
     audio.playingStream.listen((_) => _broadcastState());
     audio.durationStream.listen((_) => _broadcastItem());
-    player.index.addListener(_broadcastItem);
+    player.nowPlaying.addListener(_broadcastItem);
   }
 
   static const _states = {

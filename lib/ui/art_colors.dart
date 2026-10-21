@@ -12,7 +12,7 @@ final nowPlayingColor = ValueNotifier<Color?>(null);
 
 final _cache = <String, Color?>{};
 
-void watchNowPlayingColor() => player.index.addListener(() async {
+void watchNowPlayingColor() => player.nowPlaying.addListener(() async {
   final url = player.current?.artUrl;
   if (url == null) return;
   final color = await artColor(url);

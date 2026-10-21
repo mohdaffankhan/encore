@@ -10,10 +10,25 @@ import '../widgets/common.dart';
 
 /// Lyrics for [track]. Synced lyrics follow playback (only rebuilding when
 /// the line changes) and can be tapped to seek.
+///
+/// Inside the phone lyrics sheet it scrolls with the sheet's [controller],
+/// with the sheet's [header] as part of the same scroll, so dragging
+/// anywhere on the sheet moves it. It only follows the song while [visible]
+/// is true (the sheet is open), and jumps to the current line when it
+/// becomes visible.
 class LyricsView extends StatefulWidget {
-  const LyricsView(this.track, {super.key});
+  const LyricsView(
+    this.track, {
+    super.key,
+    this.controller,
+    this.header,
+    this.visible,
+  });
 
   final Track track;
+  final ScrollController? controller;
+  final Widget? header;
+  final ValueNotifier<bool>? visible;
 
   @override
   State<LyricsView> createState() => _LyricsViewState();
@@ -25,10 +40,32 @@ class _LyricsViewState extends State<LyricsView> {
   StreamSubscription<Duration>? _position;
   int _line = -1;
 
+  bool get _visible => widget.visible?.value ?? true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.visible?.addListener(_onVisible);
+  }
+
+  @override
+  void didUpdateWidget(LyricsView old) {
+    super.didUpdateWidget(old);
+    if (old.visible != widget.visible) {
+      old.visible?.removeListener(_onVisible);
+      widget.visible?.addListener(_onVisible);
+    }
+  }
+
   @override
   void dispose() {
+    widget.visible?.removeListener(_onVisible);
     _position?.cancel();
     super.dispose();
+  }
+
+  void _onVisible() {
+    if (_visible) _showLine(_line, animate: false);
   }
 
   void _follow(List<LyricLine> lines) {
@@ -38,55 +75,93 @@ class _LyricsViewState extends State<LyricsView> {
       final line = lines.lastIndexWhere((l) => l.time <= pos);
       if (line == _line || !mounted) return;
       setState(() => _line = line);
-      final ctx = line >= 0 ? _keys[line].currentContext : null;
-      if (ctx != null && ctx.mounted) {
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.35,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-      }
+      _showLine(line);
     });
+  }
+
+  /// Scrolls the current line into view, unless the sheet is closed (it
+  /// would scroll the header out of the closed sheet's bar).
+  void _showLine(int line, {bool animate = true}) {
+    if (!_visible || line < 0 || line >= _keys.length) return;
+    final ctx = _keys[line].currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.35,
+      duration: animate ? const Duration(milliseconds: 350) : Duration.zero,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     return FutureBuilder(
       future: _lyrics,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(
+      builder: (context, snapshot) => CustomScrollView(
+        controller: widget.controller,
+        slivers: [
+          if (widget.header case final header?)
+            SliverToBoxAdapter(child: header),
+          ..._body(context, snapshot),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _body(BuildContext context, AsyncSnapshot<Lyrics?> snapshot) {
+    Widget fill(Widget child) =>
+        SliverFillRemaining(hasScrollBody: false, child: child);
+    if (snapshot.connectionState != ConnectionState.done) {
+      return [
+        fill(
+          const Center(
             child: CircularProgressIndicator(color: EncoreColors.text),
-          );
-        }
-        if (snapshot.hasError) {
-          return ErrorRetry(
+          ),
+        ),
+      ];
+    }
+    if (snapshot.hasError) {
+      return [
+        fill(
+          ErrorRetry(
             message: "Couldn't load lyrics.",
             onRetry: () => setState(() => _lyrics = lyricsFor(widget.track)),
-          );
-        }
-        final lyrics = snapshot.data;
-        if (lyrics == null) {
-          return const Message(
+          ),
+        ),
+      ];
+    }
+    final lyrics = snapshot.data;
+    if (lyrics == null) {
+      return [
+        fill(
+          const Message(
             icon: Icons.lyrics_outlined,
             text: 'No lyrics for this song',
-          );
-        }
-        if (lyrics.synced.isEmpty) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
+          ),
+        ),
+      ];
+    }
+    final text = Theme.of(context).textTheme;
+    if (lyrics.synced.isEmpty) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.all(28),
+          sliver: SliverToBoxAdapter(
             child: Text(
               lyrics.plain,
               style: text.titleMedium?.copyWith(height: 1.7),
             ),
-          );
-        }
-        final lines = lyrics.synced;
-        _follow(lines);
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
+          ),
+        ),
+      ];
+    }
+    final lines = lyrics.synced;
+    _follow(lines);
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
+        // All lines built (not lazily), so any line can be scrolled to.
+        sliver: SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -113,8 +188,8 @@ class _LyricsViewState extends State<LyricsView> {
                 ),
             ],
           ),
-        );
-      },
-    );
+        ),
+      ),
+    ];
   }
 }

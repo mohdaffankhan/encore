@@ -103,6 +103,34 @@ void main() {
     );
     await shots.take(tester, '3_playing');
 
+    // More songs from the same search: each replaces the queue (at index 0
+    // again), and the player must show each one (it used to keep showing
+    // the earlier song). Then back to the first.
+    final wide = isWideLayout(tester);
+    final bar = find.byType(wide ? NowPlayingBar : MiniPlayer);
+    final results = tester
+        .widgetList<TrackTile>(find.byType(TrackTile))
+        .map((t) => t.track)
+        .toList();
+    for (final i in [1, 2, 0]) {
+      await tester.tap(find.byType(TrackTile).at(i));
+      await _step(
+        'search result ${i + 1} shown in the player',
+        () => _untilTrue(
+          tester,
+          () =>
+              player.current == results[i] &&
+              player.audio.playing &&
+              find
+                  .descendant(of: bar, matching: find.text(results[i].title))
+                  .evaluate()
+                  .isNotEmpty,
+          timeout: const Duration(seconds: 60),
+        ),
+      );
+    }
+    expect(player.current, track);
+
     // Keyboard: space toggles, arrows seek, L likes.
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pump();
@@ -122,11 +150,14 @@ void main() {
     _log('keyboard shortcuts', 'ok');
 
     // Full player with lyrics and up next.
-    // Decided before the full player covers the player bar.
-    final wide = isWideLayout(tester);
-    final bar = find.byType(wide ? NowPlayingBar : MiniPlayer);
-    await tester.tap(
-      find.descendant(of: bar, matching: find.byType(Artwork)).first,
+    // Desktop: clicking empty space on the player bar opens it; phones:
+    // tapping the mini player.
+    await tester.tapAt(
+      wide
+          ? tester.getTopLeft(bar) + const Offset(6, 44)
+          : tester.getCenter(
+              find.descendant(of: bar, matching: find.byType(Artwork)).first,
+            ),
     );
     await tester.pumpAndSettle();
     expect(find.byType(FullPlayer), findsOneWidget);
@@ -390,6 +421,7 @@ Future<void> _untilTrue(
         'position: ${player.audio.position}, '
         'error: ${player.error.value}, '
         'typing: ${PlayerShortcuts.isTyping}, '
+        'keys down: ${HardwareKeyboard.instance.logicalKeysPressed}, '
         'focus: ${FocusManager.instance.primaryFocus})',
       );
     }

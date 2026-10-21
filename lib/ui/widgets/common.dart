@@ -14,6 +14,20 @@ String formatDuration(Duration d) {
 /// Whether the layout has room for desktop chrome (sidebar, player bar).
 bool isWide(BuildContext context) => MediaQuery.sizeOf(context).width >= 900;
 
+/// A short confirmation along the bottom ("Playing next"), replacing any
+/// that is still showing.
+void showToast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+}
+
 /// Horizontal padding for page content.
 double pagePadding(BuildContext context) => isWide(context) ? 28 : 16;
 

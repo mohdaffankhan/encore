@@ -9,67 +9,76 @@ import 'full_player.dart';
 import 'swipe_to_skip.dart';
 
 /// The compact player above the bottom navigation on phones, tinted with
-/// the artwork's colour. Tap to open the full player; swipe for the next
-/// or previous song.
+/// the artwork's colour. Tap or swipe up to open the full player; swipe
+/// sideways for the next or previous song.
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([player.index, nowPlayingColor]),
+      listenable: Listenable.merge([player.nowPlaying, nowPlayingColor]),
       builder: (context, _) {
         final track = player.current;
         if (track == null) return const SizedBox.shrink();
         return Padding(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-          child: SwipeToSkip(
-            child: Material(
-              color: backdropColor(nowPlayingColor.value),
-              borderRadius: BorderRadius.circular(14),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => openFullPlayer(context),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-                      child: Row(
-                        children: [
-                          Artwork(track.artUrl, size: 44, radius: 8),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  track.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                Text(
-                                  track.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: EncoreColors.text.withValues(
-                                          alpha: 0.7,
+          child: GestureDetector(
+            onVerticalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0) < -200) {
+                openFullPlayer(context);
+              }
+            },
+            child: SwipeToSkip(
+              child: Material(
+                color: backdropColor(nowPlayingColor.value),
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => openFullPlayer(context),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+                        child: Row(
+                          children: [
+                            Artwork(track.artUrl, size: 44, radius: 8),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall,
+                                  ),
+                                  Text(
+                                    track.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: EncoreColors.text.withValues(
+                                            alpha: 0.7,
+                                          ),
                                         ),
-                                      ),
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          LikeButton(track),
-                          const PlayPauseButton(size: 28),
-                        ],
+                            LikeButton(track),
+                            const PlayPauseButton(size: 28),
+                          ],
+                        ),
                       ),
-                    ),
-                    const _ProgressLine(),
-                  ],
+                      const _ProgressLine(),
+                    ],
+                  ),
                 ),
               ),
             ),

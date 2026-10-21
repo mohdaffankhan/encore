@@ -4,10 +4,10 @@ import '../../models.dart';
 import '../../services/downloads.dart';
 import '../../services/library.dart';
 import '../../services/player.dart';
-import '../shell.dart';
 import '../theme.dart';
 import 'artwork.dart';
 import 'common.dart';
+import 'track_menu.dart';
 
 /// A song row: artwork (or [leading]), title, artist and duration. Highlights
 /// itself while it is the current song.
@@ -39,12 +39,16 @@ class TrackTile extends StatelessWidget {
     return Padding(
       padding: pad,
       child: ValueListenableBuilder(
-        valueListenable: player.index,
+        valueListenable: player.nowPlaying,
         builder: (context, _, _) {
           final current = player.current == track;
           return InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: onTap,
+            // The song's menu: long-press on phones, right-click on desktop.
+            onLongPress: () => showTrackMenu(context, track),
+            onSecondaryTapUp: (details) =>
+                showTrackMenu(context, track, position: details.globalPosition),
             child: LayoutBuilder(
               builder: (context, constraints) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -161,78 +165,6 @@ class _DownloadBadge extends StatelessWidget {
               ),
             )
           : const SizedBox.shrink(),
-    );
-  }
-}
-
-/// The ⋮ menu for a song: queue, radio, like, download, go to artist/album.
-class TrackMenu extends StatelessWidget {
-  const TrackMenu(this.track, {super.key, this.color});
-
-  final Track track;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    PopupMenuItem<VoidCallback> item(
-      IconData icon,
-      String label,
-      VoidCallback action,
-    ) => PopupMenuItem(
-      value: action,
-      height: 44,
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: EncoreColors.textSecondary),
-          const SizedBox(width: 14),
-          Text(label),
-        ],
-      ),
-    );
-    return PopupMenuButton<VoidCallback>(
-      icon: Icon(
-        Icons.more_horiz_rounded,
-        color: color ?? EncoreColors.textSecondary,
-      ),
-      tooltip: 'More',
-      position: PopupMenuPosition.under,
-      onSelected: (action) => action(),
-      itemBuilder: (_) => [
-        item(
-          Icons.playlist_play_rounded,
-          'Play next',
-          () => player.playNext(track),
-        ),
-        item(Icons.radio_rounded, 'Start radio', () => player.playRadio(track)),
-        if (userLibrary.isLiked(track))
-          item(
-            Icons.favorite_rounded,
-            'Remove from liked',
-            () => userLibrary.toggleLike(track),
-          )
-        else
-          item(
-            Icons.favorite_border_rounded,
-            'Like',
-            () => userLibrary.toggleLike(track),
-          ),
-        if (downloads.isDownloaded(track))
-          item(
-            Icons.delete_outline_rounded,
-            'Remove download',
-            () => downloads.remove(track),
-          )
-        else
-          item(
-            Icons.download_rounded,
-            'Download',
-            () => downloads.download([track]),
-          ),
-        if (track.artistId case final id?)
-          item(Icons.person_rounded, 'Go to artist', () => openArtist(id)),
-        if (track.albumId case final id?)
-          item(Icons.album_rounded, 'Go to album', () => openCollection(id)),
-      ],
     );
   }
 }

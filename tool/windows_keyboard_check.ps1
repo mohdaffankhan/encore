@@ -15,23 +15,32 @@ using System; using System.Runtime.InteropServices;
 public static class Win {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  // Windows only lets the foreground window's thread hand over the
+  // foreground, so borrow its input queue for a moment. (Not tapping Alt:
+  // a lone Alt press puts the window in menu mode, which takes keyboard
+  // focus away from the app.)
+  public static bool Bring(IntPtr h) {
+    var fg = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+    var me = GetCurrentThreadId();
+    AttachThreadInput(me, fg, true);
+    SetForegroundWindow(h);
+    AttachThreadInput(me, fg, false);
+    return GetForegroundWindow() == h;
+  }
 }
 '@
   $app = Get-Process encore | Where-Object MainWindowHandle -ne 0 |
     Sort-Object StartTime | Select-Object -Last 1
-  # Windows only lets a background script bring a window to the front right
-  # after a key press, so tap Alt first.
+  $front = $false
   foreach ($try in 1..5) {
-    [Win]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
-    [Win]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-    $null = [Win]::SetForegroundWindow($app.MainWindowHandle)
-    Start-Sleep -Milliseconds 500
-    if ([Win]::GetForegroundWindow() -eq $app.MainWindowHandle) { break }
+    if ([Win]::Bring($app.MainWindowHandle)) { $front = $true; break }
+    Start-Sleep -Milliseconds 300
   }
-  if ([Win]::GetForegroundWindow() -ne $app.MainWindowHandle) {
-    '[host] FAIL: could not bring the Encore window to the front'
-  }
+  if (-not $front) { '[host] FAIL: could not bring the Encore window to the front' }
+  Start-Sleep -Milliseconds 500
   (New-Object -ComObject WScript.Shell).SendKeys('get lucky kl{LEFT}{LEFT}x')
 }
 $test.WaitForExit()

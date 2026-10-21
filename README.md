@@ -134,6 +134,8 @@ Android releases are signed with a key stored as repository secrets
 
 ### Tests
 
+[FEATURES.md](FEATURES.md) lists every feature with the tests that cover it.
+
 | What | Command |
 |---|---|
 | Unit + widget (offline) | `flutter test test/unit test/widget` |

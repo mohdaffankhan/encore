@@ -20,13 +20,30 @@ class Player {
     audio.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) _onCompleted();
     });
+    queue.addListener(_updateNowPlaying);
+    index.addListener(_updateNowPlaying);
   }
+
+  /// The current song. Listen to this, not [index], for song changes: a new
+  /// song from search replaces the queue and is at index 0 again, so
+  /// [index] doesn't change (which left the players showing the old song).
+  final nowPlaying = ValueNotifier<Track?>(null);
+
+  void _updateNowPlaying() => nowPlaying.value = current;
 
   final audio = AudioPlayer();
   final queue = ValueNotifier<List<Track>>([]);
   final index = ValueNotifier<int>(-1);
   final loading = ValueNotifier<bool>(false);
   final repeat = ValueNotifier<Repeat>(Repeat.off);
+
+  /// Shuffle mode: songs after the current one play in random order. It
+  /// stays on for whatever is played next, like YouTube Music and Spotify.
+  final shuffle = ValueNotifier<bool>(false);
+
+  /// While shuffled: the queue in its original order, to go back to when
+  /// shuffle is turned off.
+  List<Track>? _ordered;
   final error = ValueNotifier<String?>(null);
 
   /// Bumped whenever the queue is replaced, so late radio results for an
@@ -43,6 +60,7 @@ class Player {
   /// Plays [track], then continues with its radio.
   Future<void> playRadio(Track track) async {
     _session++;
+    _ordered = shuffle.value ? [track] : null;
     queue.value = [track];
     unawaited(_extendWithRadio(track));
     await _playAt(0);
@@ -55,11 +73,23 @@ class Player {
     bool shuffled = false,
   }) async {
     _session++;
-    if (shuffled) {
-      tracks = [...tracks]..shuffle();
+    if (shuffled) shuffle.value = true;
+    var list = List.of(tracks);
+    _ordered = null;
+    if (shuffle.value && list.isNotEmpty) {
+      _ordered = List.of(tracks);
+      if (shuffled) {
+        // The Shuffle button: start anywhere.
+        list.shuffle();
+      } else {
+        // A song tapped while shuffle is on: that song, then the rest in
+        // random order.
+        final first = list.removeAt(start);
+        list = [first, ...list..shuffle()];
+      }
       start = 0;
     }
-    queue.value = List.of(tracks);
+    queue.value = list;
     await _playAt(start);
   }
 
@@ -72,6 +102,11 @@ class Player {
     }
     final q = [...queue.value]..insert(index.value + 1, track);
     queue.value = q;
+    // Keep it next when shuffle is turned off, too.
+    if (_ordered case final ordered?) {
+      final at = ordered.indexOf(current!);
+      _ordered = [...ordered]..insert(at + 1, track);
+    }
   }
 
   /// Moves to the next song; with [autoplay] false it is loaded paused.
@@ -105,13 +140,33 @@ class Player {
 
   void toggle() => audio.playing ? audio.pause() : audio.play();
 
-  /// Shuffles everything after the current song.
-  void shuffleUpNext() {
-    if (current == null) return;
-    queue.value = [
-      ...queue.value.sublist(0, index.value + 1),
-      ...upNext.toList()..shuffle(),
-    ];
+  /// Turns shuffle on (shuffling what is up next) or off (putting it back
+  /// in its original order, carrying on from the current song).
+  void toggleShuffle() {
+    shuffle.value = !shuffle.value;
+    final song = current;
+    if (song == null) {
+      _ordered = null;
+      return;
+    }
+    if (shuffle.value) {
+      _ordered = queue.value;
+      queue.value = [
+        ...queue.value.sublist(0, index.value + 1),
+        ...upNext.toList()..shuffle(),
+      ];
+    } else if (_ordered case final ordered?) {
+      _ordered = null;
+      final inQueue = queue.value.toSet();
+      final known = ordered.toSet();
+      final q = [
+        ...ordered.where(inQueue.contains),
+        // Added while shuffled (e.g. radio): after the rest.
+        ...queue.value.where((t) => !known.contains(t)),
+      ];
+      queue.value = q;
+      index.value = q.indexOf(song);
+    }
   }
 
   void cycleRepeat() => repeat.value =
@@ -152,7 +207,12 @@ class Player {
       final radio = await yt.radio(seed.id);
       if (session != _session) return;
       final known = queue.value.toSet();
-      queue.value = [...queue.value, ...radio.where((t) => !known.contains(t))];
+      final added = radio.where((t) => !known.contains(t)).toList();
+      if (shuffle.value) {
+        _ordered = [...?_ordered, ...added];
+        added.shuffle();
+      }
+      queue.value = [...queue.value, ...added];
     } catch (e) {
       debugPrint('Radio failed: $e');
     }
