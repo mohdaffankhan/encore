@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -9,6 +10,9 @@ import 'package:encore/services/downloads.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/services/sleep_timer.dart';
+import 'package:encore/ui/pages/collection_page.dart';
+import 'package:encore/ui/pages/home_page.dart';
+import 'package:encore/ui/pages/import_page.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shell.dart';
 import 'package:encore/ui/shortcuts.dart';
@@ -39,7 +43,8 @@ void main() {
     }
     userLibrary
       ..liked.value = []
-      ..history.value = [];
+      ..history.value = []
+      ..playlists.value = [];
     final shots = await _Screenshots.create();
 
     // Home feed loads.
@@ -50,10 +55,23 @@ void main() {
     await shots.take(tester, '1_home');
 
     // A song from a home section queues the rest of that section after it.
-    final section = tester
-        .widgetList<ShelfView>(find.byType(ShelfView))
-        .map((v) => v.shelf.tracks)
-        .firstWhere((t) => t.length >= 3);
+    // The feed differs per visit: a section of songs may be further down,
+    // and sections are only built once scrolled to.
+    final songShelf = find.byWidgetPredicate(
+      (w) => w is ShelfView && w.shelf.tracks.length >= 3,
+    );
+    await tester.scrollUntilVisible(
+      songShelf.first, // Several may be on screen.
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(HomePage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+      maxScrolls: 60,
+    );
+    final section = tester.widget<ShelfView>(songShelf.first).shelf.tracks;
     await tester.tap(
       find
           .descendant(
@@ -130,6 +148,133 @@ void main() {
       );
     }
     expect(player.current, track);
+
+    // Covers, lyric videos and other uploads aren't songs: they're under
+    // Videos (this one couldn't be found before), and plays like a song.
+    const videoId = 'YlycL6ky2Wc';
+    Finder tileOf(String id) =>
+        find.byWidgetPredicate((w) => w is TrackTile && w.track.id == id);
+    await _typeSearch(tester, 'Sammi Meri Waar Shifa Qassim');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await _until(tester, find.widgetWithText(ChoiceChip, 'Videos'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Videos'));
+    await _step(
+      'videos filter finds it',
+      () => _until(tester, tileOf(videoId)),
+    );
+    await tester.tap(tileOf(videoId).first);
+    await _step(
+      'video result plays',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.current?.id == videoId &&
+            player.audio.playing &&
+            player.audio.position.inSeconds >= 2,
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+
+    // A pasted YouTube link opens that exact song.
+    await player.audio.pause();
+    await _typeSearch(tester, 'https://youtu.be/$videoId?si=GCLgmi9AL9I2bEZ_');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await _step(
+      'pasted link finds the song',
+      () => _until(tester, tileOf(videoId)),
+    );
+    expect(find.byType(TrackTile), findsOneWidget, reason: 'only that song');
+    expect(find.byType(ChoiceChip), findsNothing, reason: 'no filters');
+    await tester.tap(tileOf(videoId));
+    await _step(
+      'pasted link plays',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.current?.id == videoId &&
+            player.audio.playing &&
+            player.audio.position.inSeconds >= 2,
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+
+    // Import playlists by link, from Library: YouTube Music's as they are,
+    // Spotify's by finding each song on YouTube Music.
+    Future<void> importLink(String link) async {
+      await tester.tap(find.text('Library').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Import playlist'));
+      await tester.pumpAndSettle();
+      final linkField = find.descendant(
+        of: find.byType(ImportPage),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(linkField);
+      await tester.pump();
+      await tester.enterText(linkField, link);
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+    }
+
+    Finder playlistTiles() => find.descendant(
+      of: find.byType(CollectionPage),
+      matching: find.byType(TrackTile),
+    );
+
+    await importLink(
+      'https://music.youtube.com/playlist?list='
+      'RDCLAK5uy_krbBs7P2iEb30IODyVbiOXWyhZtAIX9Uk',
+    );
+    await _step(
+      'youtube music playlist imported',
+      () => _until(tester, playlistTiles()),
+    );
+    final ytPlaylist = userLibrary.playlists.value.first;
+    expect(ytPlaylist.source, 'YouTube Music');
+    expect(ytPlaylist.tracks, isNotEmpty);
+
+    // Today's Top Hits.
+    await importLink(
+      'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    );
+    final save = find.textContaining('Save playlist');
+    await _step(
+      'spotify playlist matched',
+      () => _until(tester, save, timeout: const Duration(seconds: 120)),
+    );
+    await shots.take(tester, '2b_spotify_import');
+    await tester.tap(save);
+    await _until(tester, playlistTiles());
+    final spPlaylist = userLibrary.playlists.value.first;
+    expect(spPlaylist.source, 'Spotify');
+    expect(spPlaylist.tracks.length, greaterThan(40), reason: 'of 50');
+    await tester.tap(playlistTiles().first);
+    await _step(
+      'imported playlist plays',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.current == spPlaylist.tracks.first &&
+            player.audio.playing &&
+            player.audio.position.inSeconds >= 2,
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+    expect(player.queue.value, spPlaylist.tracks, reason: 'queued in order');
+    for (final p in [ytPlaylist, spPlaylist]) {
+      userLibrary.deletePlaylist(p.id);
+    }
+
+    // Back to the first song for the rest of the journey.
+    unawaited(player.playRadio(track));
+    await _untilTrue(
+      tester,
+      () =>
+          player.current == track &&
+          player.audio.playing &&
+          player.upNext.isNotEmpty,
+      timeout: const Duration(seconds: 60),
+    );
 
     // Keyboard: space toggles, arrows seek, L likes.
     FocusManager.instance.primaryFocus?.unfocus();
@@ -383,6 +528,15 @@ Future<void> _checkRealTyping(WidgetTester tester) async {
   expect(player.audio.playing, wasPlaying, reason: 'Space/K did not toggle');
   expect(userLibrary.liked.value.length, likes, reason: 'L did not like');
   _log('real typing', 'ok');
+}
+
+/// Clicks the search box, then types: on desktop, text typed into a box
+/// that a search left unfocused doesn't arrive.
+Future<void> _typeSearch(WidgetTester tester, String text) async {
+  await tester.tap(find.byType(TextField));
+  await tester.pump();
+  await tester.enterText(find.byType(TextField), text);
+  await tester.pump();
 }
 
 bool isWideLayout(WidgetTester tester) =>

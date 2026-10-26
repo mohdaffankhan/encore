@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.mohdaffankhan.Encore</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+
+  <name>Encore</name>
+  <summary>Ad-free music player for YouTube Music</summary>
+  <developer id="io.github.mohdaffankhan">
+    <name>Mohd Affan Khan</name>
+  </developer>
+
+  <description>
+    <p>
+      Encore plays music from YouTube Music without ads, without an account
+      and without tracking. Everything you keep (likes, playlists, history,
+      downloads) stays on your device.
+    </p>
+    <ul>
+      <li>Search songs, videos, albums, artists and playlists, or paste a YouTube link</li>
+      <li>Song radio, up next, shuffle, repeat and a sleep timer</li>
+      <li>Synced lyrics</li>
+      <li>Your own playlists, and import public playlists from YouTube Music, YouTube or Spotify</li>
+      <li>Downloads for offline listening</li>
+      <li>Keyboard shortcuts and media keys</li>
+    </ul>
+    <p>
+      Encore is unofficial and not affiliated with YouTube or Google.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.mohdaffankhan.Encore.desktop</launchable>
+  <provides>
+    <binary>encore</binary>
+  </provides>
+
+  <url type="homepage">https://github.com/mohdaffankhan/encore</url>
+  <url type="bugtracker">https://github.com/mohdaffankhan/encore/issues</url>
+  <url type="vcs-browser">https://github.com/mohdaffankhan/encore</url>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#ff8a4c</color>
+    <color type="primary" scheme_preference="dark">#111114</color>
+  </branding>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Home</caption>
+      <image>https://raw.githubusercontent.com/mohdaffankhan/encore/main/docs/screenshots/desktop-home.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Full player with synced lyrics</caption>
+      <image>https://raw.githubusercontent.com/mohdaffankhan/encore/main/docs/screenshots/desktop-player.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Playlists</caption>
+      <image>https://raw.githubusercontent.com/mohdaffankhan/encore/main/docs/screenshots/desktop-playlist.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Importing a Spotify playlist</caption>
+      <image>https://raw.githubusercontent.com/mohdaffankhan/encore/main/docs/screenshots/desktop-import.png</image>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <internet>always</internet>
+  </requires>
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </recommends>
+
+  <releases>
+    <release version="0.1.5" date="2026-10-27">
+      <description>
+        <p>Your own playlists, playlist import from YouTube Music, YouTube and Spotify, a Videos search filter, and opening YouTube links.</p>
+      </description>
+    </release>
+    <release version="0.1.4" date="2026-10-25"/>
+  </releases>
+</component>

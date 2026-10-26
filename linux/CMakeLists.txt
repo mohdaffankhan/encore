@@ -7,7 +7,9 @@ project(runner LANGUAGES CXX)
 set(BINARY_NAME "encore")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "dev.encore.app")
+# (Linux only; Android keeps dev.encore.app. The data folder follows it:
+# see moveOldLinuxData in lib/services/storage.dart.)
+set(APPLICATION_ID "io.github.mohdaffankhan.Encore")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

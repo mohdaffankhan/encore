@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git curl unzip xz-utils zip rsync \
       build-essential clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev \
       xvfb xauth libgl1-mesa-dri libegl1 pulseaudio dbus-x11 \
-      fonts-dejavu-core \
+      fonts-dejavu-core patchelf \
     && rm -rf /var/lib/apt/lists/*
 
 ARG FLUTTER_VERSION=3.47.7

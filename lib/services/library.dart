@@ -15,6 +15,9 @@ class UserLibrary {
   final searches = ValueNotifier<List<String>>([]);
   final downloads = ValueNotifier<List<Track>>([]);
 
+  /// Newest first.
+  final playlists = ValueNotifier<List<Playlist>>([]);
+
   File? _file;
   Future<void> _lastWrite = Future.value();
 
@@ -40,6 +43,9 @@ class UserLibrary {
       liked.value = tracks('liked');
       downloads.value = tracks('downloads');
       searches.value = List<String>.from(json['searches'] ?? []);
+      playlists.value = [
+        for (final p in json['playlists'] as List? ?? []) Playlist.fromJson(p),
+      ];
     } on PathNotFoundException {
       // First run: start empty.
     } catch (e) {
@@ -49,7 +55,7 @@ class UserLibrary {
         await file.rename('${file.path}.unreadable');
       } catch (_) {}
     }
-    for (final n in [history, liked, searches, downloads]) {
+    for (final n in [history, liked, searches, downloads, playlists]) {
       n.addListener(_save);
     }
   }
@@ -73,6 +79,61 @@ class UserLibrary {
   void removeSearch(String query) =>
       searches.value = searches.value.where((q) => q != query).toList();
 
+  Playlist? playlist(String id) =>
+      playlists.value.where((p) => p.id == id).firstOrNull;
+
+  /// A new playlist (each song once), shown first.
+  Playlist createPlaylist(
+    String name, {
+    List<Track> tracks = const [],
+    String? source,
+  }) {
+    final playlist = Playlist(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim().isEmpty ? 'My playlist' : name.trim(),
+      tracks: tracks.toSet().toList(),
+      source: source,
+    );
+    playlists.value = [playlist, ...playlists.value];
+    return playlist;
+  }
+
+  void renamePlaylist(String id, String name) {
+    if (name.trim().isEmpty) return;
+    _updatePlaylist(id, (p) => p.copyWith(name: name.trim()));
+  }
+
+  void deletePlaylist(String id) =>
+      playlists.value = playlists.value.where((p) => p.id != id).toList();
+
+  /// Adds the songs not already in it, at the end; returns how many.
+  int addToPlaylist(String id, List<Track> tracks) {
+    var added = 0;
+    _updatePlaylist(id, (p) {
+      final fresh = tracks.toSet().difference(p.tracks.toSet()).toList();
+      added = fresh.length;
+      return p.copyWith(tracks: [...p.tracks, ...fresh]);
+    });
+    return added;
+  }
+
+  void removeFromPlaylist(String id, Track track) => _updatePlaylist(
+    id,
+    (p) => p.copyWith(tracks: p.tracks.where((t) => t != track).toList()),
+  );
+
+  /// Moves the song at [from] to [to] (indexes in the list without it).
+  void moveInPlaylist(String id, int from, int to) => _updatePlaylist(id, (p) {
+    final tracks = List.of(p.tracks);
+    tracks.insert(to, tracks.removeAt(from));
+    return p.copyWith(tracks: tracks);
+  });
+
+  void _updatePlaylist(String id, Playlist Function(Playlist) change) =>
+      playlists.value = [
+        for (final p in playlists.value) p.id == id ? change(p) : p,
+      ];
+
   void _save() {
     final file = _file;
     if (file == null) return;
@@ -81,6 +142,7 @@ class UserLibrary {
       'liked': liked.value,
       'searches': searches.value,
       'downloads': downloads.value,
+      'playlists': playlists.value,
     });
     // Chain writes so an older snapshot can never land after a newer one.
     // Write a temporary file, then swap it in: if the app is killed

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 // Audio comes from the player API with the VISIONOS client: unlike most
 // clients it still serves full streams without a PO token (other clients cut
 // off after ~1 MB). This mirrors yt-dlp's defaults; when playback breaks,
@@ -18,6 +20,13 @@ String? _visitorData;
 /// range requests at full speed, so streams are read in chunks this size.
 const _chunkSize = 1 << 20;
 
+/// How often one range request is tried again before reading fails.
+const _retries = 3;
+
+/// Doubled, tripled… for each retry of the same request.
+@visibleForTesting
+Duration retryDelay = const Duration(milliseconds: 400);
+
 class AudioStream {
   const AudioStream(this.url, this.mimeType, this.length);
 
@@ -31,20 +40,39 @@ class AudioStream {
 
   /// Bytes from [start] (inclusive) to [end] (exclusive, default: the end),
   /// fetched one range request at a time as the consumer reads.
+  ///
+  /// A request that fails or breaks off is tried again (from where it
+  /// stopped) a few times before giving up: YouTube occasionally refuses
+  /// one, and the player has already been told how many bytes are coming.
   Stream<List<int>> read([int start = 0, int? end]) async* {
     end = min(end ?? length, length);
-    for (var pos = start; pos < end; pos += _chunkSize) {
+    var pos = start;
+    var failures = 0;
+    while (pos < end) {
       final last = min(pos + _chunkSize, end) - 1;
-      final req = await _http.getUrl(url);
-      req.headers
-        ..set(HttpHeaders.userAgentHeader, userAgent)
-        ..set(HttpHeaders.rangeHeader, 'bytes=$pos-$last');
-      final res = await req.close();
-      if (res.statusCode != HttpStatus.partialContent) {
-        await res.drain<void>();
-        throw HttpException('Audio stream: HTTP ${res.statusCode}', uri: url);
+      try {
+        final req = await _http.getUrl(url);
+        req.headers
+          ..set(HttpHeaders.userAgentHeader, userAgent)
+          ..set(HttpHeaders.rangeHeader, 'bytes=$pos-$last');
+        final res = await req.close();
+        if (res.statusCode != HttpStatus.partialContent) {
+          await res.drain<void>();
+          throw HttpException('Audio stream: HTTP ${res.statusCode}', uri: url);
+        }
+        await for (final data in res) {
+          pos += data.length;
+          yield data;
+        }
+        if (pos <= last) {
+          throw HttpException('Audio stream: cut short', uri: url);
+        }
+        failures = 0;
+      } on IOException catch (e) {
+        if (++failures > _retries) rethrow;
+        debugPrint('$e at byte $pos; trying again ($failures)');
+        await Future<void>.delayed(retryDelay * failures);
       }
-      yield* res;
     }
   }
 }

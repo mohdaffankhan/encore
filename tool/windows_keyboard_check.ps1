@@ -6,6 +6,8 @@ $log = 'build\e2e_windows_keys.log'
 New-Item -ItemType Directory -Force build | Out-Null
 $test = Start-Process cmd -ArgumentList '/c', 'flutter test integration_test/app_test.dart -d windows --dart-define=ENCORE_TEST=true --dart-define=ENCORE_KEYBOARD_CHECK=true' `
   -RedirectStandardOutput $log -NoNewWindow -PassThru
+# Without reading the handle now, ExitCode is empty at the end (exit 0).
+$null = $test.Handle
 while (-not $test.HasExited -and -not (Select-String -Quiet 'keyboard: ready' $log)) {
   Start-Sleep -Milliseconds 500
 }
@@ -39,10 +41,15 @@ public static class Win {
     if ([Win]::Bring($app.MainWindowHandle)) { $front = $true; break }
     Start-Sleep -Milliseconds 300
   }
-  if (-not $front) { '[host] FAIL: could not bring the Encore window to the front' }
-  Start-Sleep -Milliseconds 500
-  (New-Object -ComObject WScript.Shell).SendKeys('get lucky kl{LEFT}{LEFT}x')
+  # The keys go to whatever window is in front, so only type into Encore.
+  if ($front) {
+    Start-Sleep -Milliseconds 500
+    (New-Object -ComObject WScript.Shell).SendKeys('get lucky kl{LEFT}{LEFT}x')
+  } else {
+    '[host] FAIL: could not bring the Encore window to the front (another app holds it); nothing typed'
+  }
 }
 $test.WaitForExit()
 Select-String '\[e2e\]|Typed |Expected|Actual|All tests|Some tests' $log | ForEach-Object { $_.Line }
-exit $test.ExitCode
+if ($test.ExitCode -ne 0 -or -not $front) { exit 1 }
+exit 0

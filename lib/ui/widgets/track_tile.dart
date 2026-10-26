@@ -20,6 +20,8 @@ class TrackTile extends StatelessWidget {
     this.showArt = true,
     this.showAlbum = true,
     this.padding,
+    this.playlistId,
+    this.trailing,
   });
 
   final Track track;
@@ -31,13 +33,19 @@ class TrackTile extends StatelessWidget {
   final bool showAlbum;
   final EdgeInsets? padding;
 
+  /// The playlist it's shown in: its menu can remove it from there.
+  final String? playlistId;
+
+  /// After the ⋯ button, e.g. a drag handle.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final pad =
         padding ?? EdgeInsets.symmetric(horizontal: pagePadding(context) - 8);
-    return Padding(
-      padding: pad,
+    final tile = Padding(
+      padding: trailing == null ? pad : pad.copyWith(right: 0),
       child: ValueListenableBuilder(
         valueListenable: player.nowPlaying,
         builder: (context, _, _) {
@@ -46,9 +54,14 @@ class TrackTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             onTap: onTap,
             // The song's menu: long-press on phones, right-click on desktop.
-            onLongPress: () => showTrackMenu(context, track),
-            onSecondaryTapUp: (details) =>
-                showTrackMenu(context, track, position: details.globalPosition),
+            onLongPress: () =>
+                showTrackMenu(context, track, playlistId: playlistId),
+            onSecondaryTapUp: (details) => showTrackMenu(
+              context,
+              track,
+              playlistId: playlistId,
+              position: details.globalPosition,
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -134,7 +147,7 @@ class TrackTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                    TrackMenu(track),
+                    TrackMenu(track, playlistId: playlistId),
                   ],
                 ),
               ),
@@ -142,6 +155,18 @@ class TrackTile extends StatelessWidget {
           );
         },
       ),
+    );
+    if (trailing == null) return tile;
+    // Outside the row's tap area: holding a drag handle must not open the
+    // song's menu (a long-press) before the drag starts.
+    return Row(
+      children: [
+        Expanded(child: tile),
+        Padding(
+          padding: EdgeInsets.only(right: pad.right),
+          child: trailing,
+        ),
+      ],
     );
   }
 }

@@ -7,8 +7,11 @@ import '../../api/innertube.dart' as yt;
 import '../../models.dart';
 import '../../services/library.dart';
 import '../../services/player.dart';
+import '../../services/playlist_import.dart';
+import '../shell.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
+import 'import_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -41,7 +44,12 @@ class _SearchPageState extends State<SearchPage> {
       _results = null;
       if (text.trim().isEmpty) _suggestions = [];
     });
-    if (text.trim().isEmpty) return;
+    // A pasted link has no suggestions; Enter opens its song.
+    if (text.trim().isEmpty ||
+        yt.videoIdFromLink(text) != null ||
+        PlaylistLink.parse(text) != null) {
+      return;
+    }
     _debounce = Timer(const Duration(milliseconds: 250), () async {
       try {
         final s = await yt.suggestions(text);
@@ -58,19 +66,50 @@ class _SearchPageState extends State<SearchPage> {
     _debounce?.cancel();
     _setText(query);
     _focus.unfocus();
+    // A playlist link (YouTube, YouTube Music, Spotify): import it.
+    if (PlaylistLink.parse(query) != null &&
+        yt.videoIdFromLink(query) == null) {
+      _controller.clear();
+      setState(() {
+        _query = null;
+        _results = null;
+        _suggestions = [];
+      });
+      openPage(ImportPage(link: query));
+      return;
+    }
+    // A YouTube / YouTube Music link: that exact song.
+    if (yt.videoIdFromLink(query) case final id?) {
+      setState(() {
+        _query = query;
+        _suggestions = [];
+        _results = _shown(yt.track(id).then((t) => [?t]));
+      });
+      return;
+    }
     userLibrary.addSearch(query);
     setState(() {
       _query = query;
-      _results = yt.search(query, _filter);
+      _results = _shown(yt.search(query, _filter));
     });
   }
+
+  bool get _isLink => _query != null && yt.videoIdFromLink(_query!) != null;
 
   void _setFilter(yt.SearchFilter filter) {
     setState(() {
       _filter = filter;
-      if (_query case final q?) _results = yt.search(q, filter);
+      if (_query case final q? when !_isLink) {
+        _results = _shown(yt.search(q, filter));
+      }
     });
   }
+
+  /// The results' FutureBuilder only listens from the next frame, and an
+  /// offline error can come sooner; it still shows, but isn't reported as
+  /// unhandled in the meantime.
+  Future<List<Object>> _shown(Future<List<Object>> results) =>
+      results..ignore();
 
   /// Replaces the text with the cursor at the end, ready to keep typing.
   void _setText(String text) => _controller.value = TextEditingValue(
@@ -112,7 +151,7 @@ class _SearchPageState extends State<SearchPage> {
                   onTapOutside: (_) => _focus.unfocus(),
                   // No 800 px cap (SearchBar's default): span the page.
                   constraints: const BoxConstraints(minHeight: 56),
-                  hintText: 'Songs, albums, artists',
+                  hintText: 'Songs, artists or a YouTube link',
                   leading: const Icon(
                     Icons.search_rounded,
                     color: EncoreColors.textSecondary,
@@ -134,7 +173,7 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ),
             ),
-            if (_results != null)
+            if (_results != null && !_isLink)
               SizedBox(
                 height: 44,
                 child: ListView(
@@ -176,9 +215,9 @@ class _SearchPageState extends State<SearchPage> {
           }
           final items = snapshot.data!;
           if (items.isEmpty) {
-            return const Message(
+            return Message(
               icon: Icons.search_off_rounded,
-              text: 'Nothing found',
+              text: _isLink ? "Couldn't find that video" : 'Nothing found',
             );
           }
           return ListView.builder(

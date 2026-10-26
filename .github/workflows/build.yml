@@ -22,6 +22,13 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - name: Linux package versions match pubspec.yaml
+        run: |
+          version=$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)
+          grep -qx "pkgver=$version" linux/packaging/aur/PKGBUILD ||
+            { echo "::error::PKGBUILD pkgver isn't $version"; exit 1; }
+          grep -q "<release version=\"$version\"" linux/packaging/*.metainfo.xml ||
+            { echo "::error::metainfo.xml has no release $version"; exit 1; }
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test test/unit test/widget
@@ -112,7 +119,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev
+          sudo apt-get install -y build-essential clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev patchelf
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -126,13 +133,80 @@ jobs:
           if ldd build/linux/x64/release/bundle/encore build/linux/x64/release/bundle/lib/*.so | grep 'not found'; then
             exit 1
           fi
-      - run: |
-          mkdir -p dist
-          tar -czf dist/encore-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - name: Tarball (with launcher, icons and app metadata)
+        run: sh linux/packaging/make_tarball.sh build/linux/x64/release/bundle dist/encore-linux-x64.tar.gz
+      - name: Check plugin library paths
+        run: |
+          mkdir check && tar -xzf dist/encore-linux-x64.tar.gz -C check
+          for lib in check/lib/*.so; do
+            rpath=$(patchelf --print-rpath "$lib")
+            if [ -n "$rpath" ] && [ "$rpath" != '$ORIGIN' ]; then
+              echo "::error::$lib searches $rpath"; exit 1
+            fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: linux
           path: dist/*
+
+  # The Flatpak, made from the tarball plus libmpv, in Flathub's builder.
+  # Not released yet: built only when the workflow is run by hand.
+  flatpak:
+    if: github.event_name == 'workflow_dispatch'
+    needs: linux
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: linux/packaging/flatpak
+      - uses: actions/cache@v4
+        with:
+          path: linux/packaging/flatpak/.flatpak-builder
+          key: flatpak-${{ hashFiles('linux/packaging/flatpak/*.yml') }}
+      - name: Build
+        working-directory: linux/packaging/flatpak
+        run: |
+          flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse             --repo=repo --force-clean build io.github.mohdaffankhan.Encore.yml
+          mkdir -p ../../../dist
+          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo             repo ../../../dist/encore-linux-x64.flatpak io.github.mohdaffankhan.Encore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: dist/*
+
+  # The AUR package: builds and installs on Arch from this build's tarball.
+  # Not released yet: built only when the workflow is run by hand.
+  aur:
+    if: github.event_name == 'workflow_dispatch'
+    needs: linux
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: dist
+      - name: Build and install
+        run: |
+          pacman -Syu --noconfirm --needed base-devel namcap
+          useradd -m builder
+          mkdir /tmp/aur && cp linux/packaging/aur/PKGBUILD /tmp/aur/
+          version=$(sed -n 's/^pkgver=//p' /tmp/aur/PKGBUILD)
+          cp dist/encore-linux-x64.tar.gz "/tmp/aur/encore-linux-x64-$version.tar.gz"
+          chown -R builder /tmp/aur
+          cd /tmp/aur
+          pacman -S --noconfirm --needed $(sed -n "s/^depends=(\(.*\))/\1/p" PKGBUILD | tr -d "'")
+          su builder -c 'makepkg -f --noconfirm'
+          namcap PKGBUILD
+          pacman -U --noconfirm encore-music-bin-*.pkg.tar.zst
+          test -x /usr/bin/encore-music
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -150,10 +224,10 @@ jobs:
           draft: true
           files: dist/*
           body: |
-            | Device | Download |
+            | Platform | Download |
             |---|---|
-            | Android phone | `encore-android.apk` |
-            | Windows PC | `encore-windows-setup.exe` (or the portable zip) |
-            | Linux PC | `encore-linux-x64.tar.gz` (needs `libmpv2`) |
+            | Android | `encore-android.apk` |
+            | Windows | `encore-windows-setup.exe` (or the portable zip) |
+            | Linux | `encore-linux-x64.tar.gz` (needs `libmpv2`) |
 
             Install steps are in the README.

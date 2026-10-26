@@ -8,16 +8,25 @@ import '../shell.dart';
 import '../theme.dart';
 import 'artwork.dart';
 import 'common.dart';
+import 'playlist_dialogs.dart';
 import 'sleep_timer_picker.dart';
 
 /// The ⋯ button for a song. [inPlayer]: the playing song's menu (full
 /// player and desktop player bar), which also has the sleep timer.
+/// [playlistId]: the song is shown in that playlist, so it can be removed.
 class TrackMenu extends StatelessWidget {
-  const TrackMenu(this.track, {super.key, this.color, this.inPlayer = false});
+  const TrackMenu(
+    this.track, {
+    super.key,
+    this.color,
+    this.inPlayer = false,
+    this.playlistId,
+  });
 
   final Track track;
   final Color? color;
   final bool inPlayer;
+  final String? playlistId;
 
   @override
   Widget build(BuildContext context) {
@@ -27,31 +36,49 @@ class TrackMenu extends StatelessWidget {
         Icons.more_horiz_rounded,
         color: color ?? EncoreColors.textSecondary,
       ),
-      onPressed: () => showTrackMenu(context, track, inPlayer: inPlayer),
+      onPressed: () => showTrackMenu(
+        context,
+        track,
+        inPlayer: inPlayer,
+        playlistId: playlistId,
+      ),
     );
   }
 }
 
-/// A song's actions: queue, radio, like, download, go to artist/album (and
-/// the sleep timer for the playing song). Phones get a bottom sheet with
-/// the song at the top, like YouTube Music and Spotify, so it never covers
-/// the row it came from. Desktop gets a pop-up menu under the button, or at
-/// [position] (a right-click).
+/// A song's actions: queue, radio, like, add to a playlist, download, go
+/// to artist/album (and the sleep timer for the playing song).
 Future<void> showTrackMenu(
   BuildContext context,
   Track track, {
   bool inPlayer = false,
+  String? playlistId,
+  Offset? position,
+}) => showActionMenu(
+  context,
+  _actions(track, inPlayer: inPlayer, playlistId: playlistId),
+  header: _SongHeader(track),
+  position: position,
+);
+
+/// A menu of [actions]. Phones get a bottom sheet with [header] at the top,
+/// like YouTube Music and Spotify, so it never covers the row it came from.
+/// Desktop gets a pop-up menu under the button, or at [position] (a
+/// right-click).
+Future<void> showActionMenu(
+  BuildContext context,
+  List<MenuAction> actions, {
+  Widget? header,
   Offset? position,
 }) async {
-  final actions = _actions(track, inPlayer: inPlayer);
   final chosen = isWide(context)
       ? await _popup(context, actions, position)
-      : await _sheet(context, track, actions);
+      : await _sheet(context, header, actions);
   if (chosen != null && context.mounted) chosen.run(context);
 }
 
-class _Action {
-  const _Action(this.icon, this.label, this.run, {this.detail});
+class MenuAction {
+  const MenuAction(this.icon, this.label, this.run, {this.detail});
 
   final IconData icon;
   final String label;
@@ -61,17 +88,25 @@ class _Action {
   final String? detail;
 }
 
-List<_Action> _actions(Track track, {required bool inPlayer}) {
+List<MenuAction> _actions(
+  Track track, {
+  required bool inPlayer,
+  String? playlistId,
+}) {
   final liked = userLibrary.isLiked(track);
   final downloading = downloads.progress.value.containsKey(track.id);
   return [
     if (!inPlayer && player.current != track)
-      _Action(Icons.playlist_play_rounded, 'Play next', (context) {
+      MenuAction(Icons.playlist_play_rounded, 'Play next', (context) {
         player.playNext(track);
         showToast(context, 'Playing next');
       }),
-    _Action(Icons.radio_rounded, 'Start radio', (_) => player.playRadio(track)),
-    _Action(
+    MenuAction(
+      Icons.radio_rounded,
+      'Start radio',
+      (_) => player.playRadio(track),
+    ),
+    MenuAction(
       liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
       liked ? 'Remove from liked songs' : 'Like',
       (context) {
@@ -82,22 +117,34 @@ List<_Action> _actions(Track track, {required bool inPlayer}) {
         );
       },
     ),
+    MenuAction(
+      Icons.playlist_add_rounded,
+      'Add to playlist',
+      (context) => showAddToPlaylist(context, [track]),
+    ),
+    if (playlistId != null)
+      MenuAction(Icons.playlist_remove_rounded, 'Remove from this playlist', (
+        context,
+      ) {
+        userLibrary.removeFromPlaylist(playlistId, track);
+        showToast(context, 'Removed from playlist');
+      }),
     if (downloads.isDownloaded(track))
-      _Action(Icons.delete_outline_rounded, 'Remove download', (context) {
+      MenuAction(Icons.delete_outline_rounded, 'Remove download', (context) {
         downloads.remove(track);
         showToast(context, 'Download removed');
       })
     else if (!downloading)
-      _Action(Icons.download_rounded, 'Download', (context) {
+      MenuAction(Icons.download_rounded, 'Download', (context) {
         downloads.download([track]);
         showToast(context, 'Downloading "${track.title}"');
       }),
     if (track.artistId case final id?)
-      _Action(Icons.person_rounded, 'Go to artist', (_) => openArtist(id)),
+      MenuAction(Icons.person_rounded, 'Go to artist', (_) => openArtist(id)),
     if (track.albumId case final id?)
-      _Action(Icons.album_rounded, 'Go to album', (_) => openCollection(id)),
+      MenuAction(Icons.album_rounded, 'Go to album', (_) => openCollection(id)),
     if (inPlayer)
-      _Action(
+      MenuAction(
         Icons.bedtime_outlined,
         'Sleep timer',
         showSleepTimer,
@@ -106,9 +153,9 @@ List<_Action> _actions(Track track, {required bool inPlayer}) {
   ];
 }
 
-Future<_Action?> _popup(
+Future<MenuAction?> _popup(
   BuildContext context,
-  List<_Action> actions,
+  List<MenuAction> actions,
   Offset? position,
 ) {
   final overlay =
@@ -124,7 +171,7 @@ Future<_Action?> _popup(
       box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
     );
   }
-  return showMenu<_Action>(
+  return showMenu<MenuAction>(
     context: context,
     position: RelativeRect.fromRect(anchor, Offset.zero & overlay.size),
     items: [
@@ -153,42 +200,27 @@ Future<_Action?> _popup(
   );
 }
 
-Future<_Action?> _sheet(
+Future<MenuAction?> _sheet(
   BuildContext context,
-  Track track,
-  List<_Action> actions,
+  Widget? header,
+  List<MenuAction> actions,
 ) {
-  return showModalBottomSheet<_Action>(
+  return showModalBottomSheet<MenuAction>(
     context: context,
     useRootNavigator: true,
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: EncoreColors.surfaceRaised,
     builder: (context) {
-      final text = Theme.of(context).textTheme;
       return SafeArea(
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: Artwork(track.artUrl, size: 48, radius: 6),
-                title: Text(
-                  track.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.titleSmall?.copyWith(fontSize: 15),
-                ),
-                subtitle: Text(
-                  track.artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.bodySmall?.copyWith(
-                    color: EncoreColors.textSecondary,
-                  ),
-                ),
-              ),
-              const Divider(color: EncoreColors.hairline, height: 16),
+              if (header != null) ...[
+                header,
+                const Divider(color: EncoreColors.hairline, height: 16),
+              ],
               for (final action in actions)
                 ListTile(
                   leading: Icon(action.icon, color: EncoreColors.text),
@@ -208,4 +240,30 @@ Future<_Action?> _sheet(
       );
     },
   );
+}
+
+class _SongHeader extends StatelessWidget {
+  const _SongHeader(this.track);
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return ListTile(
+      leading: Artwork(track.artUrl, size: 48, radius: 6),
+      title: Text(
+        track.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.titleSmall?.copyWith(fontSize: 15),
+      ),
+      subtitle: Text(
+        track.artist,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.bodySmall?.copyWith(color: EncoreColors.textSecondary),
+      ),
+    );
+  }
 }

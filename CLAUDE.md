@@ -12,6 +12,16 @@ builds or `flutter test` pass: those don't shrink code/resources like
 release builds do (v0.1.1 shipped an APK that crashed on play because the
 notification icons were stripped). Verify fixes on a release build.
 
+Linux packages (tar.gz, Flatpak, AUR `encore-music-bin`) are built by CI
+from `linux/packaging/`; `release_check.sh` tests them in Docker (Docker
+Desktop must be running). The owner has put the Flatpak and AUR releases
+on hold: tags release only the tar.gz, and the other two build only on a
+manual workflow run. Don't release them until the owner says so. Before tagging, the version in `pubspec.yaml`,
+`pkgver` in `linux/packaging/aur/PKGBUILD` and a `<release>` in the
+metainfo.xml must agree (CI fails otherwise). After publishing, the AUR
+update (`tool/aur_update.sh <version> --push`) is the owner's to run or
+approve: it publishes to their AUR account.
+
 Commits: short one-line messages, no AI co-author trailer.
 
 ## Testing on the owner's phone

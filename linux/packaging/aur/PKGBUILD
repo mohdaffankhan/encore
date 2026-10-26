@@ -1,0 +1,34 @@
+# Maintainer: Mohd Affan Khan <https://github.com/mohdaffankhan>
+#
+# Encore from its GitHub release (the Linux tarball). Updated for each
+# release by tool/aur_update.sh, which also writes .SRCINFO.
+pkgname=encore-music-bin
+pkgver=0.1.5
+pkgrel=1
+pkgdesc='Ad-free music player for YouTube Music'
+arch=('x86_64')
+url='https://github.com/mohdaffankhan/encore'
+license=('GPL-3.0-only')
+depends=('gtk3' 'mpv' 'libglvnd')
+provides=('encore-music')
+conflicts=('encore-music')
+options=('!strip' '!debug')
+source=("encore-linux-x64-$pkgver.tar.gz::$url/releases/download/v$pkgver/encore-linux-x64.tar.gz")
+sha256sums=('SKIP')
+
+_id=io.github.mohdaffankhan.Encore
+
+package() {
+  install -d "$pkgdir/opt/encore-music" "$pkgdir/usr/bin"
+  cp -r --no-preserve=ownership encore lib data "$pkgdir/opt/encore-music/"
+  ln -s /opt/encore-music/encore "$pkgdir/usr/bin/encore-music"
+
+  sed 's|^Exec=.*|Exec=encore-music|' "share/applications/$_id.desktop" |
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/$_id.desktop"
+  install -Dm644 "share/metainfo/$_id.metainfo.xml" \
+    "$pkgdir/usr/share/metainfo/$_id.metainfo.xml"
+  for size in 128 256 512; do
+    install -Dm644 "share/icons/hicolor/${size}x$size/apps/$_id.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x$size/apps/$_id.png"
+  done
+}

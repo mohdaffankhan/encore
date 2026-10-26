@@ -1,7 +1,7 @@
 name: encore
 description: "Encore: an ad-free, open-source YouTube Music client."
 publish_to: 'none'
-version: 0.1.4+7
+version: 0.1.5+9
 
 environment:
   sdk: ^3.13.5
@@ -14,6 +14,7 @@ dependencies:
   just_audio_media_kit: ^2.1.0
   media_kit_libs_audio: ^1.0.7
   path_provider: ^2.1.6
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

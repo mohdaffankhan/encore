@@ -17,6 +17,8 @@ const _context = {
 
 enum SearchFilter {
   songs('Songs', 'EgWKAQIIAWoSEAUQDhADEAkQChAEEBUQEBAR'),
+  // Covers, lyric videos and other uploads that aren't in the song catalog.
+  videos('Videos', 'EgWKAQIQAWoSEAUQDhADEAkQChAEEBUQEBAR'),
   albums('Albums', 'EgWKAQIYAWoSEAUQDhADEAkQChAEEBUQEBAR'),
   artists('Artists', 'EgWKAQIgAWoSEAUQDhADEAkQChAEEBUQEBAR'),
   playlists('Playlists', 'EgeKAQQoADgBahIQBRAOEAMQCRAKEAQQFRAQEBE%3D');
@@ -85,6 +87,60 @@ Future<List<String>> suggestions(String input) async {
     for (final s in _findAll(json, 'searchSuggestionRenderer'))
       _text(s['suggestion']),
   ];
+}
+
+/// The video id in a YouTube or YouTube Music link (youtu.be/…,
+/// …/watch?v=…, /shorts/…, /embed/…, /live/…), or null if [text] isn't one.
+String? videoIdFromLink(String text) {
+  text = text.trim();
+  if (text.contains(RegExp(r'\s'))) return null;
+  if (!text.contains('://')) text = 'https://$text';
+  final uri = Uri.tryParse(text);
+  if (uri == null) return null;
+  final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www|m)\.'), '');
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  final id = switch (host) {
+    'youtu.be' => segments.firstOrNull,
+    'youtube.com' || 'music.youtube.com' => switch (segments) {
+      ['watch'] => uri.queryParameters['v'],
+      ['shorts' || 'embed' || 'live' || 'v', final id, ...] => id,
+      _ => null,
+    },
+    _ => null,
+  };
+  return id != null && RegExp(r'^[\w-]{11}$').hasMatch(id) ? id : null;
+}
+
+/// The playlist id in a YouTube or YouTube Music playlist link
+/// (…/playlist?list=…, or a song link that also names a playlist), or null.
+/// Mixes made for the viewer (`RD…`, `TL…`) aren't playlists anyone can
+/// open, so they don't count; YouTube Music's own playlists (`RDCLAK…`) do.
+String? playlistIdFromLink(String text) {
+  text = text.trim();
+  if (text.contains(RegExp(r'\s'))) return null;
+  if (!text.contains('://')) text = 'https://$text';
+  final uri = Uri.tryParse(text);
+  if (uri == null) return null;
+  final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www|m)\.'), '');
+  if (!{'youtube.com', 'music.youtube.com', 'youtu.be'}.contains(host)) {
+    return null;
+  }
+  final id = uri.queryParameters['list'];
+  if (id == null || !RegExp(r'^[\w-]{10,}$').hasMatch(id)) return null;
+  if ((id.startsWith('RD') && !id.startsWith('RDCLAK')) ||
+      id.startsWith('TL')) {
+    return null;
+  }
+  return id;
+}
+
+/// One song by its video id, or null if YouTube doesn't know it.
+Future<Track?> track(String videoId) async {
+  final json = await _post('next', {'videoId': videoId, 'isAudioOnly': true});
+  return [
+    for (final item in _findAll(json, 'playlistPanelVideoRenderer'))
+      ?_panelTrack(item),
+  ].where((t) => t.id == videoId).firstOrNull;
 }
 
 /// A song's radio.
@@ -289,7 +345,12 @@ Object? _listItem(Map<String, dynamic> r, [_Defaults d = const _Defaults()]) {
       _text(c['musicResponsiveListItemFixedColumnRenderer']?['text']),
   ];
   final artist = details
-      .where((s) => _parseDuration(s) == null && !s.endsWith(' plays'))
+      .where(
+        (s) =>
+            _parseDuration(s) == null &&
+            !s.endsWith(' plays') &&
+            !s.endsWith(' views'),
+      )
       .firstOrNull;
   return Track(
     id: videoId,

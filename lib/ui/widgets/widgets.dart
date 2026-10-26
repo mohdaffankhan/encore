@@ -2,6 +2,7 @@ export 'artwork.dart';
 export 'common.dart';
 export 'logo.dart';
 export 'media_card.dart';
+export 'playlist_dialogs.dart';
 export 'shelves.dart';
 export 'sleep_timer_picker.dart';
 export 'track_menu.dart';

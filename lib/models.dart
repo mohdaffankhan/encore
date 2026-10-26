@@ -50,6 +50,44 @@ class Track {
   int get hashCode => id.hashCode;
 }
 
+/// A playlist made in Encore (or imported into it), kept on the device.
+class Playlist {
+  const Playlist({
+    required this.id,
+    required this.name,
+    this.tracks = const [],
+    this.source,
+  });
+
+  final String id;
+  final String name;
+  final List<Track> tracks;
+
+  /// Where it was imported from, e.g. "Spotify".
+  final String? source;
+
+  Playlist copyWith({String? name, List<Track>? tracks}) => Playlist(
+    id: id,
+    name: name ?? this.name,
+    tracks: tracks ?? this.tracks,
+    source: source,
+  );
+
+  factory Playlist.fromJson(Map<String, dynamic> json) => Playlist(
+    id: json['id'],
+    name: json['name'],
+    tracks: [for (final t in json['tracks'] as List? ?? []) Track.fromJson(t)],
+    source: json['source'],
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'tracks': tracks,
+    'source': source,
+  };
+}
+
 enum MediaKind { album, playlist, artist }
 
 /// A link to an album, playlist or artist page.

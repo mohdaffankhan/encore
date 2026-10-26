@@ -60,11 +60,30 @@ calling it done. Releases also go through the owner's own testing.
 | **Bug fixed:** Space, K, L and arrows type in the search box (were taken as shortcuts) | desktop | e2e "real typing" (real key presses); widget "is typed, not a shortcut" |
 | Esc or clicking elsewhere leaves the search box | desktop | widget "Esc leaves", "clicking elsewhere leaves" |
 | Search box spans the page | all | widget "spans the page on desktop / phones" |
+| **Bug fixed:** covers, lyric videos and other uploads couldn't be found (only official songs were searched): a Videos filter, like YouTube Music | all | widget `search_test` "narrowed to Videos"; live "videos and pasted links"; e2e "videos filter finds it", "video result plays" |
+| Paste a YouTube / YouTube Music link (youtu.be, watch, shorts, music…) into search: that exact song | all | unit `links_test`; widget "a pasted link looks up its song"; e2e "pasted link finds the song", "pasted link plays" |
+| A failed search shows Retry without an unhandled error | all | widget `search_test` (offline) |
 | Suggestions, recent searches, filters; suggestion ↖ keeps typing | all | e2e "search results"; widget `shell_test` |
 | Home feed, quick picks; Retry when offline | all | e2e "home feed loads"; widget `shell_test` |
 | Artist and album pages | all | e2e "artist page", "album page", "album playback" |
 | Liked songs, history, downloads; saving can't be wiped by a crash | all | unit `library_test` group "saving" |
 | Downloads play offline; failures say so and leave no files; removing a playing download works | all | e2e "download", "offline playback"; widget `downloads_test` |
+
+## Playlists
+
+| Feature | Platforms | Tests |
+|---|---|---|
+| Make playlists (Library, desktop sidebar ＋), named on the spot | all | widget `playlists_test` "New playlist", "the sidebar lists playlists" |
+| Add to playlist from any song's ⋯ / long-press / right-click menu (or a new one); "Already in" when it is | all | widget "Add to playlist from a song's menu" (phone + desktop); unit `library_test` group "playlists" |
+| Remove a song; drag the handle to reorder (holding first works: no tooltip/menu takes the long-press) | all | widget "removed from the playlist", "reordered by dragging the handle" (phone + desktop) |
+| Rename; delete after asking | all | widget "rename, then delete" |
+| Playlists are saved with their songs, order and source | all | unit `library_test` "playlists are saved" |
+| Import a public YouTube Music / YouTube playlist by link (exact songs, up to 1000; YouTube Music's own `RDCLAK…` playlists too) | all | unit `links_test`; e2e "youtube music playlist imported" |
+| Import a public Spotify playlist or album by link: each song found on YouTube Music (songs, then videos for covers), unsure ones shown for a look and changeable; Spotify shares up to 100 songs without a login, and the page says when there are more | all | unit `playlist_import_test`; live "a public Spotify playlist imports", "a big Spotify playlist"; e2e "spotify playlist matched", "imported playlist plays" |
+| A private playlist (or bad link) says so and keeps the link to fix | all | widget group "import page"; live (the owner's private playlist) |
+| Pasting a playlist link into search opens the import | all | widget "pasting a playlist link into search" |
+| Save a YouTube Music album or playlist page to your playlists | all | (manual) |
+| Export: Open in YouTube (50 songs per link, saved there as a playlist); Copy song list ("Title - Artist" lines, for TuneMyMusic / Soundiiz) | all | unit `playlist_import_test` group "export"; widget "Copy song list" |
 
 ## Desktop and Android specifics
 
@@ -75,3 +94,10 @@ calling it done. Releases also go through the owner's own testing.
 | Notification / lock screen player: exactly previous, play/pause, next; no stop | Android | e2e host checks; release check |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |
 | Tests never touch the real app on the phone | Android | `android_background_check.sh` fails if it goes missing |
+| **Bug fixed:** a range request YouTube refuses or cuts short is tried again (from where it stopped) instead of stalling the song | all | unit `stream_test` |
+| **Bug fixed:** "1 song", not "1 songs" | all | widget "one song is \"1 song\"" |
+| Linux tar.gz: launcher, icons, app metadata, `install.sh` / `--uninstall` for the user; plugin libraries search only their own folder (no build-folder RUNPATH) | Linux | CI "Check plugin library paths"; `linux_release_check.sh` (Ubuntu: install, play, uninstall) |
+| Flatpak (`io.github.mohdaffankhan.Encore`) with libmpv built in (not released yet) | Linux | CI flatpak job (manual runs); `linux_release_check.sh` (install the bundle, play) |
+| AUR `encore-music-bin` (command `encore-music`) (not released yet) | Linux | CI aur job, manual runs (makepkg, namcap, install); `linux_release_check.sh` (Arch: install, play) |
+| Linux app id is `io.github.mohdaffankhan.Encore`; the library moves over from the old `dev.encore.app` folder once, never over an existing one | Linux | unit `storage_test` |
+| Package versions (PKGBUILD, metainfo) match `pubspec.yaml` | Linux | CI test job |

@@ -2,8 +2,8 @@
 # The last step of every release: nothing is public until this passes.
 # Pushing a tag makes GitHub Actions build a DRAFT release. This downloads
 # that draft's files (the exact ones people will install), plays music with
-# them on a real Android phone and on this Windows PC, and only then
-# publishes the release.
+# them on a real Android phone, on this Windows PC and in Linux containers
+# (Docker), and only then publishes the release.
 # Usage: sh tool/release_check.sh v0.2.0 <android-device-id>
 set -u
 tag=$1
@@ -45,10 +45,10 @@ else
   sleep 3
 fi
 
-log "--- Linux: archive (GitHub Actions checked its libraries)"
-tar -tzf "$dir/encore-linux-x64.tar.gz" | grep -qx './encore' &&
-  tar -tzf "$dir/encore-linux-x64.tar.gz" | grep -qx './lib/libapp.so' ||
-  { log "FAIL: linux archive layout"; fail=1; }
+# The Flatpak and AUR package aren't released yet: add "aur flatpak" here
+# once they are.
+log "--- Linux: tar.gz in a clean container"
+sh tool/linux_release_check.sh "$dir" tar || fail=1
 
 if [ "$fail" != 0 ]; then
   log "FAILED: $tag stays a draft. Fix, delete the draft and tag, and retag."

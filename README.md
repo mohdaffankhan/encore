@@ -1,80 +1,119 @@
 <p align="center">
-  <img src="assets/brand/icon_256.png" width="96" alt="Encore logo">
+  <img src="assets/brand/icon_256.png" width="112" alt="Encore logo">
 </p>
 
 <h1 align="center">Encore</h1>
 
 <p align="center">
-  An ad-free music player for YouTube Music — Android, Windows and Linux.
+  <b>An ad-free, open-source music player for YouTube Music.</b><br>
+  No ads. No account. No tracking. For Android, Windows and Linux.
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.jpg" width="49%" alt="Home">
-  <img src="docs/screenshots/lyrics.jpg" width="49%" alt="Full player with lyrics">
-  <img src="docs/screenshots/search.jpg" width="49%" alt="Search">
-  <img src="docs/screenshots/album.jpg" width="49%" alt="Album">
+  <a href="https://github.com/mohdaffankhan/encore/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/mohdaffankhan/encore?style=flat-square&color=ff8a4c"></a>
+  <a href="https://github.com/mohdaffankhan/encore/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/mohdaffankhan/encore/total?style=flat-square&color=ff8a4c"></a>
+  <a href="https://github.com/mohdaffankhan/encore/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/mohdaffankhan/encore/build.yml?style=flat-square"></a>
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/github/license/mohdaffankhan/encore?style=flat-square"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-informational?style=flat-square">
 </p>
+
+<p align="center">
+  <a href="#download">Download</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-player.png" width="100%" alt="The full player with synced lyrics">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-home.png" width="49%" alt="Home">
+  <img src="docs/screenshots/desktop-playlist.png" width="49%" alt="A playlist imported from Spotify">
+  <img src="docs/screenshots/desktop-import.png" width="49%" alt="Importing a Spotify playlist">
+  <img src="docs/screenshots/desktop-artist.png" width="49%" alt="An artist page">
+</p>
+
+## Download
+
+| Platform | Get it |
+|---|---|
+| **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) |
+| **Windows** 10 / 11 | [`encore-windows-setup.exe`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) |
+| **Linux** x64 | [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
+
+All downloads are on the [Releases](https://github.com/mohdaffankhan/encore/releases)
+page. Install steps for each are [below](#install).
 
 ## Features
 
-- No ads, no account, no tracking
-- Home feed, search with suggestions (songs, albums, artists, playlists)
+**Listen**
+- Everything on YouTube Music: songs, albums, artists, playlists, and
+  videos such as covers and lyric videos
+- Paste a YouTube or YouTube Music link into search to play that exact song
 - Song radio, up next, shuffle and repeat
-- Swipe the player left or right for the next or previous song; on phones,
-  swipe up for lyrics
-- Sleep timer
-- Artist, album and playlist pages
-- Synced lyrics
-- Likes, history and downloads for offline listening, kept on your device
-- Keeps playing in the background on Android, with controls in the
-  notification panel and lock screen
-- Keyboard shortcuts on desktop
+- Synced lyrics that follow the song; tap a line to jump there
+- Sleep timer (15 minutes to an hour, or the end of the song) that fades out
+- Swipe the player sideways for the next or previous song; on phones, swipe
+  up for lyrics and down to close
+
+**Your library, on your device**
+- Likes, history and your own playlists (add, reorder, rename)
+- Import public playlists from **YouTube Music**, **YouTube** or **Spotify**
+  by pasting their link
+- Take a playlist with you: open it in YouTube, or copy its song list for
+  other apps
+- Downloads for offline listening
+
+**Everywhere**
+- Android: plays in the background, with controls in the notification panel
+  and on the lock screen
+- Desktop: keyboard shortcuts and media keys
 
 ## Install
 
-Download the latest version from the **Releases** page of this repository
-(right-hand side on GitHub → *Releases*).
-
-> This repository is private: you need a GitHub account and an invite from
-> the owner to see the downloads.
-
 ### Android
 
-1. Download **`encore-android.apk`** on your phone.
-2. Open it. If asked, allow your browser or file manager to
-   *install unknown apps*.
-3. Open Encore and tap **Allow** when it asks to show notifications — that is
+1. Download **`encore-android.apk`** on your phone and open it. If asked,
+   allow your browser or file manager to *install unknown apps*.
+2. Open Encore and tap **Allow** when it asks to show notifications: that is
    what puts the player in your notification panel.
 
-Updating: install the new APK over the old one; your likes and downloads stay.
+To update, install the new APK over the old one. Your library stays.
 
 ### Windows
 
-Download **`encore-windows-setup.exe`** and run it. If Windows SmartScreen
-says it protected your PC, click **More info → Run anyway** (the installer
-isn't code-signed). It needs no admin rights and adds Encore to the Start menu.
+Run **`encore-windows-setup.exe`**. It needs no admin rights and adds Encore
+to the Start menu. If SmartScreen says it protected your PC, click
+**More info → Run anyway** (the installer isn't code-signed).
 
 Prefer no installer? Unzip **`encore-windows-portable.zip`** anywhere and run
 `encore.exe`.
 
 ### Linux
 
-Encore needs **libmpv** for audio:
+Encore needs `libmpv` for sound:
 
 ```sh
-sudo apt install libmpv2          # Debian / Ubuntu 24.04+ (libmpv1 on older)
-sudo dnf install mpv-libs         # Fedora
-sudo pacman -S mpv                # Arch
+sudo apt install libmpv2      # Debian, Ubuntu (libmpv1 on older releases)
+sudo dnf install mpv-libs     # Fedora
+sudo pacman -S mpv            # Arch
 ```
 
-Then extract and run:
+Then extract the download and run its installer, which needs no root and
+adds Encore to your app menu:
 
 ```sh
-mkdir -p ~/encore && tar -xzf encore-linux-x64.tar.gz -C ~/encore
-~/encore/encore
+mkdir encore && tar -xzf encore-linux-x64.tar.gz -C encore
+./encore/install.sh           # ./encore/install.sh --uninstall to remove
 ```
 
-## Keyboard shortcuts (desktop)
+To update, do the same with the new download. A Flatpak and an AUR package
+are on the way.
+
+## Keyboard shortcuts
 
 | Key | Action |
 |---|---|
@@ -85,74 +124,58 @@ mkdir -p ~/encore && tar -xzf encore-linux-x64.tar.gz -C ~/encore
 | L | Like the current song |
 | Esc | Leave the search box (keys type there while it is active) |
 
-## Good to know
+Media keys on your keyboard work too.
 
-Encore is unofficial: it uses YouTube Music's internal API, which YouTube can
-change at any time. If songs stop playing, an update to Encore is usually
-needed. It isn't affiliated with or endorsed by YouTube or Google.
+## FAQ
 
----
+**Is it free? Are there ads?**
+Free, with no ads, ever. Encore is open source (GPL-3.0) and nobody makes
+money from it.
 
-## For developers
+**Do I need a Google or YouTube account?**
+No. Encore doesn't sign in to anything.
 
-Requires Flutter 3.47+.
+**What does Encore know about me?**
+Nothing leaves your device except the searches and songs you ask
+YouTube Music for (and lyrics from [LRCLIB](https://lrclib.net)). There's no
+analytics and no Encore server. Your likes, playlists, history and downloads
+are kept in a file on your device.
 
-```sh
-flutter pub get
-flutter run -d windows   # or: -d linux, or an Android device
-```
+**Can I import my private playlists or Liked songs?**
+Not yet: importing works by link, which only reaches public playlists.
+Make a playlist public (or *unlisted* on YouTube), import it, then make it
+private again. Spotify shares only the first 100 songs of a playlist without
+signing in.
 
-See [DESIGN.md](DESIGN.md) for the structure and design decisions.
+**A song won't play.**
+YouTube changes how it serves music now and then, and Encore has to follow.
+If songs stop playing, check for a newer version, or
+[open an issue](https://github.com/mohdaffankhan/encore/issues).
 
-### Releases
+**Will there be an iPhone or Mac version?**
+Not for now: they need a paid Apple developer account to install apps.
 
-Never publish a build that hasn't played music on real devices. Debug builds
-(and the tests that use them) can pass while the release build is broken:
-release builds shrink code and resources, which debug builds don't.
+## Contributing
 
-1. Bump `version:` in `pubspec.yaml`, commit, then push a tag:
-   ```sh
-   git tag v0.2.0 && git push origin v0.2.0
-   ```
-   GitHub Actions (`.github/workflows/build.yml`) tests, builds every
-   platform, checks the APK keeps its notification icons and the Linux build
-   has its libraries, and creates a **draft** release. Nobody can see it yet.
-2. With the Android phone connected, on Windows:
-   ```sh
-   sh tool/release_check.sh v0.2.0 <adb-device-id>
-   ```
-   This downloads the draft's exact files, plays music with the APK on the
-   phone (in the background, screen off, notification controls) and with the
-   Windows zip and installer (`encore.exe --self-test`), and publishes the
-   release only if everything passes.
+Bug reports, ideas and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for building Encore, running the tests
+and how releases are checked. [FEATURES.md](FEATURES.md) lists every feature
+with the tests that cover it.
 
-Android releases are signed with a key stored as repository secrets
-(`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-`ANDROID_KEY_PASSWORD`). To sign locally, put the same values in
-`android/key.properties` (ignored by git). App icons are generated by
-`python tool/icons.py .`.
+## Thanks to
 
-### Tests
-
-[FEATURES.md](FEATURES.md) lists every feature with the tests that cover it.
-
-| What | Command |
-|---|---|
-| Unit + widget (offline) | `flutter test test/unit test/widget` |
-| Live API checks | `flutter test test/live` |
-| End-to-end, real audio (desktop) | `flutter test integration_test/app_test.dart --dart-define=ENCORE_TEST=true -d windows` |
-| End-to-end on Android, with background playback | `sh tool/android_background_check.sh <device>` (never plain `flutter test` on a phone with Encore installed: it uninstalls it) |
-| Android release APK | `sh tool/android_release_check.sh <apk> <device>` |
-| Windows release build | `powershell -File tool/windows_release_check.ps1 <folder>` |
-| Windows end-to-end with real key presses | `powershell -File tool/windows_keyboard_check.ps1` |
-| Any release binary | `encore --self-test` (plays a song, exits 0 or 1) |
-| Linux, in Docker | `docker build -t encore-linux-test tool/linux_test` then `docker run --rm -v "$PWD:/src" encore-linux-test` |
-| Frame timings | `flutter drive --profile --no-dds --no-uninstall --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |
-
-`ENCORE_TEST` keeps the tests' likes, history and downloads separate from
-your own. End-to-end tests run a debug build, so they look slower than the
-real app; use the frame-timing test to judge smoothness.
+[Flutter](https://flutter.dev),
+[mpv](https://mpv.io) and [media_kit](https://github.com/media-kit/media-kit),
+[just_audio](https://pub.dev/packages/just_audio),
+[audio_service](https://pub.dev/packages/audio_service),
+[LRCLIB](https://lrclib.net) for lyrics, and the
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) project, whose work on YouTube's
+streams Encore follows.
 
 ## License
 
-[GPL-3.0](LICENSE)
+Encore is free software under the [GNU GPL v3.0](LICENSE).
+
+Encore is unofficial. It isn't affiliated with, endorsed by or sponsored by
+YouTube, Google or Spotify. It uses YouTube Music's internal API, which can
+change at any time.

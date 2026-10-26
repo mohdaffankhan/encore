@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/downloads.dart';
+import '../services/library.dart';
 import '../services/player.dart';
 import 'pages/artist_page.dart';
 import 'pages/collection_page.dart';
@@ -246,6 +247,53 @@ class _Sidebar extends StatelessWidget {
                 selected: false,
                 onTap: () => openPage(c.page(), tab: AppTab.library),
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 24, 0, 4),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'PLAYLISTS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: EncoreColors.textTertiary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'New playlist',
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 20,
+                    color: EncoreColors.textSecondary,
+                    icon: const Icon(Icons.add_rounded),
+                    onPressed: () => newPlaylist(context),
+                  ),
+                ],
+              ),
+            ),
+            // The rest of the sidebar scrolls when there are many.
+            Expanded(
+              child: ValueListenableBuilder(
+                valueListenable: userLibrary.playlists,
+                builder: (context, playlists, _) => ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final p in playlists)
+                      _SidebarItem(
+                        icon: Icons.queue_music_rounded,
+                        label: p.name,
+                        selected: false,
+                        onTap: () => openPage(
+                          CollectionPage.playlist(p.id),
+                          tab: AppTab.library,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

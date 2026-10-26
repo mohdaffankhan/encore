@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Encore
+GenericName=Music Player
+Comment=Ad-free music player for YouTube Music
+Exec=encore
+Icon=io.github.mohdaffankhan.Encore
+Terminal=false
+Categories=AudioVideo;Audio;Music;Player;
+Keywords=music;youtube;songs;player;lyrics;playlist;
+StartupWMClass=io.github.mohdaffankhan.Encore
+StartupNotify=true
