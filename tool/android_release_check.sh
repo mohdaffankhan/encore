@@ -72,8 +72,19 @@ check "plays in background, screen off" 'alive && session | grep -q "state=PLAYI
 
 # The player in the notification panel / lock screen: exactly
 # previous, play/pause, next. Keep only Encore's notification record.
-a shell dumpsys notification --noredact \
-  | awk "/NotificationRecord\(.*pkg=$pkg/{n=45} n&&n--" > build/encore_notification.txt
+# adb sometimes drops a command (v0.1.5's first check got nothing back), and
+# a real dump always has other apps' records, so an empty one is retried.
+for _ in 1 2 3; do
+  : > build/encore_notification.txt
+  records=$(a shell dumpsys notification --noredact | awk "
+    /NotificationRecord\(/ { all++ }
+    /NotificationRecord\(.*pkg=$pkg/ { n=45 }
+    n && n-- { print > \"build/encore_notification.txt\" }
+    END { print all + 0 }")
+  [ "$records" -gt 0 ] && break
+  log "notification dump came back empty; trying again"
+  sleep 2
+done
 check "media notification shown" 'grep -q MediaStyle build/encore_notification.txt'
 buttons=$(grep -cE '^ *\[[0-9]\] "' build/encore_notification.txt)
 check "3 notification buttons (got $buttons)" '[ "$buttons" = 3 ]'
