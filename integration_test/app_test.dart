@@ -4,12 +4,14 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:encore/api/stream.dart';
 import 'package:encore/main.dart' as app;
 import 'package:encore/models.dart';
 import 'package:encore/services/downloads.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/services/sleep_timer.dart';
+import 'package:encore/services/youtube_audio_source.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/home_page.dart';
 import 'package:encore/ui/pages/import_page.dart';
@@ -444,6 +446,52 @@ void main() {
             player.audio.position.inSeconds >= 1,
       ),
     );
+
+    // Bug: a song whose link stopped working (it expires, and changes with
+    // the IP address, e.g. Wi-Fi to mobile data) stuck, and dragging the
+    // seek bar to the middle did nothing. Its link is broken here as YouTube
+    // would, then the song is dragged to the middle.
+    AudioStream breakLink() {
+      final stream = (player.audio.audioSource! as YouTubeAudioSource).stream;
+      return stream
+        ..url = stream.url.replace(
+          queryParameters: {...stream.url.queryParameters, 'expire': '1'},
+        );
+    }
+
+    Future<void> playsFrom(Duration at) => _untilTrue(
+      tester,
+      () =>
+          player.audio.playing &&
+          player.audio.position >= at + const Duration(seconds: 2),
+    );
+
+    final broken = breakLink();
+    var middle = player.audio.duration! ~/ 2;
+    await player.seek(middle);
+    await _step('expired link renewed', () => playsFrom(middle));
+    // Not if the player already had those bytes.
+    _log('link renewed', '${broken.url.queryParameters['expire'] != '1'}');
+    expect(player.current, track, reason: 'the same song');
+
+    // Renewing fails too (e.g. no network for a moment): the song breaks
+    // off. Dragging the seek bar again, once it can be renewed, plays from
+    // there (Android's player stops on the failure and the song is loaded
+    // again; the desktop player carries on and asks again).
+    breakLink();
+    failRenewals = true;
+    middle = player.audio.duration! ~/ 3;
+    try {
+      await player.seek(middle);
+      final failed = DateTime.now().add(const Duration(seconds: 8));
+      await _untilTrue(tester, () => DateTime.now().isAfter(failed));
+    } finally {
+      failRenewals = false;
+    }
+    _log('after the failure', player.audio.processingState.name);
+    await player.seek(middle);
+    await _step('seek works after a failure', () => playsFrom(middle));
+    expect(player.current, track, reason: 'the same song');
 
     // Download, then play offline from the file.
     downloads.download([track]);

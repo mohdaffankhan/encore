@@ -142,7 +142,12 @@ class _SeekBarState extends State<SeekBar> {
       child: StreamBuilder(
         stream: player.audio.positionStream,
         builder: (context, snapshot) {
-          final total = player.audio.duration ?? Duration.zero;
+          // The song's own length until the player knows it (while it
+          // loads), so it can be dragged then too.
+          final total =
+              player.audio.duration ??
+              player.current?.duration ??
+              Duration.zero;
           final max = total.inMilliseconds.toDouble();
           final pos =
               _dragging ??
@@ -160,8 +165,8 @@ class _SeekBarState extends State<SeekBar> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             max: max > 0 ? max : 1,
             value: pos.clamp(0, max > 0 ? max : 1),
-            // Always enabled, ignoring drags while the length is unknown
-            // (a song loading): flipping the slider between enabled and
+            // Always enabled, ignoring drags while the length is unknown:
+            // flipping the slider between enabled and
             // disabled on every song change broke Flutter's accessibility
             // tree for the hidden player bar under the full player.
             onChanged: (v) {
@@ -169,7 +174,7 @@ class _SeekBarState extends State<SeekBar> {
             },
             onChangeEnd: (v) {
               if (max > 0) {
-                player.audio.seek(Duration(milliseconds: v.round()));
+                player.seek(Duration(milliseconds: v.round()));
               }
               setState(() => _dragging = null);
             },

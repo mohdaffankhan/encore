@@ -63,13 +63,13 @@ class EncoreAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
-  Future<void> play() => player.audio.play();
+  Future<void> play() => player.play();
 
   @override
   Future<void> pause() => player.audio.pause();
 
   @override
-  Future<void> seek(Duration position) => player.audio.seek(position);
+  Future<void> seek(Duration position) => player.seek(position);
 
   @override
   Future<void> skipToNext() => player.next();

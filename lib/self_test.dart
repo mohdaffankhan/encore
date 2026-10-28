@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'api/innertube.dart' as yt;
 import 'models.dart';
 import 'services/player.dart';
+import 'services/youtube_audio_source.dart';
 
 /// Where `encore --self-test` writes its report. Desktop release builds have
 /// no console, so the release checks read this file.
@@ -46,6 +47,23 @@ Future<void> runSelfTest() async {
           player.audio.position.inSeconds >= 2,
     );
     log('next: ${player.current!.title}');
+
+    // A link that stopped working (expired, or the IP address changed) is
+    // renewed: break it as YouTube would, then seek to the middle.
+    await _until(() => player.audio.audioSource is YouTubeAudioSource);
+    final stream = (player.audio.audioSource! as YouTubeAudioSource).stream;
+    stream.url = stream.url.replace(
+      queryParameters: {...stream.url.queryParameters, 'expire': '1'},
+    );
+    final middle = player.audio.duration! ~/ 2;
+    await player.seek(middle);
+    await _until(
+      () =>
+          player.audio.playing &&
+          player.audio.position >= middle + const Duration(seconds: 2),
+    );
+    final renewed = stream.url.queryParameters['expire'] != '1';
+    log('expired link: plays on (${renewed ? 'renewed' : 'not needed'})');
     ok = true;
   } catch (e) {
     log('error: $e');

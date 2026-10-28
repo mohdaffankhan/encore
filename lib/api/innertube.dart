@@ -29,13 +29,20 @@ enum SearchFilter {
   final String params;
 }
 
-final _http = HttpClient();
+final _http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
 
 /// The anonymous visitor id YouTube assigns; feed continuations only work
 /// when it is sent back.
 String? _visitorData;
 
+/// Fails instead of spinning forever on a stalled connection.
 Future<Map<String, dynamic>> _post(
+  String endpoint,
+  Map<String, dynamic> body, {
+  String query = '',
+}) => _send(endpoint, body, query: query).timeout(const Duration(seconds: 15));
+
+Future<Map<String, dynamic>> _send(
   String endpoint,
   Map<String, dynamic> body, {
   String query = '',

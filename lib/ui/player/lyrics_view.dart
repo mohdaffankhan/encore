@@ -169,7 +169,7 @@ class _LyricsViewState extends State<LyricsView> {
                 InkWell(
                   key: _keys[i],
                   borderRadius: BorderRadius.circular(8),
-                  onTap: () => player.audio.seek(lines[i].time),
+                  onTap: () => player.seek(lines[i].time),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 7),
                     child: AnimatedDefaultTextStyle(

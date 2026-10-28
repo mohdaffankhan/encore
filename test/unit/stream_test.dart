@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:encore/api/stream.dart';
@@ -9,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Serves [data] by range, after failing as [fail] says for each request.
 Future<(HttpServer, List<String>)> _server(
   List<int> data,
-  String? Function(int request) fail,
+  String? Function(int request, String path) fail,
 ) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   final ranges = <String>[];
@@ -19,9 +20,17 @@ Future<(HttpServer, List<String>)> _server(
     ranges.add(range);
     final [from, to] = range.substring(6).split('-').map(int.parse).toList();
     final res = req.response;
-    switch (fail(n++)) {
+    switch (fail(n++, req.uri.path)) {
       case 'refuse':
         res.statusCode = HttpStatus.forbidden;
+      case 'silent':
+        // Headers and a little, then nothing, without closing (the phone
+        // changing networks).
+        res.statusCode = HttpStatus.partialContent;
+        res.contentLength = to - from + 1;
+        res.add(data.sublist(from, from + 1000));
+        await res.flush();
+        await Completer<void>().future;
       case 'cut':
         res.statusCode = HttpStatus.partialContent;
         // Half the bytes, then the connection ends.
@@ -37,7 +46,10 @@ Future<(HttpServer, List<String>)> _server(
 
 void main() {
   final data = List.generate(3 << 20, (i) => i % 251);
-  setUp(() => retryDelay = Duration.zero);
+  setUp(() {
+    retryDelay = Duration.zero;
+    readTimeout = const Duration(milliseconds: 300);
+  });
 
   Future<List<int>> readAll(HttpServer server, [int start = 0]) async {
     final stream = AudioStream(
@@ -49,7 +61,7 @@ void main() {
   }
 
   test('reads every byte, a chunk at a time', () async {
-    final (server, ranges) = await _server(data, (_) => null);
+    final (server, ranges) = await _server(data, (_, _) => null);
     addTearDown(server.close);
     expect(await readAll(server), data);
     expect(ranges, hasLength(3));
@@ -58,7 +70,7 @@ void main() {
   test('a refused request is tried again', () async {
     final (server, ranges) = await _server(
       data,
-      (n) => n == 1 ? 'refuse' : null,
+      (n, _) => n == 1 ? 'refuse' : null,
     );
     addTearDown(server.close);
     expect(await readAll(server), data);
@@ -66,7 +78,10 @@ void main() {
   });
 
   test('a request cut short goes on from where it stopped', () async {
-    final (server, ranges) = await _server(data, (n) => n == 0 ? 'cut' : null);
+    final (server, ranges) = await _server(
+      data,
+      (n, _) => n == 0 ? 'cut' : null,
+    );
     addTearDown(server.close);
     expect(await readAll(server, 1000), data.sublist(1000));
     final half = 1000 + (1 << 20) ~/ 2;
@@ -74,8 +89,61 @@ void main() {
   });
 
   test('gives up when it keeps failing', () async {
-    final (server, _) = await _server(data, (_) => 'refuse');
+    final (server, _) = await _server(data, (_, _) => 'refuse');
     addTearDown(server.close);
     await expectLater(readAll(server), throwsA(isA<HttpException>()));
+  });
+
+  test('a connection that goes silent is dropped and tried again', () async {
+    final (server, ranges) = await _server(
+      data,
+      (n, _) => n == 1 ? 'silent' : null,
+    );
+    addTearDown(() => server.close(force: true));
+    expect(await readAll(server), data);
+    expect(ranges, hasLength(4));
+  });
+
+  // Links stop working after some hours, or when the IP address changes
+  // (Wi-Fi to mobile data): every request is refused until it is renewed.
+  test('a refused link is renewed, and reading goes on from there', () async {
+    final (server, ranges) = await _server(
+      data,
+      (n, path) => n >= 1 && path == '/old' ? 'refuse' : null,
+    );
+    addTearDown(server.close);
+    var renewals = 0;
+    final stream = AudioStream(
+      Uri.parse('http://127.0.0.1:${server.port}/old'),
+      'audio/webm',
+      data.length,
+      renew: () async {
+        renewals++;
+        return Uri.parse('http://127.0.0.1:${server.port}/new');
+      },
+    );
+    expect([await for (final c in stream.read()) ...c], data);
+    expect(renewals, 1);
+    expect(stream.url.path, '/new');
+  });
+
+  test('a link that stays refused after renewing gives up', () async {
+    final (server, _) = await _server(data, (_, _) => 'refuse');
+    addTearDown(server.close);
+    var renewals = 0;
+    final stream = AudioStream(
+      Uri.parse('http://127.0.0.1:${server.port}/old'),
+      'audio/webm',
+      data.length,
+      renew: () async {
+        renewals++;
+        return Uri.parse('http://127.0.0.1:${server.port}/new');
+      },
+    );
+    await expectLater(
+      stream.read().drain<void>(),
+      throwsA(isA<HttpException>()),
+    );
+    expect(renewals, 1);
   });
 }

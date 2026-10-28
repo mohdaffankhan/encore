@@ -63,6 +63,30 @@ void main() {
     );
   });
 
+  // The player only knows the length once the song has loaded; until then
+  // the seek bar read 0:00 and ignored drags.
+  testWidgets('the seek bar shows the song\'s length while it loads', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(400, 860));
+    _playFromSearch(
+      const Track(
+        id: 'long',
+        title: 'Long song',
+        artist: 'Artist',
+        artUrl: '',
+        duration: Duration(minutes: 3, seconds: 35),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(MiniPlayer));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: find.byType(SeekBar), matching: find.text('3:35')),
+      findsOneWidget,
+    );
+  });
+
   group('desktop player bar', () {
     Future<Finder> pumpBar(WidgetTester tester) async {
       await pumpApp(tester, const Size(1400, 900));
