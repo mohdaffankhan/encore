@@ -20,11 +20,19 @@ public static class Win {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
   [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach);
   [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
   // Windows only lets the foreground window's thread hand over the
   // foreground, so borrow its input queue for a moment. (Not tapping Alt:
   // a lone Alt press puts the window in menu mode, which takes keyboard
   // focus away from the app.)
-  public static bool Bring(IntPtr h) {
+  public static bool Bring(IntPtr h, bool nudge) {
+    // Windows also lets the process that sent the last input take the
+    // foreground: a key that types nothing (0xFF, unassigned) is enough
+    // when another app (e.g. a browser) won't let go.
+    if (nudge) {
+      keybd_event(0xFF, 0, 0, UIntPtr.Zero);
+      keybd_event(0xFF, 0, 2, UIntPtr.Zero);
+    }
     var fg = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
     var me = GetCurrentThreadId();
     AttachThreadInput(me, fg, true);
@@ -37,8 +45,8 @@ public static class Win {
   $app = Get-Process encore | Where-Object MainWindowHandle -ne 0 |
     Sort-Object StartTime | Select-Object -Last 1
   $front = $false
-  foreach ($try in 1..5) {
-    if ([Win]::Bring($app.MainWindowHandle)) { $front = $true; break }
+  foreach ($try in 1..6) {
+    if ([Win]::Bring($app.MainWindowHandle, $try -gt 2)) { $front = $true; break }
     Start-Sleep -Milliseconds 300
   }
   # The keys go to whatever window is in front, so only type into Encore.
