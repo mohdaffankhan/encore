@@ -1,7 +1,9 @@
 package dev.encore.app
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.view.Surface
@@ -10,6 +12,8 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import com.ryanheise.audioservice.AudioServiceActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 // AudioServiceActivity keeps the Flutter engine alive for background playback.
 class MainActivity : AudioServiceActivity() {
@@ -23,6 +27,21 @@ class MainActivity : AudioServiceActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        // Mobile data (or a hotspot): Settings can stream at lower quality.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.encore.app/network")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "isMetered") {
+                    val network =
+                        getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                    result.success(network.isActiveNetworkMetered)
+                } else {
+                    result.notImplemented()
+                }
+            }
     }
 
     private var askedForRate = false

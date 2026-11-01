@@ -185,3 +185,20 @@ class Artist {
   final List<Track> topSongs;
   final List<Shelf> shelves;
 }
+
+/// How good songs sound, against how much data they use.
+enum AudioQuality {
+  /// The best there is (about 130–160 kbps).
+  high('High', 'Best sound'),
+
+  /// About 70 kbps: sounds fine, about half the data.
+  normal('Normal', 'About half the data'),
+
+  /// The least data (about 50 kbps).
+  low('Low', 'Least data');
+
+  const AudioQuality(this.label, this.detail);
+
+  final String label;
+  final String detail;
+}

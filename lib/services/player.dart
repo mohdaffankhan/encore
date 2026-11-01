@@ -9,6 +9,7 @@ import '../api/stream.dart';
 import '../models.dart';
 import 'downloads.dart';
 import 'library.dart';
+import 'settings.dart';
 import 'sleep_timer.dart';
 import 'youtube_audio_source.dart';
 
@@ -22,9 +23,12 @@ Future<AudioSource> sourceFor(Track track) async {
     return AudioSource.file(file.path, tag: track);
   }
   final ahead = _ahead.remove(track.id);
+  final quality = await settings.streamingQuality();
   final stream = ahead == null
-      ? await audioStream(track.id)
-      : await ahead.catchError((Object _) => audioStream(track.id));
+      ? await audioStream(track.id, quality: quality)
+      : await ahead.catchError(
+          (Object _) => audioStream(track.id, quality: quality),
+        );
   return YouTubeAudioSource(stream, tag: track);
 }
 
@@ -37,7 +41,9 @@ final _ahead = <String, Future<AudioStream>>{};
 void prepare(Track track) {
   if (downloads.isDownloaded(track) || _ahead.containsKey(track.id)) return;
   if (_ahead.length >= 2) _ahead.remove(_ahead.keys.first);
-  _ahead[track.id] = audioStream(track.id)..ignore();
+  _ahead[track.id] = settings.streamingQuality().then(
+    (quality) => audioStream(track.id, quality: quality),
+  )..ignore();
 }
 
 class Player {

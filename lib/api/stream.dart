@@ -5,6 +5,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../models.dart';
+
 // Audio comes from the player API with the VISIONOS client: unlike most
 // clients it still serves full streams without a PO token (other clients cut
 // off after ~1 MB). This mirrors yt-dlp's defaults; when playback breaks,
@@ -113,9 +115,13 @@ class AudioStream {
   }
 }
 
-/// The best audio stream of [videoId]; with [itag], that format (to renew
-/// a link to the same bytes).
-Future<AudioStream> audioStream(String videoId, {int? itag}) async {
+/// The audio stream of [videoId] at [quality]; with [itag], that format
+/// (to renew a link to the same bytes).
+Future<AudioStream> audioStream(
+  String videoId, {
+  int? itag,
+  AudioQuality quality = AudioQuality.high,
+}) async {
   var json = await _player(videoId);
   if (json['playabilityStatus']?['status'] == 'LOGIN_REQUIRED') {
     // YouTube asks anonymous clients to identify as a visitor first.
@@ -128,22 +134,17 @@ Future<AudioStream> audioStream(String videoId, {int? itag}) async {
       status?['reason'] ?? 'Unplayable (${status?['status']})',
     );
   }
-  final formats =
-      [
-        for (final f
-            in json['streamingData']?['adaptiveFormats'] as List? ?? [])
-          if (f['mimeType'] is String &&
-              (f['mimeType'] as String).startsWith('audio/') &&
-              f['url'] != null &&
-              int.tryParse('${f['contentLength']}') != null &&
-              (itag == null || f['itag'] == itag))
-            f,
-      ]..sort(
-        (a, b) =>
-            (b['bitrate'] as int? ?? 0).compareTo(a['bitrate'] as int? ?? 0),
-      );
+  final formats = [
+    for (final f in json['streamingData']?['adaptiveFormats'] as List? ?? [])
+      if (f['mimeType'] is String &&
+          (f['mimeType'] as String).startsWith('audio/') &&
+          f['url'] != null &&
+          int.tryParse('${f['contentLength']}') != null &&
+          (itag == null || f['itag'] == itag))
+        f,
+  ];
   if (formats.isEmpty) throw const HttpException('No audio stream');
-  final best = formats.first;
+  final best = pickFormat(formats, quality);
   final length = int.parse('${best['contentLength']}');
   final format = best['itag'] as int?;
   return AudioStream(
@@ -160,6 +161,22 @@ Future<AudioStream> audioStream(String videoId, {int? itag}) async {
             return again.url;
           },
   );
+}
+
+/// The format for [quality] among [formats] (each with a `bitrate`): the
+/// best for high, the lowest for low, and for normal the best at or under
+/// 100 kbps (YouTube's ~70 kbps Opus), else the lowest.
+@visibleForTesting
+Map pickFormat(List formats, AudioQuality quality) {
+  int rate(Map f) => f['averageBitrate'] as int? ?? f['bitrate'] as int? ?? 0;
+  final sorted = [for (final f in formats) f as Map]
+    ..sort((a, b) => rate(b).compareTo(rate(a)));
+  return switch (quality) {
+    AudioQuality.high => sorted.first,
+    AudioQuality.low => sorted.last,
+    AudioQuality.normal =>
+      sorted.where((f) => rate(f) <= 100000).firstOrNull ?? sorted.last,
+  };
 }
 
 /// Fails instead of waiting forever on a stalled connection.

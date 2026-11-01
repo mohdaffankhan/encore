@@ -12,6 +12,7 @@ import 'services/home_cache.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
 import 'services/session.dart';
+import 'services/settings.dart';
 import 'services/storage.dart';
 import 'ui/art_colors.dart';
 
@@ -40,6 +41,7 @@ Future<void> main([List<String> args = const []]) async {
     ..maximumSizeBytes = 48 << 20
     ..maximumSize = 400;
   await userLibrary.load();
+  await settings.load();
   await playbackSession.restore();
   await loadLastHome();
   unawaited(downloads.resume());
