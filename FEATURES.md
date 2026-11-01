@@ -41,18 +41,16 @@ calling it done. Releases also go through the owner's own testing.
 |---|---|---|
 | **Bug fixed:** a 2nd/3rd song from search showed the earlier song's art and title (players, notification, colour) | all | widget `now_playing_test`; e2e "search result N shown in the player" |
 | Mini player: tap or swipe up opens the full player; swipe sideways skips | phones | widget "swipe up on the mini player", `swipe to skip` group |
-| **Bug fixed:** the volume control disappeared when the full player opened (it covers the bar): it has one too, and mute remembers the level across both | desktop | widget `now_playing_test` "the full player has the volume too" |
 | Desktop player bar: click anywhere that isn't a control opens the full player | desktop | widget `now_playing_test` group "desktop player bar"; e2e (opens it that way) |
 | Full player: swipe the artwork left/right for next/previous | all | widget `swipe to skip`; e2e "swipe left", "swipe right" |
 | Full player: pull down to close (follows the finger, springs back) | phones | widget "pulling the song down follows the finger" |
 | Lyrics sheet: drag up/down with the finger, snaps, swipe down / ⌄ / Back closes, follows the song | phones | widget group "full player on a phone"; e2e "swipe up: lyrics" |
-| Up next: drag the handle to reorder, × takes a song out (it stays out when shuffle is turned off) | all | unit `player_test` group "up next"; widget "a song can be taken out of up next" |
 | Lyrics / Up next side panel | desktop | e2e "lyrics load" |
 | Lyrics: synced, tap a line to seek; "couldn't load" + Retry when offline | all | widget (offline Retry); e2e "lyrics load" |
 | Seek bar stays enabled while a song loads (accessibility tree fix) | all | widget "the seek bar stays enabled" |
 | **Bug fixed:** every song change flashed the placeholder before the new art: the old art stays until the new is ready; art shown for the first time fades in | all | widget `artwork_test` |
 | Art is kept on disk (100 MB, least recently used goes first), so it shows at once after a restart; the next song's art is fetched ahead | all | unit `art_cache_test` |
-| Swipe to skip turns pages: the next and previous songs sit beside the art (and the mini player) and follow the finger, so the new song is there at once; at the end of the queue the song leaves and comes back; drags while it settles are ignored | all | widget `gestures_and_keys_test` "the next song slides into place", "a swipe carries the song off", "a drag while the song leaves" |
+| Swipe to skip turns pages: the next and previous songs sit beside the art (and the mini player) and follow the finger, so the new song is there at once (drawn only while it moves, and on desktop only inside the art's frame); at the end of the queue the song leaves and comes back; drags while it settles are ignored | all | widget `gestures_and_keys_test` "the next song slides into place", "a swipe carries the song off", "a drag while the song leaves" |
 | Phones: the full player slides up from the bottom like a sheet (and back down) | phones | widget `now_playing_test` "slides up from the bottom" |
 | **Bug fixed:** home cards overflowed with a larger system font size or a title in a taller script: the card grows with the font size and its lines keep their height | all | widget `media_card_test` |
 | **Bug fixed (Android):** on 120 Hz phones (e.g. Samsung's adaptive refresh) animations ran at 60 fps once the finger lifted: the app asks for the screen's highest rate while it draws | android | measured on the phone (frame times, SurfaceFlinger) |

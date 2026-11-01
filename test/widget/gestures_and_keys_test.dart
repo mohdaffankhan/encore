@@ -203,16 +203,19 @@ void main() {
         ),
       );
       final start = tester.getTopLeft(find.byKey(_target)).dx;
+      // At rest an edge of it showed beside the art (phones, and over the
+      // up next panel on desktop).
+      expect(find.byKey(next), findsNothing, reason: 'not drawn at rest');
       expect(
-        tester.getTopLeft(find.byKey(next)).dx,
-        greaterThanOrEqualTo(start + 300),
-        reason: 'out of sight beside it',
+        find.byKey(next, skipOffstage: false),
+        findsOneWidget,
+        reason: 'built, so its art is loaded',
       );
       await tester.drag(find.byKey(_target), const Offset(-100, 0));
       final seen = <double>[];
       var nextAt = double.infinity;
       for (var i = 0; i < 30 && calls.isEmpty; i++) {
-        nextAt = tester.getTopLeft(find.byKey(next)).dx;
+        nextAt = tester.getTopLeft(find.byKey(next, skipOffstage: false)).dx;
         await tester.pump(const Duration(milliseconds: 16));
         seen.add(tester.getTopLeft(find.byKey(_target)).dx);
       }

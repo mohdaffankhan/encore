@@ -155,14 +155,19 @@ class _SwipeToSkipState extends State<SwipeToSkip>
         animation: _offset,
         builder: (context, child) {
           final dx = _offset.value;
-          // A whole page (its own width) and the gap to that side.
+          // A whole page (its own width) and the gap to that side. Only
+          // drawn while the song moves: at rest an edge of it could show
+          // beside the art. Still built, so its art is loaded by then.
           Widget beside(double side, Widget page) => Positioned.fill(
             key: ValueKey(side),
-            child: Transform.translate(
-              offset: Offset(dx + side * SwipeToSkip.gap, 0),
-              child: FractionalTranslation(
-                translation: Offset(side, 0),
-                child: page,
+            child: Offstage(
+              offstage: dx == 0,
+              child: Transform.translate(
+                offset: Offset(dx + side * SwipeToSkip.gap, 0),
+                child: FractionalTranslation(
+                  translation: Offset(side, 0),
+                  child: page,
+                ),
               ),
             ),
           );
