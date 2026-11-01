@@ -41,20 +41,60 @@ public static class Peak {
 }
 '@
 
+# Windows' media controls (the overlay, lock screen and media keys): what
+# Windows shows as playing, read through its own API.
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
+$asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+    $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
+    $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+function Await($op, [Type]$type) {
+  $task = $asTask.MakeGenericMethod($type).Invoke($null, @($op))
+  $null = $task.Wait(-1); $task.Result
+}
+function MediaTitle {
+  $mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
+  foreach ($s in $mgr.GetSessions()) {
+    if ($s.SourceAppUserModelId -notlike '*encore*') { continue }
+    $p = Await ($s.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+    return $p.Title
+  }
+}
+Add-Type -TypeDefinition @'
+using System; using System.Runtime.InteropServices;
+public static class Keys {
+  [DllImport("user32.dll")] static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  // The keyboard's Next media key, as a real key press.
+  public static void MediaNext() {
+    keybd_event(0xB0, 0, 1, UIntPtr.Zero);
+    keybd_event(0xB0, 0, 3, UIntPtr.Zero);
+  }
+}
+'@
+
 $log = Join-Path $env:TEMP 'encore_self_test.log'
-Remove-Item $log -ErrorAction SilentlyContinue
+$ready = Join-Path $env:TEMP 'encore_media_check.ready'
+Remove-Item $log, $ready -ErrorAction SilentlyContinue
 Get-Process encore -ErrorAction SilentlyContinue | Stop-Process -Force
-$proc = Start-Process (Join-Path $Dir 'encore.exe') '--self-test' -PassThru
+$proc = Start-Process (Join-Path $Dir 'encore.exe') '--self-test', '--media-check' -PassThru
 $peak = 0
+$shown = $null
 while (-not $proc.WaitForExit(500)) {
   if ((Get-Date) - $proc.StartTime -gt [TimeSpan]::FromMinutes(3)) {
     $proc | Stop-Process -Force
     break
   }
   $peak = [Math]::Max($peak, [Peak]::Of($proc.Id))
+  if ($null -eq $shown -and (Test-Path $ready)) {
+    $playing = Get-Content $ready -Raw
+    $shown = MediaTitle
+    Check "Windows media controls show the song ('$shown')" ($shown -eq $playing)
+    [Keys]::MediaNext()
+  }
 }
 if (Test-Path $log) { Get-Content $log | ForEach-Object { "[self-test] $_" } }
 Check 'self-test passes' ($proc.ExitCode -eq 0)
 Check "sound plays (peak $([Math]::Round($peak, 3)))" ($peak -gt 0.01)
+Check 'the Next media key moves on one song' ((Test-Path $log) -and (Select-String -Quiet 'media key: next song .*, 1 along' $log))
 if ($fail) { '[release] FAILED' } else { '[release] PASSED' }
 exit $fail

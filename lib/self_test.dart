@@ -12,11 +12,18 @@ import 'services/youtube_audio_source.dart';
 /// no console, so the release checks read this file.
 final selfTestLog = File('${Directory.systemTemp.path}/encore_self_test.log');
 
+/// With `--media-check`: written once a song plays, for the release check
+/// to press the keyboard's Next media key (Windows routes it to us through
+/// its media controls, whichever app is in front).
+final mediaCheckFile = File(
+  '${Directory.systemTemp.path}/encore_media_check.ready',
+);
+
 /// `encore --self-test` plays a real song in the build people install (no
 /// debug build, no test harness) and exits with 0 if it played, 1 if not.
 /// Used by tool/*_release_check and the release workflow. Runs with the UI
 /// up, on test data (see storage.dart), so the user's library is untouched.
-Future<void> runSelfTest() async {
+Future<void> runSelfTest({bool mediaKeys = false}) async {
   final report = StringBuffer();
   void log(String line) {
     report.writeln(line);
@@ -64,6 +71,19 @@ Future<void> runSelfTest() async {
     );
     final renewed = stream.url.queryParameters['expire'] != '1';
     log('expired link: plays on (${renewed ? 'renewed' : 'not needed'})');
+
+    if (mediaKeys) {
+      final before = player.current;
+      final at = player.index.value;
+      await mediaCheckFile.writeAsString(before!.title);
+      await _until(() => player.current != before && player.audio.playing);
+      // Once only: the app's own key handling and Windows' media controls
+      // must not both act on one press.
+      await Future<void>.delayed(const Duration(seconds: 3));
+      final moved = player.index.value - at;
+      log('media key: next song (${player.current!.title}), $moved along');
+      if (moved != 1) throw StateError('one press moved $moved songs');
+    }
     ok = true;
   } catch (e) {
     log('error: $e');
@@ -72,6 +92,7 @@ Future<void> runSelfTest() async {
       'error: ${player.error.value}',
     );
   }
+  if (await mediaCheckFile.exists()) await mediaCheckFile.delete();
   log(ok ? 'PASSED' : 'FAILED');
   await player.audio.stop();
   await selfTestLog.writeAsString(report.toString());
