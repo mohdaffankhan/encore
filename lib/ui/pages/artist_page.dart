@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/innertube.dart' as yt;
 import '../../models.dart';
+import '../../services/art_cache.dart';
 import '../../services/player.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
@@ -78,12 +79,14 @@ class _Hero extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (artist.artUrl.isNotEmpty)
-            Image.network(
-              artist.artUrl,
+            Image(
+              image: ResizeImage.resizeIfNeeded(
+                (width * MediaQuery.devicePixelRatioOf(context)).ceil(),
+                null,
+                CachedArt(artist.artUrl),
+              ),
               fit: BoxFit.cover,
               alignment: const Alignment(0, -0.35),
-              cacheWidth: (width * MediaQuery.devicePixelRatioOf(context))
-                  .ceil(),
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           const DecoratedBox(

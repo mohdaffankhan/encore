@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../services/art_cache.dart';
 import '../services/player.dart';
 import 'theme.dart';
 import 'widgets/artwork.dart';
@@ -15,6 +16,15 @@ final _cache = <String, Color?>{};
 void watchNowPlayingColor() => player.nowPlaying.addListener(() async {
   final url = player.current?.artUrl;
   if (url == null) return;
+  // The next song's art, so it is there at once when it plays (or is
+  // swiped to).
+  if (player.upNext.firstOrNull?.artUrl case final next? when next.isNotEmpty) {
+    for (final size in {
+      for (final px in [60, 120, 226, 544]) sizedArt(next, px),
+    }) {
+      unawaited(prefetchArt(size));
+    }
+  }
   final color = await artColor(url);
   if (player.current?.artUrl == url) nowPlayingColor.value = color;
 });
@@ -28,7 +38,7 @@ Future<Color?> artColor(String url) async {
   Color? best;
   try {
     final image = await _decode(
-      ResizeImage(NetworkImage(sizedArt(url, 60)), width: 8, height: 8),
+      ResizeImage(CachedArt(sizedArt(url, 60)), width: 8, height: 8),
     );
     final data = await image.toByteData();
     image.dispose();

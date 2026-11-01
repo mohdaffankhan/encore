@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../services/art_cache.dart';
 import '../../services/player.dart';
 import '../art_colors.dart';
 import '../shell.dart';
@@ -388,9 +389,11 @@ class _Backdrop extends StatelessWidget {
             if (track.artUrl.isNotEmpty)
               Opacity(
                 opacity: 0.55,
-                child: Image.network(
-                  sizedArt(track.artUrl, 60),
-                  cacheWidth: 16,
+                child: Image(
+                  image: ResizeImage(
+                    CachedArt(sizedArt(track.artUrl, 60)),
+                    width: 16,
+                  ),
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.medium,
                   gaplessPlayback: true,

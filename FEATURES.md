@@ -44,6 +44,8 @@ calling it done. Releases also go through the owner's own testing.
 | Lyrics / Up next side panel | desktop | e2e "lyrics load" |
 | Lyrics: synced, tap a line to seek; "couldn't load" + Retry when offline | all | widget (offline Retry); e2e "lyrics load" |
 | Seek bar stays enabled while a song loads (accessibility tree fix) | all | widget "the seek bar stays enabled" |
+| **Bug fixed:** every song change flashed the placeholder before the new art: the old art stays until the new is ready; art shown for the first time fades in | all | widget `artwork_test` |
+| Art is kept on disk (100 MB, least recently used goes first), so it shows at once after a restart; the next song's art is fetched ahead | all | unit `art_cache_test` |
 | Tabs fit narrow phones | phones | widget (no overflow in full player tests) |
 
 ## Song menu and sleep timer
