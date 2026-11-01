@@ -77,17 +77,49 @@ class _FullPlayerState extends State<FullPlayer>
   /// Phones: lyrics are a sheet over the song, not a view of their own.
   final _lyrics = LyricsSheetController();
 
+  ModalRoute<Object?>? _route;
+
   @override
   void initState() {
     super.initState();
     if (widget.initialView == PlayerView.lyrics) _lyrics.open.value = true;
+    _pull.addListener(_cover);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == _route) return;
+    _route?.animation?.removeStatusListener(_onRouteStatus);
+    _route = route;
+    route?.animation?.addStatusListener(_onRouteStatus);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cover());
   }
 
   @override
   void dispose() {
+    _route?.animation?.removeStatusListener(_onRouteStatus);
     _lyrics.dispose();
     _pull.dispose();
     super.dispose();
+  }
+
+  void _onRouteStatus(AnimationStatus _) => _cover();
+
+  /// Once open, and while it isn't pulled down, the player covers the app,
+  /// so the app behind it isn't drawn: drawing it too made every frame here
+  /// cost about twice as much. (The route isn't opaque so that pulling the
+  /// player down shows the app.) Runs after the route's own status
+  /// listener, which sets the same flag.
+  void _cover() {
+    final route = _route;
+    if (!mounted || route == null || route.overlayEntries.isEmpty) return;
+    final covering =
+        route.animation?.status == AnimationStatus.completed &&
+        _pull.value == 0;
+    final entry = route.overlayEntries.first;
+    if (entry.opaque != covering) entry.opaque = covering;
   }
 
   /// Phones: a vertical drag on the song pulls the lyrics sheet up or, with
@@ -395,18 +427,18 @@ class _Backdrop extends StatelessWidget {
           children: [
             ColoredBox(color: backdropColor(color)),
             if (track.artUrl.isNotEmpty)
-              Opacity(
-                opacity: 0.55,
-                child: Image(
-                  image: ResizeImage(
-                    CachedArt(sizedArt(track.artUrl, 60)),
-                    width: 16,
-                  ),
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              // The image's own opacity: an Opacity widget would draw the
+              // whole screen offscreen first.
+              Image(
+                image: ResizeImage(
+                  CachedArt(sizedArt(track.artUrl, 60)),
+                  width: 16,
                 ),
+                opacity: const AlwaysStoppedAnimation(0.55),
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.medium,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
             const DecoratedBox(
               decoration: BoxDecoration(
@@ -459,19 +491,9 @@ class _BigArt extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 560, maxHeight: 560),
       child: AspectRatio(
         aspectRatio: 1,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: const [
-              BoxShadow(
-                blurRadius: 24,
-                offset: Offset(0, 12),
-                color: Color(0x73000000),
-              ),
-            ],
-          ),
-          child: Artwork(track.artUrl, radius: 18),
-        ),
+        // No shadow: on the dark backdrop it barely showed, yet blurring it
+        // took about a third of each frame while the art moves.
+        child: Artwork(track.artUrl, radius: 18),
       ),
     );
   }

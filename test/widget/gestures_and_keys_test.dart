@@ -412,6 +412,32 @@ void main() {
       expect(find.byType(FullPlayer), findsNothing);
     });
 
+    // The app behind the player was drawn with every frame of it, which
+    // made the player's frames cost about twice as much on phones.
+    testWidgets('the app behind the open player is drawn only when pulled', (
+      tester,
+    ) async {
+      await pumpPlayer(tester);
+      final behind = find.text('open');
+      expect(behind, findsNothing, reason: 'covered');
+      final drag = await tester.startGesture(
+        tester.getCenter(find.byType(SwipeToSkip)),
+      );
+      for (var i = 0; i < 5; i++) {
+        await drag.moveBy(const Offset(0, 20));
+        await tester.pump();
+      }
+      expect(behind, findsOneWidget, reason: 'pulled down');
+      await tester.pump(const Duration(seconds: 1));
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(behind, findsNothing, reason: 'sprang back');
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(behind, findsOneWidget, reason: 'closing');
+    });
+
     testWidgets('up next has no lyrics sheet; Back returns to the song', (
       tester,
     ) async {

@@ -52,6 +52,8 @@ calling it done. Releases also go through the owner's own testing.
 | Phones: the full player slides up from the bottom like a sheet (and back down) | phones | widget `now_playing_test` "slides up from the bottom" |
 | **Bug fixed:** home cards overflowed with a larger system font size or a title in a taller script: the card grows with the font size and its lines keep their height | all | widget `media_card_test` |
 | **Bug fixed (Android):** on 120 Hz phones (e.g. Samsung's adaptive refresh) animations ran at 60 fps once the finger lifted: the app asks for the screen's highest rate while it draws | android | measured on the phone (frame times, SurfaceFlinger) |
+| **Bug fixed:** the app behind the full player was drawn with every frame of it (and of the swipe): once open, and until pulled down, the player covers it | all | widget `gestures_and_keys_test` "the app behind the open player is drawn only when pulled" |
+| Full player draws cheaply: the backdrop has no offscreen layer, and the art no blurred shadow (a third of each frame while it moves) | all | measured on the phone (frame times) |
 | Tabs fit narrow phones | phones | widget (no overflow in full player tests) |
 
 ## Song menu and sleep timer
