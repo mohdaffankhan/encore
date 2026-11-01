@@ -27,6 +27,20 @@ void openArtist(String browseId) => openPage(ArtistPage(browseId));
 void openCollection(String browseId) =>
     openPage(CollectionPage.remote(browseId));
 
+/// Ctrl+K: the cursor in the search box, from anywhere (closing the full
+/// player).
+void focusSearch() => shellKey.currentState?._focusSearch();
+
+/// Alt+← and the mouse's back button: the full player (or a dialog) closes
+/// first, then the page goes back, then the tab goes home. Never quits.
+void goBack() => shellKey.currentState?._goBack();
+
+/// Esc: closes the full player (dialogs and menus close themselves).
+void closeOverlay() {
+  final context = shellKey.currentContext;
+  if (context != null) Navigator.of(context).maybePop();
+}
+
 /// App frame. Desktop: sidebar, content panel and a player bar along the
 /// bottom. Phone: bottom navigation with a mini player above it. Each tab
 /// has its own navigator, so pages keep the frame visible.
@@ -100,6 +114,30 @@ class ShellState extends State<Shell> {
       _navigators[tab]!.currentState?.popUntil((route) => route.isFirst);
     } else {
       setState(() => _tab = tab);
+    }
+  }
+
+  void _focusSearch() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    _navigators[AppTab.search]!.currentState?.popUntil(
+      (route) => route.isFirst,
+    );
+    setState(() => _tab = AppTab.search);
+    // Once the search tab shows.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => searchField.requestFocus(),
+    );
+  }
+
+  void _goBack() {
+    final root = Navigator.of(context);
+    final nav = _navigators[_tab]!.currentState!;
+    if (root.canPop()) {
+      root.maybePop();
+    } else if (nav.canPop()) {
+      nav.pop();
+    } else if (_tab != AppTab.home) {
+      setState(() => _tab = AppTab.home);
     }
   }
 

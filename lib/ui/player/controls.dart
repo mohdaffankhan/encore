@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -222,21 +223,19 @@ class _VolumeControlState extends State<VolumeControl> {
       stream: player.audio.volumeStream,
       builder: (context, snapshot) {
         final volume = snapshot.data ?? 1;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _MuteButton(volume),
-            SizedBox(width: 110, child: _VolumeSlider(volume)),
-          ],
+        return _WheelVolume(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MuteButton(volume),
+              SizedBox(width: 110, child: _VolumeSlider(volume)),
+            ],
+          ),
         );
       },
     );
   }
 }
-
-/// The level to go back to when unmuting. Shared, so unmuting in the
-/// player bar after muting in the full player goes back to the same level.
-double _beforeMute = 1;
 
 class _MuteButton extends StatelessWidget {
   const _MuteButton(this.volume);
@@ -256,10 +255,9 @@ class _MuteButton extends StatelessWidget {
             ? Icons.volume_down_rounded
             : Icons.volume_up_rounded,
       ),
-      onPressed: () {
-        if (volume > 0) _beforeMute = volume;
-        player.audio.setVolume(volume > 0 ? 0 : _beforeMute);
-      },
+      // The player keeps the level to go back to, so unmuting in the bar
+      // after muting in the full player (or with M) goes back to it.
+      onPressed: player.toggleMute,
     );
   }
 }
@@ -305,44 +303,71 @@ class _VolumeButtonState extends State<VolumeButton> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: StreamBuilder(
-        stream: player.audio.volumeStream,
-        builder: (context, snapshot) {
-          final volume = snapshot.data ?? 1;
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRect(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  width: open ? 100 : 0,
-                  height: 40,
-                  child: OverflowBox(
-                    alignment: Alignment.centerRight,
-                    minWidth: 100,
-                    maxWidth: 100,
-                    child: ExcludeFocus(
-                      excluding: !open,
-                      // Room for the thumb at either end.
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: _VolumeSlider(
-                          volume,
-                          onChangeStart: (_) =>
-                              setState(() => _dragging = true),
-                          onChangeEnd: (_) => setState(() => _dragging = false),
+      child: _WheelVolume(
+        child: StreamBuilder(
+          stream: player.audio.volumeStream,
+          builder: (context, snapshot) {
+            final volume = snapshot.data ?? 1;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRect(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    width: open ? 100 : 0,
+                    height: 40,
+                    child: OverflowBox(
+                      alignment: Alignment.centerRight,
+                      minWidth: 100,
+                      maxWidth: 100,
+                      child: ExcludeFocus(
+                        excluding: !open,
+                        // Room for the thumb at either end.
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: _VolumeSlider(
+                            volume,
+                            onChangeStart: (_) =>
+                                setState(() => _dragging = true),
+                            onChangeEnd: (_) =>
+                                setState(() => _dragging = false),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              _MuteButton(volume),
-            ],
-          );
-        },
+                _MuteButton(volume),
+              ],
+            );
+          },
+        ),
       ),
+    );
+  }
+}
+
+/// The mouse wheel over it turns the volume up or down (and doesn't scroll
+/// the page behind it).
+class _WheelVolume extends StatelessWidget {
+  const _WheelVolume({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) return;
+        GestureBinding.instance.pointerSignalResolver.register(
+          event,
+          (event) => player.changeVolume(
+            (event as PointerScrollEvent).scrollDelta.dy < 0 ? 0.05 : -0.05,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

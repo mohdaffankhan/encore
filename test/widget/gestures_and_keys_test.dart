@@ -137,6 +137,124 @@ void main() {
     });
   });
 
+  group('desktop keys', () {
+    setUp(() {
+      player.queue.value = [
+        const Track(id: 'k', title: 'Keys song', artist: 'X', artUrl: ''),
+      ];
+      player.index.value = 0;
+    });
+    tearDown(() {
+      player.queue.value = [];
+      player.index.value = -1;
+    });
+
+    Future<void> openPlayer(WidgetTester tester) async {
+      await pumpApp(tester, const Size(1400, 900));
+      await tester.tapAt(
+        tester.getTopLeft(find.byType(NowPlayingBar)) + const Offset(6, 44),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(FullPlayer), findsOneWidget);
+    }
+
+    Future<void> press(
+      WidgetTester tester,
+      LogicalKeyboardKey key, {
+      LogicalKeyboardKey? holding,
+    }) async {
+      if (holding != null) await tester.sendKeyDownEvent(holding);
+      await tester.sendKeyEvent(key);
+      if (holding != null) await tester.sendKeyUpEvent(holding);
+      await tester.pumpAndSettle();
+    }
+
+    // Closing the full player took a trip to the ⌄ in the top corner.
+    testWidgets('Esc closes the full player', (tester) async {
+      await openPlayer(tester);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(FullPlayer), findsNothing);
+    });
+
+    testWidgets('Alt + ← goes back: the player, then the page', (tester) async {
+      await openPlayer(tester);
+      await press(
+        tester,
+        LogicalKeyboardKey.arrowLeft,
+        holding: LogicalKeyboardKey.altLeft,
+      );
+      expect(find.byType(FullPlayer), findsNothing);
+      await tester.tap(find.text('Liked songs').first);
+      await tester.pumpAndSettle();
+      expect(find.text('No songs here yet'), findsOneWidget);
+      await press(
+        tester,
+        LogicalKeyboardKey.arrowLeft,
+        holding: LogicalKeyboardKey.altLeft,
+      );
+      expect(find.text('No songs here yet'), findsNothing);
+    });
+
+    testWidgets("the mouse's back button closes the player", (tester) async {
+      await openPlayer(tester);
+      final mouse = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kBackMouseButton,
+      );
+      await mouse.down(const Offset(700, 450));
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(find.byType(FullPlayer), findsNothing);
+    });
+
+    testWidgets('Ctrl + K puts the cursor in search from anywhere', (
+      tester,
+    ) async {
+      await openPlayer(tester);
+      await press(
+        tester,
+        LogicalKeyboardKey.keyK,
+        holding: LogicalKeyboardKey.controlLeft,
+      );
+      expect(find.byType(FullPlayer), findsNothing);
+      expect(find.byType(SearchPage), findsOneWidget);
+      expect(PlayerShortcuts.isTyping, isTrue);
+    });
+
+    testWidgets('Ctrl + / lists the shortcuts', (tester) async {
+      await pumpApp(tester, const Size(1400, 900));
+      await press(
+        tester,
+        LogicalKeyboardKey.slash,
+        holding: LogicalKeyboardKey.controlLeft,
+      );
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Ctrl + S'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('Ctrl + S and Ctrl + R: shuffle and repeat', (tester) async {
+      await pumpApp(tester, const Size(1400, 900));
+      addTearDown(() {
+        if (player.shuffle.value) player.toggleShuffle();
+        player.repeat.value = Repeat.off;
+      });
+      await press(
+        tester,
+        LogicalKeyboardKey.keyS,
+        holding: LogicalKeyboardKey.controlLeft,
+      );
+      expect(player.shuffle.value, isTrue);
+      await press(
+        tester,
+        LogicalKeyboardKey.keyR,
+        holding: LogicalKeyboardKey.controlLeft,
+      );
+      expect(player.repeat.value, Repeat.all);
+    });
+  });
+
   group('swipe to skip', () {
     late List<String> calls;
 

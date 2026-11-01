@@ -316,6 +316,15 @@ class Player {
   void changeVolume(double delta) =>
       audio.setVolume((audio.volume + delta).clamp(0, 1));
 
+  /// The level to go back to when unmuting.
+  double _beforeMute = 1;
+
+  void toggleMute() {
+    final volume = audio.volume;
+    if (volume > 0) _beforeMute = volume;
+    audio.setVolume(volume > 0 ? 0 : _beforeMute);
+  }
+
   void toggleLikeCurrent() {
     if (current case final track?) userLibrary.toggleLike(track);
   }

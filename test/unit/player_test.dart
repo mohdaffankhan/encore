@@ -42,6 +42,10 @@ class _FakeAudio implements AudioPlayer {
   Duration position = Duration.zero;
   @override
   Duration? duration;
+  @override
+  double volume = 1;
+  @override
+  Future<void> setVolume(double volume) async => this.volume = volume;
 
   @override
   Future<Duration?> setAudioSource(
@@ -201,6 +205,16 @@ void main() {
   // Each song change waited for YouTube to give the song's link.
   test('the next song is prepared while one plays', () async {
     expect(prepared, ['b']);
+  });
+
+  // M and the speaker buttons share this, so unmuting anywhere goes back
+  // to the level from before.
+  test('unmuting goes back to the level before', () {
+    audio.volume = 0.4;
+    player.toggleMute();
+    expect(audio.volume, 0);
+    player.toggleMute();
+    expect(audio.volume, 0.4);
   });
 
   group('up next', () {
