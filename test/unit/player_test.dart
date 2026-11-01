@@ -96,12 +96,15 @@ Track _song(String id) =>
 void main() {
   late _FakeAudio audio;
   late Player player;
+  late List<String> prepared;
 
   setUp(() async {
     audio = _FakeAudio();
+    prepared = [];
     player = Player(
       audio: audio,
       source: (t) async => AudioSource.uri(Uri.parse('https://x/${t.id}')),
+      prepare: (t) => prepared.add(t.id),
     );
     // Two songs, so no radio (network) is asked for.
     await player.playList([_song('a'), _song('b')], 0);
@@ -175,6 +178,11 @@ void main() {
     audio.endEarly();
     await settle();
     expect(player.current, _song('b'));
+  });
+
+  // Each song change waited for YouTube to give the song's link.
+  test('the next song is prepared while one plays', () async {
+    expect(prepared, ['b']);
   });
 
   test('gives up after three tries and says so', () async {

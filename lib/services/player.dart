@@ -20,15 +20,34 @@ Future<AudioSource> sourceFor(Track track) async {
   if (await downloads.fileFor(track) case final file?) {
     return AudioSource.file(file.path, tag: track);
   }
-  // Stream URLs expire, so resolve only when the track is about to play.
-  return YouTubeAudioSource(await audioStream(track.id), tag: track);
+  final ahead = _ahead.remove(track.id);
+  final stream = ahead == null
+      ? await audioStream(track.id)
+      : await ahead.catchError((Object _) => audioStream(track.id));
+  return YouTubeAudioSource(stream, tag: track);
+}
+
+/// Stream links looked up ahead, by song id.
+final _ahead = <String, Future<AudioStream>>{};
+
+/// Looks up [track]'s stream link ahead (the next song), so it starts
+/// without waiting for YouTube. A link lasts hours, and an expired one is
+/// renewed ([AudioStream.renew]).
+void prepare(Track track) {
+  if (downloads.isDownloaded(track) || _ahead.containsKey(track.id)) return;
+  if (_ahead.length >= 2) _ahead.remove(_ahead.keys.first);
+  _ahead[track.id] = audioStream(track.id)..ignore();
 }
 
 class Player {
-  /// [audio] and [source] are replaced in tests.
-  Player({AudioPlayer? audio, Future<AudioSource> Function(Track)? source})
-    : audio = audio ?? AudioPlayer(),
-      _source = source ?? sourceFor {
+  /// [audio], [source] and [prepare] are replaced in tests.
+  Player({
+    AudioPlayer? audio,
+    Future<AudioSource> Function(Track)? source,
+    void Function(Track)? prepare,
+  }) : audio = audio ?? AudioPlayer(),
+       _source = source ?? sourceFor,
+       _prepare = prepare ?? (source == null ? _prepareStream : (_) {}) {
     this.audio.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) _onCompleted();
     });
@@ -41,6 +60,13 @@ class Player {
   }
 
   final Future<AudioSource> Function(Track) _source;
+  final void Function(Track) _prepare;
+
+  static void _prepareStream(Track track) => prepare(track);
+
+  void _prepareNext() {
+    if (upNext.firstOrNull case final next?) _prepare(next);
+  }
 
   /// The current song. Listen to this, not [index], for song changes: a new
   /// song from search replaces the queue and is at index 0 again, so
@@ -71,6 +97,11 @@ class Player {
   Track? get current => index.value >= 0 && index.value < queue.value.length
       ? queue.value[index.value]
       : null;
+
+  /// The songs either side of the current one, if any.
+  Track? get nextTrack => upNext.firstOrNull;
+  Track? get previousTrack =>
+      current != null && index.value > 0 ? queue.value[index.value - 1] : null;
 
   List<Track> get upNext =>
       current == null ? const [] : queue.value.sublist(index.value + 1);
@@ -286,6 +317,7 @@ class Player {
         added.shuffle();
       }
       queue.value = [...queue.value, ...added];
+      _prepareNext();
     } catch (e) {
       debugPrint('Radio failed: $e');
     }
@@ -372,6 +404,8 @@ class Player {
       }
       if (i == queue.value.length - 1 && repeat.value != Repeat.all) {
         unawaited(_extendWithRadio(track));
+      } else {
+        _prepareNext();
       }
     } catch (e) {
       debugPrint('Playback failed: $e');
