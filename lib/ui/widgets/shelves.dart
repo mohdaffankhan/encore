@@ -37,7 +37,7 @@ class ShelfView extends StatelessWidget {
     }
     return Carousel(
       title: shelf.title,
-      height: MediaCard.height,
+      height: MediaCard.heightOf(context),
       itemCount: shelf.cards.length,
       itemBuilder: (context, i) => MediaCard(shelf.cards[i]),
     );

@@ -50,6 +50,7 @@ calling it done. Releases also go through the owner's own testing.
 | Art is kept on disk (100 MB, least recently used goes first), so it shows at once after a restart; the next song's art is fetched ahead | all | unit `art_cache_test` |
 | Swipe to skip turns pages: the next and previous songs sit beside the art (and the mini player) and follow the finger, so the new song is there at once; at the end of the queue the song leaves and comes back; drags while it settles are ignored | all | widget `gestures_and_keys_test` "the next song slides into place", "a swipe carries the song off", "a drag while the song leaves" |
 | Phones: the full player slides up from the bottom like a sheet (and back down) | phones | widget `now_playing_test` "slides up from the bottom" |
+| **Bug fixed:** home cards overflowed with a larger system font size or a title in a taller script: the card grows with the font size and its lines keep their height | all | widget `media_card_test` |
 | Tabs fit narrow phones | phones | widget (no overflow in full player tests) |
 
 ## Song menu and sleep timer

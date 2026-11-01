@@ -13,7 +13,21 @@ class MediaCard extends StatefulWidget {
   const MediaCard(this.item, {super.key});
 
   static const width = 168.0;
-  static const height = 238.0;
+
+  /// The card's height: the artwork and the text under it, which grows
+  /// with the system font size.
+  static double heightOf(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale;
+    return width +
+        13 +
+        2 * scale(14) * _titleLine +
+        scale(12.5) * _subtitleLine;
+  }
+
+  /// Line heights (times the font size), forced so a taller fallback font
+  /// (Devanagari, emoji, ...) can't make the text overflow the card.
+  static const _titleLine = 20 / 14;
+  static const _subtitleLine = 17 / 12.5;
 
   /// A [MediaRef] or a [Track].
   final Object item;
@@ -79,12 +93,22 @@ class _MediaCardState extends State<MediaCard> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: isArtist ? TextAlign.center : TextAlign.start,
                 style: text.titleSmall,
+                strutStyle: const StrutStyle(
+                  fontSize: 14,
+                  height: MediaCard._titleLine,
+                  forceStrutHeight: true,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                strutStyle: const StrutStyle(
+                  fontSize: 12.5,
+                  height: MediaCard._subtitleLine,
+                  forceStrutHeight: true,
+                ),
                 style: text.bodySmall?.copyWith(
                   color: EncoreColors.textSecondary,
                 ),
