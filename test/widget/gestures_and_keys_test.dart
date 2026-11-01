@@ -450,6 +450,21 @@ void main() {
       expect(find.byType(LyricsSheet), findsOneWidget);
     });
 
+    // Up next was read-only: nothing could be taken out or moved.
+    testWidgets('a song can be taken out of up next', (tester) async {
+      await pumpPlayer(tester);
+      Track song(String id) =>
+          Track(id: id, title: 'Queued $id', artist: 'X', artUrl: '');
+      player.queue.value = [track, song('1'), song('2')];
+      await tester.tap(find.text('Up next'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove from queue').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Queued 1'), findsNothing);
+      expect(find.text('Queued 2'), findsOneWidget);
+      expect(player.queue.value, [track, song('2')]);
+    });
+
     testWidgets('the seek bar stays enabled while a song loads', (
       tester,
     ) async {

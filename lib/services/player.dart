@@ -158,6 +158,26 @@ class Player {
     }
   }
 
+  /// Moves the song at [from] in [upNext] to [to] (an index in the list
+  /// without it).
+  void moveUpNext(int from, int to) {
+    final start = index.value + 1;
+    final q = [...queue.value];
+    q.insert(start + to, q.removeAt(start + from));
+    queue.value = q;
+    _prepareNext();
+  }
+
+  /// Takes the song at [i] in [upNext] out of the queue.
+  void removeUpNext(int i) {
+    final at = index.value + 1 + i;
+    final track = queue.value[at];
+    queue.value = [...queue.value]..removeAt(at);
+    // Not back when shuffle is turned off, either.
+    if (_ordered case final ordered?) _ordered = [...ordered]..remove(track);
+    _prepareNext();
+  }
+
   /// Moves to the next song; with [autoplay] false it is loaded paused.
   Future<void> next({bool autoplay = true}) => _advance(autoplay: autoplay);
 

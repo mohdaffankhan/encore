@@ -202,6 +202,33 @@ void main() {
     expect(prepared, ['b']);
   });
 
+  group('up next', () {
+    setUp(() async {
+      await player.playList([for (final id in 'abcde'.split('')) _song(id)], 0);
+      prepared.clear();
+    });
+
+    List<String> queue() => [for (final t in player.queue.value) t.id];
+
+    test('a song moves later or earlier', () {
+      player.moveUpNext(0, 2); // b after d
+      expect(queue(), ['a', 'c', 'd', 'b', 'e']);
+      player.moveUpNext(3, 0); // e first
+      expect(queue(), ['a', 'e', 'c', 'd', 'b']);
+      expect(prepared.last, 'e', reason: 'the new next song is prepared');
+    });
+
+    test('a song taken out stays out when shuffle is turned off', () {
+      player.toggleShuffle();
+      final out = player.upNext.first;
+      player.removeUpNext(0);
+      expect(player.queue.value, isNot(contains(out)));
+      player.toggleShuffle();
+      expect(player.queue.value, isNot(contains(out)));
+      expect(player.queue.value, hasLength(4));
+    });
+  });
+
   test('gives up after three tries and says so', () async {
     for (var i = 0; i < 4; i++) {
       audio.breakOff();
