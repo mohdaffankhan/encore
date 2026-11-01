@@ -6,6 +6,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'app.dart';
 import 'self_test.dart';
+import 'services/home_cache.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
 import 'services/session.dart';
@@ -38,6 +39,7 @@ Future<void> main([List<String> args = const []]) async {
     ..maximumSize = 400;
   await userLibrary.load();
   await playbackSession.restore();
+  await loadLastHome();
   watchNowPlayingColor();
   runApp(const EncoreApp());
   if (selfTest) await runSelfTest();

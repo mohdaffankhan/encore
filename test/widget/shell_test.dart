@@ -1,4 +1,6 @@
 import 'package:encore/app.dart';
+import 'package:encore/models.dart';
+import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/ui/widgets/widgets.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +46,20 @@ void main() {
     await pumpApp(tester, const Size(400, 860));
     expect(find.text("Couldn't load your home feed."), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('offline, home shows the feed from last time', (tester) async {
+    lastHome = [
+      const Shelf(
+        'Quick picks',
+        tracks: [Track(id: 's', title: 'Kept song', artist: 'A', artUrl: '')],
+      ),
+    ];
+    addTearDown(() => lastHome = null);
+    await pumpApp(tester, const Size(400, 860));
+    expect(find.text('Kept song'), findsOneWidget);
+    expect(find.text("Couldn't refresh your home feed"), findsOneWidget);
+    expect(find.text("Couldn't load your home feed."), findsNothing);
   });
 
   testWidgets('library opens an empty liked songs page', (tester) async {

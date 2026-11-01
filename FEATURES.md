@@ -80,6 +80,7 @@ calling it done. Releases also go through the owner's own testing.
 | A failed search shows Retry without an unhandled error | all | widget `search_test` (offline) |
 | Suggestions, recent searches, filters; suggestion ↖ keeps typing | all | e2e "search results"; widget `shell_test` |
 | Home feed, quick picks; Retry when offline | all | e2e "home feed loads"; widget `shell_test` |
+| The home feed from last time shows at once while the new one loads, and offline (with Retry) | all | unit `home_cache_test`; widget `shell_test` "offline, home shows the feed from last time" |
 | Artist and album pages | all | e2e "artist page", "album page", "album playback" |
 | **Bug fixed:** an unreadable library came up empty with nothing said: the app says so, and the old file is kept (beside any kept before) | all | unit `library_test` "an unreadable file is reported"; widget `shell_test` "a problem found before the app shows" |
 | Liked songs, history, downloads; saving can't be wiped by a crash | all | unit `library_test` group "saving" |

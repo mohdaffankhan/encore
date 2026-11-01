@@ -107,6 +107,22 @@ class MediaRef {
   final String title;
   final String subtitle;
   final String artUrl;
+
+  factory MediaRef.fromJson(Map<String, dynamic> json) => MediaRef(
+    kind: MediaKind.values.byName(json['kind']),
+    id: json['id'],
+    title: json['title'],
+    subtitle: json['subtitle'],
+    artUrl: json['artUrl'],
+  );
+
+  Map<String, dynamic> toJson() => {
+    'kind': kind.name,
+    'id': id,
+    'title': title,
+    'subtitle': subtitle,
+    'artUrl': artUrl,
+  };
 }
 
 /// A titled row: songs shown as a list, and/or cards (albums, playlists,
@@ -117,6 +133,22 @@ class Shelf {
   final String title;
   final List<Track> tracks;
   final List<Object> cards;
+
+  /// Cards are told apart by `kind`, which only a [MediaRef] has.
+  factory Shelf.fromJson(Map<String, dynamic> json) => Shelf(
+    json['title'],
+    tracks: [for (final t in json['tracks'] as List) Track.fromJson(t)],
+    cards: [
+      for (final c in json['cards'] as List)
+        c['kind'] == null ? Track.fromJson(c) : MediaRef.fromJson(c),
+    ],
+  );
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'tracks': tracks,
+    'cards': cards,
+  };
 }
 
 /// An album or playlist page.
