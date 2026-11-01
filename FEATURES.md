@@ -73,6 +73,7 @@ calling it done. Releases also go through the owner's own testing.
 | Home feed, quick picks; Retry when offline | all | e2e "home feed loads"; widget `shell_test` |
 | Artist and album pages | all | e2e "artist page", "album page", "album playback" |
 | Liked songs, history, downloads; saving can't be wiped by a crash | all | unit `library_test` group "saving" |
+| **Bug fixed:** each song played re-encoded the whole library (~20 ms with big imported playlists, a dropped frame): only the changed part is encoded | all | unit `library_test` "a played song encodes only the history" |
 | Downloads play offline; failures say so and leave no files; removing a playing download works | all | e2e "download", "offline playback"; widget `downloads_test` |
 
 ## Playlists

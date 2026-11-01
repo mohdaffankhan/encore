@@ -120,6 +120,23 @@ void main() {
       expect(File('${file.path}.tmp').existsSync(), isFalse);
     });
 
+    // Encoding the whole library (big imported playlists) for every song
+    // played took ~20 ms on the UI thread: a dropped frame as songs changed.
+    test('a played song encodes only the history again', () async {
+      final library = await loaded();
+      library.createPlaylist(
+        'Big',
+        tracks: [for (var i = 0; i < 1000; i++) track('$i')],
+      );
+      await library.saved;
+      library.addPlayed(track('x'));
+      expect(library.encodedParts, ['history']);
+      await library.saved;
+      final again = await loaded();
+      expect(again.playlists.value.single.tracks, hasLength(1000));
+      expect(again.history.value.map((t) => t.id), ['x']);
+    });
+
     test('playlists are saved with their songs, order and source', () async {
       final first = await loaded();
       final p = first.createPlaylist(

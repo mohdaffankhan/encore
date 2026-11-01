@@ -55,10 +55,31 @@ class UserLibrary {
         await file.rename('${file.path}.unreadable');
       } catch (_) {}
     }
-    for (final n in [history, liked, searches, downloads, playlists]) {
-      n.addListener(_save);
+    for (final MapEntry(key: name, value: part) in _parts.entries) {
+      part.addListener(() {
+        _encoded.remove(name);
+        _save();
+      });
     }
   }
+
+  /// What is saved, by name in the file.
+  late final _parts = <String, ValueListenable<Object>>{
+    'history': history,
+    'liked': liked,
+    'searches': searches,
+    'downloads': downloads,
+    'playlists': playlists,
+  };
+
+  /// Each part's JSON as last saved, so a change encodes only its own part.
+  /// Encoding everything (big imported playlists too) for every song played
+  /// took about 20 ms on the UI thread: a dropped frame as songs changed.
+  final _encoded = <String, String>{};
+
+  /// The parts the last save encoded.
+  @visibleForTesting
+  final encodedParts = <String>[];
 
   void addPlayed(Track track) => history.value = [
     track,
@@ -134,16 +155,20 @@ class UserLibrary {
         for (final p in playlists.value) p.id == id ? change(p) : p,
       ];
 
+  String _encode(String name, Object value) {
+    encodedParts.add(name);
+    return jsonEncode(value);
+  }
+
   void _save() {
     final file = _file;
     if (file == null) return;
-    final json = jsonEncode({
-      'history': history.value,
-      'liked': liked.value,
-      'searches': searches.value,
-      'downloads': downloads.value,
-      'playlists': playlists.value,
-    });
+    encodedParts.clear();
+    final parts = [
+      for (final MapEntry(key: name, value: part) in _parts.entries)
+        '${jsonEncode(name)}:${_encoded[name] ??= _encode(name, part.value)}',
+    ];
+    final json = '{${parts.join(',')}}';
     // Chain writes so an older snapshot can never land after a newer one.
     // Write a temporary file, then swap it in: if the app is killed
     // mid-save, the previous library file is still whole.
