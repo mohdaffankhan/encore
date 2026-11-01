@@ -107,38 +107,42 @@ class NowPlayingBar extends StatelessWidget {
               ),
             ),
           ),
-          // Extras
+          // Extras: in a narrow window the volume slider gets shorter and
+          // the full screen button goes (clicking the bar opens it too).
           Expanded(
             flex: 3,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const SleepTimerIndicator(size: 20),
-                IconButton(
-                  tooltip: 'Lyrics',
-                  iconSize: 20,
-                  color: EncoreColors.textSecondary,
-                  icon: const Icon(Icons.lyrics_outlined),
-                  onPressed: () =>
-                      openFullPlayer(context, view: PlayerView.lyrics),
-                ),
-                IconButton(
-                  tooltip: 'Up next',
-                  iconSize: 20,
-                  color: EncoreColors.textSecondary,
-                  icon: const Icon(Icons.queue_music_rounded),
-                  onPressed: () =>
-                      openFullPlayer(context, view: PlayerView.queue),
-                ),
-                const VolumeControl(),
-                IconButton(
-                  tooltip: 'Full screen player',
-                  iconSize: 20,
-                  color: EncoreColors.textSecondary,
-                  icon: const Icon(Icons.open_in_full_rounded),
-                  onPressed: () => openFullPlayer(context),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) => Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const SleepTimerIndicator(size: 20),
+                  IconButton(
+                    tooltip: 'Lyrics',
+                    iconSize: 20,
+                    color: EncoreColors.textSecondary,
+                    icon: const Icon(Icons.lyrics_outlined),
+                    onPressed: () =>
+                        openFullPlayer(context, view: PlayerView.lyrics),
+                  ),
+                  IconButton(
+                    tooltip: 'Up next',
+                    iconSize: 20,
+                    color: EncoreColors.textSecondary,
+                    icon: const Icon(Icons.queue_music_rounded),
+                    onPressed: () =>
+                        openFullPlayer(context, view: PlayerView.queue),
+                  ),
+                  const Flexible(child: VolumeControl()),
+                  if (constraints.maxWidth >= 300)
+                    IconButton(
+                      tooltip: 'Full screen player',
+                      iconSize: 20,
+                      color: EncoreColors.textSecondary,
+                      icon: const Icon(Icons.open_in_full_rounded),
+                      onPressed: () => openFullPlayer(context),
+                    ),
+                ],
+              ),
             ),
           ),
         ],

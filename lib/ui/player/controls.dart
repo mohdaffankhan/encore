@@ -228,7 +228,13 @@ class _VolumeControlState extends State<VolumeControl> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _MuteButton(volume),
-              SizedBox(width: 110, child: _VolumeSlider(volume)),
+              // Shorter when the bar is short of room.
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 110),
+                  child: _VolumeSlider(volume),
+                ),
+              ),
             ],
           ),
         );

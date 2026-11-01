@@ -124,6 +124,19 @@ void main() {
       expect(find.byType(FullPlayer), findsOneWidget);
     });
 
+    // At 1000 px the bar's lyrics, up next and volume overflowed (the
+    // yellow and black stripes): the slider shortens, the full screen
+    // button goes.
+    for (final width in [900.0, 1000.0, 1100.0]) {
+      testWidgets('it fits a window ${width.round()} px wide', (tester) async {
+        await pumpApp(tester, Size(width, 800));
+        _playFromSearch(_song('one'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(VolumeControl), findsOneWidget);
+      });
+    }
+
     // Opening the full player covered the bar's volume control, and the
     // full player had none.
     testWidgets('the full player has the volume too', (tester) async {
