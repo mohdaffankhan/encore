@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -384,10 +385,13 @@ class Player {
     if (!loading.value) _recover(play: audio.playing);
   }
 
+  /// Why loading the song again failed last, to say so when giving up.
+  Object? _lastError;
+
   Future<void> _recover({required bool play, Duration? at}) async {
     if (current == null) return;
     if (_recoveries >= 3) {
-      error.value = 'Couldn\'t play "${current!.title}"';
+      error.value = couldNotPlay(current!, _lastError);
       return;
     }
     _recoveries++;
@@ -461,8 +465,9 @@ class Player {
       }
     } catch (e) {
       debugPrint('Playback failed: $e');
+      _lastError = e;
       if (index.value == i) {
-        error.value = 'Couldn\'t play "${track.title}"';
+        error.value = couldNotPlay(track, e);
         if (auto && _skippedInRow < 3) {
           _skippedInRow++;
           unawaited(_advance(autoplay: autoplay, auto: true));
@@ -472,4 +477,19 @@ class Player {
       if (index.value == i) loading.value = false;
     }
   }
+}
+
+/// "Couldn't play" with why, when it says something the user can act on.
+@visibleForTesting
+String couldNotPlay(Track track, Object? error) {
+  final why = switch (error) {
+    SocketException() || HandshakeException() => 'no connection',
+    TimeoutException() => 'the connection is too slow',
+    // YouTube's own reason, e.g. "This video is unavailable".
+    HttpException(:final message)
+        when !message.startsWith('Audio stream') && message.length < 80 =>
+      message,
+    _ => null,
+  };
+  return "Couldn't play \"${track.title}\"${why == null ? '' : ': $why'}";
 }

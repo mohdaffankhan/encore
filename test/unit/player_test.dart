@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:encore/models.dart';
 import 'package:encore/services/player.dart';
@@ -236,5 +237,24 @@ void main() {
     }
     expect(audio.loads, hasLength(1 + 3));
     expect(player.error.value, contains('Song a'));
+  });
+
+  // It only ever said "Couldn't play": not whether to check the connection
+  // or that the song itself is unavailable.
+  test("a song that can't play says why, when that helps", () {
+    final song = _song('a');
+    expect(
+      couldNotPlay(song, const SocketException('Failed host lookup')),
+      'Couldn\'t play "Song a": no connection',
+    );
+    expect(
+      couldNotPlay(song, const HttpException('This video is unavailable')),
+      'Couldn\'t play "Song a": This video is unavailable',
+    );
+    expect(
+      couldNotPlay(song, const HttpException('Audio stream: HTTP 403')),
+      'Couldn\'t play "Song a"',
+      reason: 'nothing the user can act on',
+    );
   });
 }

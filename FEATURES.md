@@ -24,6 +24,7 @@ calling it done. Releases also go through the owner's own testing.
 | Next / previous; swipe right always goes to the previous song (button restarts after 3 s) | all | e2e "next track", "swipe right" |
 | Shuffle is a mode: shuffles what's next, off restores the order, stays on for new songs, Play next stays next | all | widget `gestures_and_keys_test` group "shuffle" |
 | Shuffle / repeat buttons show their state (orange + dot, pop, haptic on phones) | all | widget "the button shows its state" |
+| "Couldn't play" says why when that helps: no connection, too slow, or YouTube's own reason (e.g. "This video is unavailable") | all | unit `player_test` "a song that can't play says why" |
 | A song that can't play is skipped (max 3 in a row) when playback moves on by itself | all | e2e "unplayable song skipped" |
 | The next song's stream link is looked up while a song plays, so skipping doesn't wait for YouTube | all | unit `player_test` "the next song is prepared" |
 | The app opens where it was left: the queue, the song (paused, where it was), shuffle and repeat; nothing loads until it is played, and seeking first moves where it plays from | all | unit `session_test` |
