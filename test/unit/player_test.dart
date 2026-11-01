@@ -1,114 +1,30 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:encore/api/stream.dart';
 import 'package:encore/models.dart';
+import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/youtube_audio_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
+
+import '../fake_audio.dart';
 
 // Bug: a song that broke off mid-way (its link stopped working, e.g. the
 // phone changed networks) stayed stuck: Play did nothing, and dragging the
 // seek bar did nothing either. Now it is loaded again from where it stopped.
 
-/// Just the parts of the audio player the player uses.
-class _FakeAudio implements AudioPlayer {
-  final errors = StreamController<PlayerException>.broadcast(sync: true);
-  final states = StreamController<ProcessingState>.broadcast(sync: true);
-  final events = StreamController<PlaybackEvent>.broadcast(sync: true);
-
-  /// Where each load started (null: the beginning).
-  final loads = <Duration?>[];
-  final seeks = <Duration>[];
-
-  /// While set, loading waits for it.
-  Completer<void>? gate;
-
-  /// Seeks never complete (Android, when the stream can't serve them).
-  var seeksHang = false;
-
-  @override
-  Stream<PlayerException> get errorStream => errors.stream;
-  @override
-  Stream<ProcessingState> get processingStateStream => states.stream;
-  @override
-  Stream<PlaybackEvent> get playbackEventStream => events.stream;
-  @override
-  double speed = 1;
-  @override
-  ProcessingState processingState = ProcessingState.idle;
-  @override
-  bool playing = false;
-  @override
-  Duration position = Duration.zero;
-  @override
-  Duration? duration;
-  @override
-  double volume = 1;
-  @override
-  Future<void> setVolume(double volume) async => this.volume = volume;
-
-  @override
-  Future<Duration?> setAudioSource(
-    AudioSource source, {
-    bool preload = true,
-    int? initialIndex,
-    Duration? initialPosition,
-  }) async {
-    loads.add(initialPosition);
-    processingState = ProcessingState.loading;
-    await gate?.future;
-    processingState = ProcessingState.ready;
-    position = initialPosition ?? Duration.zero;
-    duration = const Duration(minutes: 4);
-    return duration;
-  }
-
-  @override
-  Future<void> play() async => playing = true;
-  @override
-  Future<void> pause() async => playing = false;
-  @override
-  Future<void> seek(Duration? to, {int? index}) async {
-    seeks.add(to!);
-    position = to;
-    if (seeksHang) await Completer<void>().future;
-  }
-
-  /// What the desktop player reports when a stream breaks off: the end,
-  /// with the position reset to 0.
-  void endEarly() {
-    events.add(
-      PlaybackEvent(
-        processingState: ProcessingState.ready,
-        updatePosition: position,
-      ),
-    );
-    position = Duration.zero;
-    processingState = ProcessingState.completed;
-    states.add(ProcessingState.completed);
-  }
-
-  /// What the player reports when the song's stream fails mid-way.
-  void breakOff() {
-    processingState = ProcessingState.idle;
-    errors.add(PlayerException(0, 'Source error', 0));
-    playing = false; // it pauses itself right after
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 Track _song(String id) =>
     Track(id: id, title: 'Song $id', artist: 'Artist', artUrl: '');
 
 void main() {
-  late _FakeAudio audio;
+  late FakeAudio audio;
   late Player player;
   late List<String> prepared;
 
   setUp(() async {
-    audio = _FakeAudio();
+    audio = FakeAudio();
     prepared = [];
     player = Player(
       audio: audio,
@@ -215,6 +131,80 @@ void main() {
     expect(audio.volume, 0);
     player.toggleMute();
     expect(audio.volume, 0.4);
+  });
+
+  // Songs had a gap between them: each was only loaded once the one
+  // before had ended.
+  group('no gap between songs', () {
+    setUp(() async {
+      await player.playList([for (final id in 'abcd'.split('')) _song(id)], 0);
+      await settle();
+    });
+
+    List<String> lined() => [
+      for (final s in audio.sources)
+        (s as UriAudioSource).uri.pathSegments.last,
+    ];
+
+    test('the next song is lined up in the player as one plays', () {
+      expect(lined(), ['a', 'b']);
+    });
+
+    test('when the player moves on by itself, the app follows', () async {
+      final loads = audio.loads.length;
+      audio.playOn();
+      await settle();
+      expect(player.current, _song('b'));
+      expect(audio.loads, hasLength(loads), reason: 'nothing loaded again');
+      expect(lined(), ['b', 'c'], reason: 'the one after is lined up');
+      expect(userLibrary.history.value.first, _song('b'));
+    });
+
+    test('moving the next song lines up the new next one', () async {
+      player.moveUpNext(2, 0); // d first
+      await settle();
+      expect(lined(), ['a', 'd']);
+    });
+
+    test('repeat one lines up nothing', () async {
+      player.cycleRepeat();
+      player.cycleRepeat();
+      expect(player.repeat.value, Repeat.one);
+      await settle();
+      expect(lined(), ['a']);
+    });
+
+    // The desktop player takes a stream that broke off for the song's end,
+    // and moved on to the lined-up song, skipping the rest of this one.
+    test('a song whose stream broke off goes on from there', () async {
+      final streamed = Player(
+        audio: audio,
+        source: (t) async => YouTubeAudioSource(
+          AudioStream(Uri.parse('https://x/${t.id}'), 'audio/webm', 1000),
+          tag: t,
+        ),
+        prepare: (_) {},
+      );
+      await streamed.playList([_song('a'), _song('b')], 0);
+      await settle();
+      audio.playTo(const Duration(minutes: 1));
+      (audio.sources.first as YouTubeAudioSource).stream.brokeOff = true;
+      // The end, as the desktop player reports it: 0, then the next song.
+      audio.playTo(Duration.zero);
+      audio
+        ..currentIndex = 1
+        ..indexes.add(1);
+      await settle();
+      expect(streamed.current, _song('a'));
+      expect(audio.loads.last, const Duration(minutes: 1));
+    });
+
+    test('a song that played to its end moves on', () async {
+      audio.playTo(const Duration(minutes: 3, seconds: 58));
+      audio.playOn();
+      await settle();
+      expect(player.current, _song('b'));
+    });
   });
 
   group('up next', () {

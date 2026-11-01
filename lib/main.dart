@@ -26,6 +26,9 @@ Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
   // A song is ~3-8 MB; mpv's default 32 MB read-ahead buffer is wasted RAM.
   JustAudioMediaKit.bufferSize = 8 * 1024 * 1024;
+  // The next song is lined up in the player; mpv opens it ahead, so it
+  // follows without a gap.
+  JustAudioMediaKit.prefetchPlaylist = true;
   JustAudioMediaKit.ensureInitialized(); // Windows + Linux backend
   if (Platform.isAndroid) {
     // Notification panel / lock screen player and background playback.

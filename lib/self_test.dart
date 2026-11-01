@@ -72,6 +72,27 @@ Future<void> runSelfTest({bool mediaKeys = false}) async {
     final renewed = stream.url.queryParameters['expire'] != '1';
     log('expired link: plays on (${renewed ? 'renewed' : 'not needed'})');
 
+    // Songs follow without a gap: the next is lined up in the player
+    // ahead of time, and near the end the player moves on by itself,
+    // with nothing loading in between.
+    await _until(() => player.audio.sequence.length > 1);
+    final ending = player.current;
+    var loaded = false;
+    void watch() => loaded |= player.loading.value;
+    player.loading.addListener(watch);
+    await player.seek(player.audio.duration! - const Duration(seconds: 4));
+    await _until(
+      () =>
+          player.current != ending &&
+          player.audio.playing &&
+          player.audio.position > const Duration(milliseconds: 500),
+    );
+    player.loading.removeListener(watch);
+    log(
+      'no gap: ${loaded ? 'the next song had to load' : 'moved on by itself'}',
+    );
+    if (loaded) throw StateError('a gap between songs');
+
     if (mediaKeys) {
       final before = player.current;
       final at = player.index.value;

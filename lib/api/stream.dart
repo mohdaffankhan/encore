@@ -63,6 +63,10 @@ class AudioStream {
   final Future<Uri> Function()? renew;
   Future<Uri>? _renewing;
 
+  /// Reading gave up (the link or the connection failed for good). The
+  /// desktop player takes that for the song's end, so it would move on.
+  bool brokeOff = false;
+
   /// e.g. `audio/webm` (without codec parameters).
   final String mimeType;
 
@@ -111,7 +115,10 @@ class AudioStream {
         renewed = false;
       } on Exception catch (e) {
         if (e is! IOException && e is! TimeoutException) rethrow;
-        if (++failures > _retries) rethrow;
+        if (++failures > _retries) {
+          brokeOff = true;
+          rethrow;
+        }
         debugPrint('$e at byte $pos; trying again ($failures)');
         await Future<void>.delayed(retryDelay * failures);
       }

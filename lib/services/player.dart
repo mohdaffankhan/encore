@@ -60,10 +60,28 @@ class Player {
     });
     this.audio.errorStream.listen(_onError);
     this.audio.playbackEventStream.listen((event) {
-      if (event.processingState == ProcessingState.ready) _lastReady = event;
+      // Only the current song's (not the one lined up after it).
+      if (event.processingState == ProcessingState.ready &&
+          (event.currentIndex ?? 0) == 0) {
+        _lastReady = event;
+      }
     }, onError: (Object _) {});
+    this.audio.currentIndexStream.listen((i) {
+      if (i == 1 && _lined != null) _movedOn();
+    });
+    // How far the current song got: the desktop player reports 0 as a song
+    // ends, so zeros (and the lined-up song's positions) are left out.
+    this.audio.positionStream.listen((position) {
+      if (position > Duration.zero && (this.audio.currentIndex ?? 0) == 0) {
+        _heard = position;
+      }
+    });
     queue.addListener(_updateNowPlaying);
     index.addListener(_updateNowPlaying);
+    // What plays next can change: line up the right song.
+    queue.addListener(_lineUpNext);
+    repeat.addListener(_lineUpNext);
+    sleepTimer.setting.addListener(_lineUpNext);
   }
 
   final Future<AudioSource> Function(Track) _source;
@@ -241,11 +259,15 @@ class Player {
       _recoveries = 0;
       await _playAt(index.value, start: position);
     } else {
+      _heard = position;
       await audio.seek(position);
     }
   }
 
   Duration? _pendingSeek;
+
+  /// How far into the current song it has played (or was sought).
+  Duration _heard = Duration.zero;
 
   /// Where the song left from the last time the app ran plays from, until
   /// it is loaded (see [restore]).
@@ -349,6 +371,83 @@ class Player {
     return event.updatePosition + since;
   }
 
+  /// The song lined up in the audio player after the current one, so it
+  /// follows without a gap (the player moves on by itself). Null when none
+  /// is.
+  Track? _lined;
+
+  /// Bumped whenever the audio player's songs are replaced, so a song that
+  /// was being lined up for the old ones is dropped.
+  int _lineUps = 0;
+
+  /// The song that plays after this one by itself, if any: none on repeat
+  /// one, or when the sleep timer stops at the end of this song.
+  Track? get _following {
+    if (current == null ||
+        repeat.value == Repeat.one ||
+        sleepTimer.setting.value?.endOfSong == true) {
+      return null;
+    }
+    final next = index.value + 1;
+    if (next < queue.value.length) return queue.value[next];
+    return repeat.value == Repeat.all ? queue.value.first : null;
+  }
+
+  /// Lines up [_following] after the current song (replacing a song lined
+  /// up before that is no longer next).
+  Future<void> _lineUpNext() async {
+    if (loading.value || current == null) return;
+    final next = _following;
+    if (next == _lined) return;
+    final lineUp = ++_lineUps;
+    if (_lined != null) {
+      _lined = null;
+      if (audio.sequence.length > 1) await audio.removeAudioSourceAt(1);
+    }
+    if (next == null) return;
+    try {
+      final source = await _source(next);
+      // Something changed meanwhile (a new song, the queue): it is lined
+      // up again from there.
+      if (lineUp != _lineUps || loading.value || _following != next) return;
+      await _inZone(() => audio.addAudioSource(source));
+      _lined = next;
+    } catch (e) {
+      // It plays the usual way when its turn comes (and says why not).
+      debugPrint('Lining up ${next.id} failed: $e');
+    }
+  }
+
+  /// The audio player moved on to the lined-up song by itself, without a
+  /// gap.
+  void _movedOn() {
+    // Its stream broke off (the desktop player takes that for the end):
+    // that song carries on from where it stopped instead.
+    if (audio.sequence.firstOrNull case YouTubeAudioSource(:final stream)
+        when stream.brokeOff) {
+      _lined = null;
+      _recover(play: true, at: _heard);
+      return;
+    }
+    final track = _lined!;
+    _lined = null;
+    _lineUps++;
+    _lastReady = null;
+    _heard = Duration.zero;
+    _recoveries = 0;
+    _skippedInRow = 0;
+    index.value = index.value + 1 < queue.value.length ? index.value + 1 : 0;
+    userLibrary.addPlayed(track);
+    // The song that ended goes; the new one is first again.
+    unawaited(_inZone(() => audio.removeAudioSourceAt(0)));
+    if (index.value == queue.value.length - 1 && repeat.value != Repeat.all) {
+      unawaited(_extendWithRadio(track));
+    } else {
+      _prepareNext();
+    }
+    unawaited(_lineUpNext());
+  }
+
   void _onCompleted() {
     // Ended well before its length: the stream broke off (the desktop
     // player takes that for the end), so carry on from there.
@@ -427,11 +526,16 @@ class Player {
   /// stream breaks off, and that throws an error nothing catches. The proxy
   /// runs in the zone it was started from, so it is started from one that
   /// logs those. Load errors still reach the caller, through [done].
-  Future<void> _load(AudioSource source, Duration? start) {
+  Future<void> _load(AudioSource source, Duration? start) =>
+      _inZone(() => audio.setAudioSource(source, initialPosition: start));
+
+  /// Runs [load] (which may start the proxy) in a zone that logs the
+  /// proxy's uncaught errors; [load]'s own errors reach the caller.
+  Future<void> _inZone(Future<Object?> Function() load) {
     final done = Completer<void>();
     runZonedGuarded(() async {
       try {
-        await audio.setAudioSource(source, initialPosition: start);
+        await load();
         done.complete();
       } catch (e, stack) {
         done.completeError(e, stack);
@@ -451,9 +555,13 @@ class Player {
     index.value = i;
     final track = queue.value[i];
     loading.value = true;
+    // Loading replaces the audio player's songs, the lined-up one too.
+    _lined = null;
+    _lineUps++;
     _pendingSeek = null;
     _resumeAt = null;
     _lastReady = null;
+    _heard = start ?? Duration.zero;
     if (start == null) _recoveries = 0;
     try {
       // Silence the previous song while this one loads. Pause, not stop:
@@ -477,6 +585,10 @@ class Player {
         unawaited(_extendWithRadio(track));
       } else {
         _prepareNext();
+      }
+      if (index.value == i) {
+        loading.value = false;
+        unawaited(_lineUpNext());
       }
     } catch (e) {
       debugPrint('Playback failed: $e');
