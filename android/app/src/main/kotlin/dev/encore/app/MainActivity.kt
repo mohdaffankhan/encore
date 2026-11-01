@@ -4,6 +4,11 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewGroup
 import com.ryanheise.audioservice.AudioServiceActivity
 
 // AudioServiceActivity keeps the Flutter engine alive for background playback.
@@ -18,5 +23,47 @@ class MainActivity : AudioServiceActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
+    }
+
+    private var askedForRate = false
+
+    override fun onFlutterUiDisplayed() {
+        super.onFlutterUiDisplayed()
+        askForHighRefreshRate()
+    }
+
+    // Phones with 120 Hz screens (e.g. Samsung's adaptive refresh) only give
+    // Flutter's surface 120 Hz while a finger is on the screen, so animations
+    // after it lifts (a swipe settling, the player opening, song changes)
+    // ran at 60. Asking for the screen's highest rate fixes that. It is a
+    // vote for when the surface draws: a still screen can still drop lower.
+    private fun askForHighRefreshRate() {
+        if (askedForRate || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val surface = findSurfaceView(window.decorView) ?: return
+        val rate = display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: return
+        if (rate <= 60f) return
+        askedForRate = true
+        fun ask(holder: SurfaceHolder) {
+            if (holder.surface.isValid) {
+                holder.surface.setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
+            }
+        }
+        ask(surface.holder)
+        // The surface is made again after the app was in the background.
+        surface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) = ask(holder)
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {}
+            override fun surfaceDestroyed(holder: SurfaceHolder) {}
+        })
+    }
+
+    private fun findSurfaceView(view: View): SurfaceView? {
+        if (view is SurfaceView) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findSurfaceView(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 }
