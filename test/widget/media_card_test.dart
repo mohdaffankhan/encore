@@ -16,6 +16,27 @@ void main() {
     artUrl: '',
   );
 
+  // Cards were bare gestures: a screen reader read the text but couldn't
+  // open them.
+  testWidgets('screen readers can open a card', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: appTheme(),
+        home: const Scaffold(
+          body: SingleChildScrollView(
+            child: ShelfView(Shelf('Albums', cards: [card])),
+          ),
+        ),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.text(card.title)),
+      isSemantics(isButton: true, hasTapAction: true),
+    );
+    semantics.dispose();
+  });
+
   for (final scale in [1.0, 1.3, 2.0]) {
     testWidgets('cards fit at font size $scale', (tester) async {
       await tester.pumpWidget(

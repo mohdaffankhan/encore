@@ -450,6 +450,23 @@ void main() {
       expect(find.byType(LyricsSheet), findsOneWidget);
     });
 
+    // The Song / Lyrics / Up next tabs were bare gestures: a screen reader
+    // couldn't tell they were there, or use them.
+    testWidgets('screen readers can use the player tabs', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpPlayer(tester);
+      expect(
+        tester.getSemantics(find.text('Up next')),
+        isSemantics(
+          label: 'Up next',
+          isButton: true,
+          hasTapAction: true,
+          isSelected: false,
+        ),
+      );
+      semantics.dispose();
+    });
+
     // Up next was read-only: nothing could be taken out or moved.
     testWidgets('a song can be taken out of up next', (tester) async {
       await pumpPlayer(tester);

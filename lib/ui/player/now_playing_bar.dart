@@ -32,7 +32,10 @@ class NowPlayingBar extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => openFullPlayer(context),
-            child: _bar(context, track, text),
+            child: Semantics(
+              onTapHint: 'open the player',
+              child: _bar(context, track, text),
+            ),
           ),
         );
       },

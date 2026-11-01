@@ -378,28 +378,38 @@ class _ViewTabs extends StatelessWidget {
           for (final view in labels.keys)
             if ((includeSong || view != PlayerView.song) &&
                 (includeLyrics || view != PlayerView.lyrics))
-              GestureDetector(
+              // A button to screen readers too (a bare gesture isn't).
+              Semantics(
+                button: true,
+                selected: view == selected,
                 onTap: () => onSelect(view),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: view == selected
-                        ? EncoreColors.text
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    labels[view]!,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: view == selected
-                          ? Colors.black
-                          : EncoreColors.textSecondary,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    excludeFromSemantics: true,
+                    onTap: () => onSelect(view),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: view == selected
+                            ? EncoreColors.text
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        labels[view]!,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: view == selected
+                              ? Colors.black
+                              : EncoreColors.textSecondary,
+                        ),
+                      ),
                     ),
                   ),
                 ),

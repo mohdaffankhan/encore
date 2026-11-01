@@ -52,68 +52,75 @@ class _MediaCardState extends State<MediaCard> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      // Read out as a button, with the title and subtitle as its label.
+      child: Semantics(
+        button: true,
+        container: true,
         onTap: () => openItem(item),
-        child: SizedBox(
-          width: MediaCard.width,
-          child: Column(
-            crossAxisAlignment: isArtist
-                ? CrossAxisAlignment.center
-                : CrossAxisAlignment.start,
-            children: [
-              AnimatedScale(
-                scale: _hovered ? 1.03 : 1,
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                child: Stack(
-                  children: [
-                    Artwork(
-                      art,
-                      size: MediaCard.width,
-                      radius: 12,
-                      circle: isArtist,
-                    ),
-                    if (!isArtist)
-                      Positioned(
-                        right: 10,
-                        bottom: 10,
-                        child: AnimatedOpacity(
-                          opacity: _hovered ? 1 : 0,
-                          duration: const Duration(milliseconds: 160),
-                          child: _PlayBadge(onTap: () => playItem(item)),
-                        ),
+        child: GestureDetector(
+          excludeFromSemantics: true,
+          onTap: () => openItem(item),
+          child: SizedBox(
+            width: MediaCard.width,
+            child: Column(
+              crossAxisAlignment: isArtist
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
+              children: [
+                AnimatedScale(
+                  scale: _hovered ? 1.03 : 1,
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOut,
+                  child: Stack(
+                    children: [
+                      Artwork(
+                        art,
+                        size: MediaCard.width,
+                        radius: 12,
+                        circle: isArtist,
                       ),
-                  ],
+                      if (!isArtist)
+                        Positioned(
+                          right: 10,
+                          bottom: 10,
+                          child: AnimatedOpacity(
+                            opacity: _hovered ? 1 : 0,
+                            duration: const Duration(milliseconds: 160),
+                            child: _PlayBadge(onTap: () => playItem(item)),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                maxLines: isArtist ? 1 : 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: isArtist ? TextAlign.center : TextAlign.start,
-                style: text.titleSmall,
-                strutStyle: const StrutStyle(
-                  fontSize: 14,
-                  height: MediaCard._titleLine,
-                  forceStrutHeight: true,
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  maxLines: isArtist ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: isArtist ? TextAlign.center : TextAlign.start,
+                  style: text.titleSmall,
+                  strutStyle: const StrutStyle(
+                    fontSize: 14,
+                    height: MediaCard._titleLine,
+                    forceStrutHeight: true,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                strutStyle: const StrutStyle(
-                  fontSize: 12.5,
-                  height: MediaCard._subtitleLine,
-                  forceStrutHeight: true,
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  strutStyle: const StrutStyle(
+                    fontSize: 12.5,
+                    height: MediaCard._subtitleLine,
+                    forceStrutHeight: true,
+                  ),
+                  style: text.bodySmall?.copyWith(
+                    color: EncoreColors.textSecondary,
+                  ),
                 ),
-                style: text.bodySmall?.copyWith(
-                  color: EncoreColors.textSecondary,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
