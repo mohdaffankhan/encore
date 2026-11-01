@@ -36,8 +36,10 @@ class Downloads {
   @visibleForTesting
   Future<void> get saved => _lastWrite;
 
-  Future<File> _pendingFile() async =>
-      File('${(await _folder()).path}${Platform.pathSeparator}pending.json');
+  /// Beside the library: the downloads folder holds only songs.
+  Future<File> _pendingFile() async => File(
+    '${(await dataDir()).path}${Platform.pathSeparator}pending_downloads.json',
+  );
 
   /// Carries on with the downloads not done when the app last closed.
   Future<void> resume() async {

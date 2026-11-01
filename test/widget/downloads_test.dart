@@ -39,6 +39,7 @@ void main() {
       while (downloads.progress.value.isNotEmpty) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
+      await downloads.saved;
     });
     expect(downloads.error.value, 'Couldn\'t download "A Song"');
     expect(downloads.isDownloaded(track), isFalse);
