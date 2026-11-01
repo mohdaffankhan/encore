@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
@@ -294,19 +296,38 @@ class _FullPlayerState extends State<FullPlayer>
           child: Row(
             children: [
               Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(48, 8, 48, 16),
-                        child: Center(child: _SongPages(track)),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // The art and the controls under it share one width, so
+                    // their edges line up at any window size: as large as
+                    // fits beside the panel and above the controls.
+                    final side = min(
+                      560.0,
+                      min(
+                        constraints.maxWidth - 96,
+                        constraints.maxHeight - _NowPlayingInfo.height - 24,
                       ),
-                    ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 560),
-                      child: _NowPlayingInfo(track, volume: true),
-                    ),
-                  ],
+                    ).clamp(160.0, 560.0);
+                    return Center(
+                      child: SizedBox(
+                        width: side,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Shrinks rather than overflows in a short window.
+                            Flexible(
+                              // The songs beside it only show inside its
+                              // frame (as it is dragged), not over the panel
+                              // or the window's edge.
+                              child: ClipRect(child: _SongPages(track)),
+                            ),
+                            const SizedBox(height: 12),
+                            _NowPlayingInfo(track, volume: true, inset: 0),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               Expanded(
@@ -511,19 +532,25 @@ class _BigArt extends StatelessWidget {
 
 /// Title, artist, like, seek bar and transport controls.
 class _NowPlayingInfo extends StatelessWidget {
-  const _NowPlayingInfo(this.track, {this.volume = false});
+  const _NowPlayingInfo(this.track, {this.volume = false, this.inset = 28});
+
+  /// About how tall it is, to fit the art above it.
+  static const height = 230.0;
 
   final Track track;
 
-  /// Desktop: the volume too, as the player bar it covers has it. (Phones
-  /// have their volume buttons.)
+  /// Space on either side.
+  final double inset;
+
+  /// Desktop: the volume too, as the player bar it covers has it (beside
+  /// like, out of the way of the controls). Phones have volume buttons.
   final bool volume;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+      padding: EdgeInsets.fromLTRB(inset, 8, inset, 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -556,6 +583,7 @@ class _NowPlayingInfo extends StatelessWidget {
                   ],
                 ),
               ),
+              if (volume) const VolumeButton(),
               LikeButton(track, size: 26),
             ],
           ),
@@ -563,7 +591,6 @@ class _NowPlayingInfo extends StatelessWidget {
           const SeekBar(),
           const SizedBox(height: 8),
           const TransportControls(large: true),
-          if (volume) ...[const SizedBox(height: 8), const VolumeControl()],
         ],
       ),
     );

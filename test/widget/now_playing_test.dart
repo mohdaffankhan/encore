@@ -1,6 +1,7 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/ui/player/player_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -131,13 +132,25 @@ void main() {
       await tester.pumpAndSettle();
       final volume = find.descendant(
         of: find.byType(FullPlayer),
-        matching: find.byType(VolumeControl),
+        matching: find.byType(VolumeButton),
       );
       expect(volume, findsOneWidget);
-      expect(
-        find.descendant(of: volume, matching: find.byTooltip('Mute')),
-        findsOneWidget,
+      // A speaker icon whose slider slides out on hover.
+      final slider = find.descendant(
+        of: volume,
+        matching: find.byType(AnimatedContainer),
       );
+      expect(tester.getSize(slider).width, 0);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(
+        tester.getCenter(
+          find.descendant(of: volume, matching: find.byTooltip('Mute')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getSize(slider).width, greaterThan(50));
     });
 
     for (final control in ['Like', 'More']) {

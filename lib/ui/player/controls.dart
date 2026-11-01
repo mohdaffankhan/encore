@@ -216,10 +216,6 @@ class VolumeControl extends StatefulWidget {
 }
 
 class _VolumeControlState extends State<VolumeControl> {
-  /// Shared: unmuting in the player bar after muting in the full player
-  /// goes back to the same level.
-  static double _beforeMute = 1;
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -229,33 +225,124 @@ class _VolumeControlState extends State<VolumeControl> {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              tooltip: volume == 0 ? 'Unmute' : 'Mute',
-              iconSize: 20,
-              color: EncoreColors.textSecondary,
-              icon: Icon(
-                volume == 0
-                    ? Icons.volume_off_rounded
-                    : volume < 0.5
-                    ? Icons.volume_down_rounded
-                    : Icons.volume_up_rounded,
-              ),
-              onPressed: () {
-                if (volume > 0) _beforeMute = volume;
-                player.audio.setVolume(volume > 0 ? 0 : _beforeMute);
-              },
-            ),
-            SizedBox(
-              width: 110,
-              child: Slider(
-                padding: EdgeInsets.zero,
-                value: volume,
-                onChanged: player.audio.setVolume,
-              ),
-            ),
+            _MuteButton(volume),
+            SizedBox(width: 110, child: _VolumeSlider(volume)),
           ],
         );
       },
+    );
+  }
+}
+
+/// The level to go back to when unmuting. Shared, so unmuting in the
+/// player bar after muting in the full player goes back to the same level.
+double _beforeMute = 1;
+
+class _MuteButton extends StatelessWidget {
+  const _MuteButton(this.volume);
+
+  final double volume;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: volume == 0 ? 'Unmute' : 'Mute',
+      iconSize: 20,
+      color: EncoreColors.textSecondary,
+      icon: Icon(
+        volume == 0
+            ? Icons.volume_off_rounded
+            : volume < 0.5
+            ? Icons.volume_down_rounded
+            : Icons.volume_up_rounded,
+      ),
+      onPressed: () {
+        if (volume > 0) _beforeMute = volume;
+        player.audio.setVolume(volume > 0 ? 0 : _beforeMute);
+      },
+    );
+  }
+}
+
+class _VolumeSlider extends StatelessWidget {
+  const _VolumeSlider(this.volume, {this.onChangeStart, this.onChangeEnd});
+
+  final double volume;
+  final ValueChanged<double>? onChangeStart;
+  final ValueChanged<double>? onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Slider(
+      padding: EdgeInsets.zero,
+      value: volume,
+      onChanged: player.audio.setVolume,
+      onChangeStart: onChangeStart,
+      onChangeEnd: onChangeEnd,
+    );
+  }
+}
+
+/// The volume as a speaker icon whose slider slides out beside it while the
+/// pointer is over it (like YouTube Music's), for where a slider always
+/// showing would crowd the controls. Clicking the icon mutes.
+class VolumeButton extends StatefulWidget {
+  const VolumeButton({super.key});
+
+  @override
+  State<VolumeButton> createState() => _VolumeButtonState();
+}
+
+class _VolumeButtonState extends State<VolumeButton> {
+  var _hovered = false;
+
+  /// Stays open while dragging, even if the pointer leaves it.
+  var _dragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = _hovered || _dragging;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: StreamBuilder(
+        stream: player.audio.volumeStream,
+        builder: (context, snapshot) {
+          final volume = snapshot.data ?? 1;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRect(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  width: open ? 100 : 0,
+                  height: 40,
+                  child: OverflowBox(
+                    alignment: Alignment.centerRight,
+                    minWidth: 100,
+                    maxWidth: 100,
+                    child: ExcludeFocus(
+                      excluding: !open,
+                      // Room for the thumb at either end.
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: _VolumeSlider(
+                          volume,
+                          onChangeStart: (_) =>
+                              setState(() => _dragging = true),
+                          onChangeEnd: (_) => setState(() => _dragging = false),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              _MuteButton(volume),
+            ],
+          );
+        },
+      ),
     );
   }
 }
