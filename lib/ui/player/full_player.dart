@@ -22,15 +22,27 @@ void openFullPlayer(BuildContext context, {PlayerView view = PlayerView.song}) {
     PageRouteBuilder(
       // Not opaque: pulling the player down shows the app behind it.
       opaque: false,
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (_, _, _) => FullPlayer(initialView: view),
-      transitionsBuilder: (_, animation, _, child) {
+      transitionsBuilder: (context, animation, _, child) {
         final curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeInCubic,
         );
+        if (!isWide(context)) {
+          // Phones: up from the mini player like a sheet, and back down
+          // (continuing from where a pull-down left it). No fade: a
+          // full-screen fade costs more and looked like a page change.
+          return SlideTransition(
+            position: Tween(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          );
+        }
         return FadeTransition(
           opacity: curved,
           child: SlideTransition(

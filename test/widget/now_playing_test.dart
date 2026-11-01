@@ -87,6 +87,24 @@ void main() {
     );
   });
 
+  testWidgets('on phones the full player slides up from the bottom', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(400, 860));
+    _playFromSearch(_song('one'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(MiniPlayer));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(
+      tester.getTopLeft(find.byType(FullPlayer)).dy,
+      greaterThan(200),
+      reason: 'on its way up, not fading in place',
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(FullPlayer)).dy, 0);
+  });
+
   group('desktop player bar', () {
     Future<Finder> pumpBar(WidgetTester tester) async {
       await pumpApp(tester, const Size(1400, 900));
