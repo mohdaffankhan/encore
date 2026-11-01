@@ -231,9 +231,7 @@ class _FullPlayerState extends State<FullPlayer>
                                   28,
                                   8,
                                 ),
-                                child: Center(
-                                  child: SwipeToSkip(child: _BigArt(track)),
-                                ),
+                                child: Center(child: _SongPages(track)),
                               )
                             : const UpNext(key: ValueKey('queue')),
                       ),
@@ -269,9 +267,7 @@ class _FullPlayerState extends State<FullPlayer>
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(48, 8, 48, 16),
-                        child: Center(
-                          child: SwipeToSkip(child: _BigArt(track)),
-                        ),
+                        child: Center(child: _SongPages(track)),
                       ),
                     ),
                     ConstrainedBox(
@@ -424,6 +420,30 @@ class _Backdrop extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The song's art, with the next and previous songs' beside it to swipe
+/// to (their art is loaded already when the song changes).
+class _SongPages extends StatelessWidget {
+  const _SongPages(this.track);
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: player.queue,
+      builder: (context, _) {
+        final next = player.nextTrack;
+        final previous = player.previousTrack;
+        return SwipeToSkip(
+          next: next == null ? null : _BigArt(next),
+          previous: previous == null ? null : _BigArt(previous),
+          child: _BigArt(track),
+        );
+      },
     );
   }
 }

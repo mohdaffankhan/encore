@@ -151,6 +151,103 @@ void main() {
       expect(tester.getTopLeft(find.byKey(_target)), start);
     });
 
+    // It snapped back and then changed, which felt abrupt next to other
+    // players: now the song is carried off, and the next comes in from the
+    // other side.
+    testWidgets('a swipe carries the song off and brings the next in', (
+      tester,
+    ) async {
+      await pumpSwipe(tester);
+      final start = tester.getTopLeft(find.byKey(_target)).dx;
+      await tester.drag(find.byKey(_target), const Offset(-100, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester.getTopLeft(find.byKey(_target)).dx,
+        lessThan(start - 150),
+        reason: 'on its way off to the left',
+      );
+      expect(calls, isEmpty, reason: 'not yet');
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(calls, ['next']);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.getTopLeft(find.byKey(_target)).dx,
+        greaterThan(start + 50),
+        reason: 'the next one comes in from the right',
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.byKey(_target)).dx, start);
+    });
+
+    // Seen on a phone: the old song's art came back in from the other
+    // side before the new art showed. With the songs either side shown
+    // beside it, the next one slides into place and the song changes there.
+    testWidgets('the next song slides into place, like a page', (tester) async {
+      calls = [];
+      const next = Key('next');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 300,
+              height: 300,
+              child: SwipeToSkip(
+                onNext: () => calls.add('next'),
+                onPrevious: () => calls.add('previous'),
+                next: const ColoredBox(key: next, color: Colors.blue),
+                child: const ColoredBox(key: _target, color: Colors.orange),
+              ),
+            ),
+          ),
+        ),
+      );
+      final start = tester.getTopLeft(find.byKey(_target)).dx;
+      expect(
+        tester.getTopLeft(find.byKey(next)).dx,
+        greaterThanOrEqualTo(start + 300),
+        reason: 'out of sight beside it',
+      );
+      await tester.drag(find.byKey(_target), const Offset(-100, 0));
+      final seen = <double>[];
+      var nextAt = double.infinity;
+      for (var i = 0; i < 30 && calls.isEmpty; i++) {
+        nextAt = tester.getTopLeft(find.byKey(next)).dx;
+        await tester.pump(const Duration(milliseconds: 16));
+        seen.add(tester.getTopLeft(find.byKey(_target)).dx);
+      }
+      expect(calls, ['next']);
+      expect(
+        nextAt - start,
+        lessThan(10),
+        reason: 'the next page all but in place when the song changed',
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.byKey(_target)).dx, start);
+      expect(
+        seen.every((dx) => dx <= start),
+        isTrue,
+        reason: 'never back in from the right',
+      );
+    });
+
+    testWidgets('a drag while the song leaves changes it only once', (
+      tester,
+    ) async {
+      await pumpSwipe(tester);
+      await tester.drag(find.byKey(_target), const Offset(-100, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      // Slow and short: not a swipe of its own.
+      await tester.timedDrag(
+        find.byKey(_target),
+        const Offset(-20, 0),
+        const Duration(milliseconds: 500),
+      );
+      await tester.pumpAndSettle();
+      expect(calls, ['next']);
+    });
+
     testWidgets('vertical drags are not swipes', (tester) async {
       await pumpSwipe(tester);
       await tester.drag(find.byKey(_target), const Offset(0, -200));

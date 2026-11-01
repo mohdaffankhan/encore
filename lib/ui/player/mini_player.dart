@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models.dart';
 import '../../services/player.dart';
 import '../art_colors.dart';
 import '../theme.dart';
@@ -17,7 +18,11 @@ class MiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([player.nowPlaying, nowPlayingColor]),
+      listenable: Listenable.merge([
+        player.nowPlaying,
+        player.queue,
+        nowPlayingColor,
+      ]),
       builder: (context, _) {
         final track = player.current;
         if (track == null) return const SizedBox.shrink();
@@ -30,61 +35,76 @@ class MiniPlayer extends StatelessWidget {
               }
             },
             child: SwipeToSkip(
-              child: Material(
-                color: backdropColor(nowPlayingColor.value),
-                borderRadius: BorderRadius.circular(14),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => openFullPlayer(context),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
-                        child: Row(
-                          children: [
-                            Artwork(track.artUrl, size: 44, radius: 8),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    track.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall,
-                                  ),
-                                  Text(
-                                    track.artist,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: EncoreColors.text.withValues(
-                                            alpha: 0.7,
-                                          ),
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            LikeButton(track),
-                            const PlayPauseButton(size: 28),
-                          ],
-                        ),
-                      ),
-                      const _ProgressLine(),
-                    ],
-                  ),
-                ),
-              ),
+              next: _bar(context, player.nextTrack),
+              previous: _bar(context, player.previousTrack),
+              child: _bar(context, track, playing: true)!,
             ),
           ),
         );
       },
+    );
+  }
+
+  /// The bar for [track]; the songs either side (shown while swiping)
+  /// have no controls.
+  Widget? _bar(BuildContext context, Track? track, {bool playing = false}) {
+    if (track == null) return null;
+    final text = Theme.of(context).textTheme;
+    return Material(
+      color: backdropColor(nowPlayingColor.value),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: playing ? () => openFullPlayer(context) : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+              child: Row(
+                children: [
+                  Artwork(track.artUrl, size: 44, radius: 8),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.titleSmall,
+                        ),
+                        Text(
+                          track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodySmall?.copyWith(
+                            color: EncoreColors.text.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (playing) ...[
+                    LikeButton(track),
+                    const PlayPauseButton(size: 28),
+                  ] else
+                    // Same height as the controls.
+                    const SizedBox(height: 48),
+                ],
+              ),
+            ),
+            playing
+                ? const _ProgressLine()
+                : const LinearProgressIndicator(
+                    minHeight: 2,
+                    value: 0,
+                    backgroundColor: Colors.white12,
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }
