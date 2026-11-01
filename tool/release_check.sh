@@ -19,6 +19,11 @@ ls "$dir"
 
 log "--- Android: $dir/encore-android.apk on $device"
 sh tool/android_release_check.sh "$dir/encore-android.apk" "$device" || fail=1
+# The phone's own chip APK installs over the universal one (same version
+# code and key) and plays too.
+abi=$(adb -s "$device" shell getprop ro.product.cpu.abi | tr -d '')
+log "--- Android: $dir/encore-android-$abi.apk on $device"
+sh tool/android_release_check.sh "$dir/encore-android-$abi.apk" "$device" || fail=1
 
 log "--- Windows: portable zip"
 unzip -q "$dir/encore-windows-portable.zip" -d "$dir/portable" || fail=1

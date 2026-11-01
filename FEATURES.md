@@ -130,6 +130,7 @@ calling it done. Releases also go through the owner's own testing.
 | Notification / lock screen player: previous, play/pause, next, and like (♡, filled when liked; a media-session button, drawn by Android 13+); no stop. The collapsed view's buttons stay valid on Android 12 and older | Android | unit `media_session_test`; e2e host checks; release check (media panel screenshot) |
 | Swiping Encore away from the recent apps stops the music and its notification (as in Spotify) | Android | release check "swiping it from recents stops the music" |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |
+| APKs per chip type (arm64-v8a, armeabi-v7a, x86_64; ~17-21 MB) besides the universal one (54 MB), all with the same version code, so they install over each other and test builds | Android | `tool/android_apks.sh` (chips and version code of each; in CI); release check installs the phone's own one over the universal |
 | APK without the desktop player (mpv): 73 → 54 MB | Android | `check_apk_resources.sh` (also in CI) |
 | Tests never touch the real app on the phone | Android | `android_background_check.sh` fails if it goes missing |
 | **Bug fixed:** a range request YouTube refuses or cuts short is tried again (from where it stopped) instead of stalling the song | all | unit `stream_test` |

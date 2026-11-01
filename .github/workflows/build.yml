@@ -63,17 +63,14 @@ jobs:
           fi
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/encore.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/encore.jks" >> "$GITHUB_ENV"
-      - name: Build APK
+      - name: Build APKs
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          flutter build apk --release $VERSION_FLAGS
-          mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/encore-android.apk
-      # Release builds shrink resources; debug builds (and tests) don't.
-      - run: sh tool/check_apk_resources.sh dist/encore-android.apk
+        # The universal APK and one per chip type, each checked (resources
+        # the shrinker could drop, chips, same version code).
+        run: sh tool/android_apks.sh dist $VERSION_FLAGS
       - uses: actions/upload-artifact@v4
         with:
           name: android
@@ -226,7 +223,7 @@ jobs:
           body: |
             | Platform | Download |
             |---|---|
-            | Android | `encore-android.apk` |
+            | Android | `encore-android.apk` (any phone), or the smaller one for its chip: `encore-android-arm64-v8a.apk` (most phones), `-armeabi-v7a` (older phones), `-x86_64` (emulators, Chromebooks) |
             | Windows | `encore-windows-setup.exe` (or the portable zip) |
             | Linux | `encore-linux-x64.tar.gz` (needs `libmpv2`) |
 

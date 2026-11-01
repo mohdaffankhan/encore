@@ -40,7 +40,7 @@
 
 | Platform | Get it |
 |---|---|
-| **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) |
+| **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) (any phone) · smaller, per chip: [arm64-v8a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-x86_64.apk) |
 | **Windows** 10 / 11 | [`encore-windows-setup.exe`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) |
 | **Linux** x64 | [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
 
@@ -82,6 +82,10 @@ page. Install steps for each are [below](#install).
    what puts the player in your notification panel.
 
 To update, install the new APK over the old one. Your library stays.
+
+The per-chip APKs are about a third of the size. Not sure which chip your
+phone has? Take `encore-android.apk`, which works on all of them; you can
+switch between it and a per-chip one any time, keeping your library.
 
 ### Windows
 
