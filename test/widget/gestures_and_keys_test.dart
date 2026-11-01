@@ -478,7 +478,15 @@ void main() {
       player.queue.value = [track, song('1'), song('2')];
       await tester.tap(find.text('Up next'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Remove from queue').first);
+      // From the song's menu, like Spotify (a × on every row was clutter).
+      await tester.tap(
+        find.descendant(
+          of: find.widgetWithText(TrackTile, 'Queued 1'),
+          matching: find.byTooltip('More'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from queue'));
       await tester.pumpAndSettle();
       expect(find.text('Queued 1'), findsNothing);
       expect(find.text('Queued 2'), findsOneWidget);

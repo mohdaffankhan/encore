@@ -21,6 +21,7 @@ class TrackTile extends StatelessWidget {
     this.showAlbum = true,
     this.padding,
     this.playlistId,
+    this.removeFromQueue,
     this.trailing,
   });
 
@@ -35,6 +36,9 @@ class TrackTile extends StatelessWidget {
 
   /// The playlist it's shown in: its menu can remove it from there.
   final String? playlistId;
+
+  /// Shown in up next: its menu can take it out.
+  final VoidCallback? removeFromQueue;
 
   /// After the ⋯ button, e.g. a drag handle.
   final Widget? trailing;
@@ -54,12 +58,17 @@ class TrackTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             onTap: onTap,
             // The song's menu: long-press on phones, right-click on desktop.
-            onLongPress: () =>
-                showTrackMenu(context, track, playlistId: playlistId),
+            onLongPress: () => showTrackMenu(
+              context,
+              track,
+              playlistId: playlistId,
+              removeFromQueue: removeFromQueue,
+            ),
             onSecondaryTapUp: (details) => showTrackMenu(
               context,
               track,
               playlistId: playlistId,
+              removeFromQueue: removeFromQueue,
               position: details.globalPosition,
             ),
             child: LayoutBuilder(
@@ -147,7 +156,11 @@ class TrackTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                    TrackMenu(track, playlistId: playlistId),
+                    TrackMenu(
+                      track,
+                      playlistId: playlistId,
+                      removeFromQueue: removeFromQueue,
+                    ),
                   ],
                 ),
               ),

@@ -14,6 +14,7 @@ import 'sleep_timer_picker.dart';
 /// The ⋯ button for a song. [inPlayer]: the playing song's menu (full
 /// player and desktop player bar), which also has the sleep timer.
 /// [playlistId]: the song is shown in that playlist, so it can be removed.
+/// [removeFromQueue]: it is shown in up next, and this takes it out.
 class TrackMenu extends StatelessWidget {
   const TrackMenu(
     this.track, {
@@ -21,12 +22,14 @@ class TrackMenu extends StatelessWidget {
     this.color,
     this.inPlayer = false,
     this.playlistId,
+    this.removeFromQueue,
   });
 
   final Track track;
   final Color? color;
   final bool inPlayer;
   final String? playlistId;
+  final VoidCallback? removeFromQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +44,7 @@ class TrackMenu extends StatelessWidget {
         track,
         inPlayer: inPlayer,
         playlistId: playlistId,
+        removeFromQueue: removeFromQueue,
       ),
     );
   }
@@ -53,10 +57,16 @@ Future<void> showTrackMenu(
   Track track, {
   bool inPlayer = false,
   String? playlistId,
+  VoidCallback? removeFromQueue,
   Offset? position,
 }) => showActionMenu(
   context,
-  _actions(track, inPlayer: inPlayer, playlistId: playlistId),
+  _actions(
+    track,
+    inPlayer: inPlayer,
+    playlistId: playlistId,
+    removeFromQueue: removeFromQueue,
+  ),
   header: _SongHeader(track),
   position: position,
 );
@@ -92,6 +102,7 @@ List<MenuAction> _actions(
   Track track, {
   required bool inPlayer,
   String? playlistId,
+  VoidCallback? removeFromQueue,
 }) {
   final liked = userLibrary.isLiked(track);
   final downloading = downloads.progress.value.containsKey(track.id);
@@ -122,6 +133,12 @@ List<MenuAction> _actions(
       'Add to playlist',
       (context) => showAddToPlaylist(context, [track]),
     ),
+    if (removeFromQueue != null)
+      MenuAction(
+        Icons.remove_circle_outline_rounded,
+        'Remove from queue',
+        (_) => removeFromQueue(),
+      ),
     if (playlistId != null)
       MenuAction(Icons.playlist_remove_rounded, 'Remove from this playlist', (
         context,

@@ -46,6 +46,7 @@ calling it done. Releases also go through the owner's own testing.
 | Full player: swipe the artwork left/right for next/previous | all | widget `swipe to skip`; e2e "swipe left", "swipe right" |
 | Full player: pull down to close (follows the finger, springs back) | phones | widget "pulling the song down follows the finger" |
 | Lyrics sheet: drag up/down with the finger, snaps, swipe down / ⌄ / Back closes, follows the song | phones | widget group "full player on a phone"; e2e "swipe up: lyrics" |
+| Up next: drag the handle to reorder (desktop: shown on hover), "Remove from queue" in the song's menu (it stays out when shuffle is turned off) | all | unit `player_test` group "up next"; widget "a song can be taken out of up next" |
 | Lyrics / Up next side panel | desktop | e2e "lyrics load" |
 | Lyrics: synced, tap a line to seek; "couldn't load" + Retry when offline | all | widget (offline Retry); e2e "lyrics load" |
 | Seek bar stays enabled while a song loads (accessibility tree fix) | all | widget "the seek bar stays enabled" |
