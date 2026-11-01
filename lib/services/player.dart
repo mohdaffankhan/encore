@@ -194,7 +194,8 @@ class Player {
   Future<void> play() async {
     if (_broken) {
       _recoveries = 0;
-      await _playAt(index.value, start: audio.position);
+      final at = _resumeAt ?? audio.position;
+      await _playAt(index.value, start: at);
     } else {
       await audio.play();
     }
@@ -204,7 +205,10 @@ class Player {
   /// is ready (the player ignores it then); on a song that broke off, it
   /// loads the song again from there.
   Future<void> seek(Duration position) async {
-    if (loading.value) {
+    if (_resumeAt != null && _broken) {
+      // Not loaded yet since the app started: play from there later.
+      _resumeAt = position;
+    } else if (loading.value) {
       _pendingSeek = position;
     } else if (_broken) {
       _recoveries = 0;
@@ -215,6 +219,31 @@ class Player {
   }
 
   Duration? _pendingSeek;
+
+  /// Where the song left from the last time the app ran plays from, until
+  /// it is loaded (see [restore]).
+  Duration? _resumeAt;
+  Duration? get resumeAt => _resumeAt;
+
+  /// How far into the current song, loaded or not.
+  Duration get position => _resumeAt ?? audio.position;
+
+  /// What was playing when the app last ran ([PlaybackSession]): shown,
+  /// paused at [position]; nothing loads until it is played.
+  void restore(
+    List<Track> tracks,
+    int at,
+    Duration position, {
+    bool shuffled = false,
+    Repeat repeat = Repeat.off,
+  }) {
+    if (current != null || at < 0 || at >= tracks.length) return;
+    queue.value = tracks;
+    index.value = at;
+    _resumeAt = position;
+    shuffle.value = shuffled;
+    this.repeat.value = repeat;
+  }
 
   /// Nothing loaded for the current song: it failed (or never loaded).
   bool get _broken =>
@@ -384,6 +413,7 @@ class Player {
     final track = queue.value[i];
     loading.value = true;
     _pendingSeek = null;
+    _resumeAt = null;
     _lastReady = null;
     if (start == null) _recoveries = 0;
     try {

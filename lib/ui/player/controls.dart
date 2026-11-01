@@ -151,7 +151,8 @@ class _SeekBarState extends State<SeekBar> {
           final max = total.inMilliseconds.toDouble();
           final pos =
               _dragging ??
-              (snapshot.data ?? Duration.zero).inMilliseconds.toDouble();
+              (player.resumeAt ?? snapshot.data ?? Duration.zero).inMilliseconds
+                  .toDouble();
           final style = Theme.of(context).textTheme.bodySmall?.copyWith(
             color: EncoreColors.textSecondary,
             fontFeatures: const [FontFeature.tabularFigures()],

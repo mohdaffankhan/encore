@@ -8,6 +8,7 @@ import 'app.dart';
 import 'self_test.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
+import 'services/session.dart';
 import 'services/storage.dart';
 import 'ui/art_colors.dart';
 
@@ -36,6 +37,7 @@ Future<void> main([List<String> args = const []]) async {
     ..maximumSizeBytes = 48 << 20
     ..maximumSize = 400;
   await userLibrary.load();
+  await playbackSession.restore();
   watchNowPlayingColor();
   runApp(const EncoreApp());
   if (selfTest) await runSelfTest();
