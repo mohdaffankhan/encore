@@ -27,10 +27,13 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   media_controls_ = std::make_unique<MediaControls>(
       GetHandle(), flutter_controller_->engine()->messenger());
+  desktop_window_ = std::make_unique<DesktopWindow>(
+      GetHandle(), flutter_controller_->engine()->messenger());
+  maximized_ = DesktopWindow::RestorePlacement(GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
+    ShowWindow(GetHandle(), maximized_ ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
   });
 
   // Flutter can complete the first frame before the "show window" callback is
@@ -43,6 +46,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   media_controls_ = nullptr;
+  desktop_window_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -54,6 +58,14 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Closing to the tray, its clicks, and showing again when Encore is
+  // opened a second time.
+  LRESULT handled;
+  if (desktop_window_ &&
+      desktop_window_->HandleMessage(message, wparam, lparam, &handled)) {
+    return handled;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

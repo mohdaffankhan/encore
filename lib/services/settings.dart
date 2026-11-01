@@ -19,10 +19,14 @@ class Settings {
 
   final downloadQuality = ValueNotifier(AudioQuality.high);
 
+  /// Windows: closing the window keeps the music playing in the tray.
+  final closeToTray = ValueNotifier(true);
+
   late final _all = <String, ValueNotifier<Object>>{
     'streamQuality': streamQuality,
     'saveDataOnMobile': saveDataOnMobile,
     'downloadQuality': downloadQuality,
+    'closeToTray': closeToTray,
   };
 
   File? _file;
@@ -45,6 +49,7 @@ class Settings {
       if (json['saveDataOnMobile'] case final bool save) {
         saveDataOnMobile.value = save;
       }
+      if (json['closeToTray'] case final bool tray) closeToTray.value = tray;
     } on PathNotFoundException {
       // Never changed: the defaults.
     } catch (e) {

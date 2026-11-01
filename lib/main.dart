@@ -8,6 +8,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'api/clients.dart';
 import 'app.dart';
 import 'self_test.dart';
+import 'services/desktop_window.dart';
 import 'services/downloads.dart';
 import 'services/home_cache.dart';
 import 'services/library.dart';
@@ -55,6 +56,7 @@ Future<void> main([List<String> args = const []]) async {
   } else if (Platform.isWindows) {
     WindowsMediaControls(player).start();
   }
+  if (Platform.isWindows || Platform.isLinux) DesktopWindow(player).start();
   // Artwork is decoded at display size, so a smaller cache still holds
   // plenty of images (Flutter's default is 100 MB).
   PaintingBinding.instance.imageCache

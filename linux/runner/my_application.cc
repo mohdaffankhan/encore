@@ -10,9 +10,94 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  GtkWindow* window;
+  GtkHeaderBar* header_bar;
+  FlMethodChannel* window_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// The window's size (and place, where the desktop allows apps to choose
+// it: X11, not Wayland), kept between runs.
+static gchar* window_state_path() {
+  return g_build_filename(g_get_user_config_dir(), "encore", "window.ini",
+                          nullptr);
+}
+
+static void restore_window(GtkWindow* window) {
+  gtk_window_set_default_size(window, 1280, 800);
+  g_autoptr(GKeyFile) file = g_key_file_new();
+  g_autofree gchar* path = window_state_path();
+  if (!g_key_file_load_from_file(file, path, G_KEY_FILE_NONE, nullptr)) {
+    return;
+  }
+  gint width = g_key_file_get_integer(file, "window", "width", nullptr);
+  gint height = g_key_file_get_integer(file, "window", "height", nullptr);
+  if (width >= 400 && height >= 300) {
+    gtk_window_set_default_size(window, width, height);
+  }
+  if (g_key_file_has_key(file, "window", "x", nullptr)) {
+    gint x = g_key_file_get_integer(file, "window", "x", nullptr);
+    gint y = g_key_file_get_integer(file, "window", "y", nullptr);
+    // Only onto a screen that is still there.
+    GdkDisplay* display = gdk_display_get_default();
+    GdkMonitor* monitor =
+        display ? gdk_display_get_monitor_at_point(display, x, y) : nullptr;
+    GdkRectangle area;
+    if (monitor) {
+      gdk_monitor_get_geometry(monitor, &area);
+      if (x >= area.x && y >= area.y && x < area.x + area.width &&
+          y < area.y + area.height) {
+        gtk_window_move(window, x, y);
+      }
+    }
+  }
+  if (g_key_file_get_boolean(file, "window", "maximized", nullptr)) {
+    gtk_window_maximize(window);
+  }
+}
+
+static gboolean save_window(GtkWidget* widget, GdkEvent* event,
+                            gpointer user_data) {
+  GtkWindow* window = GTK_WINDOW(widget);
+  g_autoptr(GKeyFile) file = g_key_file_new();
+  g_autofree gchar* path = window_state_path();
+  // Keeps the size from before maximizing.
+  g_key_file_load_from_file(file, path, G_KEY_FILE_NONE, nullptr);
+  gboolean maximized = gtk_window_is_maximized(window);
+  g_key_file_set_boolean(file, "window", "maximized", maximized);
+  if (!maximized) {
+    gint width, height, x, y;
+    gtk_window_get_size(window, &width, &height);
+    gtk_window_get_position(window, &x, &y);
+    g_key_file_set_integer(file, "window", "width", width);
+    g_key_file_set_integer(file, "window", "height", height);
+    g_key_file_set_integer(file, "window", "x", x);
+    g_key_file_set_integer(file, "window", "y", y);
+  }
+  g_autofree gchar* dir = g_path_get_dirname(path);
+  g_mkdir_with_parents(dir, 0700);
+  g_key_file_save_to_file(file, path, nullptr);
+  return FALSE;  // Close as usual.
+}
+
+// The app sets the window title to the song playing.
+static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
+                             gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (g_strcmp0(fl_method_call_get_name(call), "title") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_STRING) {
+      const gchar* title = fl_value_get_string(args);
+      if (self->header_bar != nullptr) {
+        gtk_header_bar_set_title(self->header_bar, title);
+      }
+      gtk_window_set_title(self->window, title);
+    }
+  }
+  // Anything else (the tray, on Windows only) is fine to ignore.
+  fl_method_call_respond_success(call, nullptr, nullptr);
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
@@ -24,6 +109,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->window = window;
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -48,11 +134,13 @@ static void my_application_activate(GApplication* application) {
     gtk_header_bar_set_title(header_bar, "Encore");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
+    self->header_bar = header_bar;
   } else {
     gtk_window_set_title(window, "Encore");
   }
 
-  gtk_window_set_default_size(window, 1280, 800);
+  restore_window(window);
+  g_signal_connect(window, "delete-event", G_CALLBACK(save_window), nullptr);
 
   // Window icon, shipped as a Flutter asset next to the executable.
   g_autofree gchar* exe = g_file_read_link("/proc/self/exe", nullptr);
@@ -84,6 +172,13 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->window_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "dev.encore.app/window", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->window_channel,
+                                            window_method_cb, self, nullptr);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -131,6 +226,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->window_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 

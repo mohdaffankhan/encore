@@ -46,7 +46,11 @@ public static class Win {
     Sort-Object StartTime | Select-Object -Last 1
   $front = $false
   foreach ($try in 1..6) {
-    if ([Win]::Bring($app.MainWindowHandle, $try -gt 2)) { $front = $true; break }
+    if ([Win]::Bring($app.MainWindowHandle, $try -gt 2)) {
+      "[host] in front (try $try)"
+      $front = $true
+      break
+    }
     Start-Sleep -Milliseconds 300
   }
   # The keys go to whatever window is in front, so only type into Encore.

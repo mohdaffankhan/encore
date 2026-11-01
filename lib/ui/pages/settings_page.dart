@@ -70,6 +70,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: 'Download quality',
                 setting: settings.downloadQuality,
               ),
+              if (Platform.isWindows)
+                ValueListenableBuilder(
+                  valueListenable: settings.closeToTray,
+                  builder: (context, on, _) => _Row(
+                    title: 'Keep playing when the window is closed',
+                    subtitle: 'Encore stays in the tray, by the clock',
+                    trailing: Switch(
+                      value: on,
+                      onChanged: (v) => settings.closeToTray.value = v,
+                    ),
+                    onTap: () => settings.closeToTray.value = !on,
+                  ),
+                ),
               const SectionHeader('Storage'),
               FutureBuilder(
                 future: _sizes,

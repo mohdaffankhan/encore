@@ -2,6 +2,9 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <algorithm>
+
+#include "desktop_window.h"
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -21,6 +24,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+
+  // Opening Encore again (e.g. while it plays from the tray) shows the one
+  // running instead of starting a second player. The self-test runs on its
+  // own.
+  bool self_test = std::find(command_line_arguments.begin(),
+                             command_line_arguments.end(),
+                             "--self-test") != command_line_arguments.end();
+  if (!self_test && DesktopWindow::HandOverToRunningCopy()) {
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 

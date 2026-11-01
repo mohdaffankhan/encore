@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "desktop_window.h"
 #include "media_controls.h"
 #include "win32_window.h"
 
@@ -32,6 +33,12 @@ class FlutterWindow : public Win32Window {
 
   // Windows' media overlay, lock screen and media keys.
   std::unique_ptr<MediaControls> media_controls_;
+
+  // The song in the title, the tray icon, the window's place.
+  std::unique_ptr<DesktopWindow> desktop_window_;
+
+  // It was maximized when last closed.
+  bool maximized_ = false;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
