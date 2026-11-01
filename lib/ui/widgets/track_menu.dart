@@ -88,7 +88,13 @@ Future<void> showActionMenu(
 }
 
 class MenuAction {
-  const MenuAction(this.icon, this.label, this.run, {this.detail});
+  const MenuAction(
+    this.icon,
+    this.label,
+    this.run, {
+    this.detail,
+    this.live = false,
+  });
 
   final IconData icon;
   final String label;
@@ -96,6 +102,13 @@ class MenuAction {
 
   /// Shown on the right, e.g. the sleep timer's time left.
   final String? detail;
+
+  /// [detail] is a live value (the sleep timer's time left), in the accent
+  /// colour; otherwise it describes the action, in grey.
+  final bool live;
+
+  Color get detailColor =>
+      live ? EncoreColors.accent : EncoreColors.textSecondary;
 }
 
 List<MenuAction> _actions(
@@ -166,6 +179,7 @@ List<MenuAction> _actions(
         'Sleep timer',
         showSleepTimer,
         detail: sleepTimerStatus(short: true),
+        live: true,
       ),
   ];
 }
@@ -191,6 +205,8 @@ Future<MenuAction?> _popup(
   return showMenu<MenuAction>(
     context: context,
     position: RelativeRect.fromRect(anchor, Offset.zero & overlay.size),
+    // Wider than Material's 280 px, for a label with a detail beside it.
+    constraints: const BoxConstraints(minWidth: 200, maxWidth: 360),
     items: [
       for (final action in actions)
         PopupMenuItem(
@@ -207,7 +223,8 @@ Future<MenuAction?> _popup(
                 const SizedBox(width: 16),
                 Text(
                   detail,
-                  style: const TextStyle(color: EncoreColors.accent),
+                  maxLines: 1,
+                  style: TextStyle(color: action.detailColor),
                 ),
               ],
             ],
@@ -246,7 +263,7 @@ Future<MenuAction?> _sheet(
                       ? null
                       : Text(
                           action.detail!,
-                          style: const TextStyle(color: EncoreColors.accent),
+                          style: TextStyle(color: action.detailColor),
                         ),
                   onTap: () => Navigator.pop(context, action),
                 ),

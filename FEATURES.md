@@ -34,6 +34,7 @@ calling it done. Releases also go through the owner's own testing.
 | **Bug fixed:** a connection that went silent without closing hung the song (and the download queue) forever: dropped after 10 s and tried again; YouTube requests time out instead of spinning | all | unit `stream_test` "a connection that goes silent" |
 | Seeking while a song loads is kept for when it is ready; the seek bar shows the song's length while it loads | all | unit `player_test` "a seek while the song loads"; widget `now_playing_test` "the seek bar shows the song's length" |
 | **Bug fixed (Android):** a seek the stream couldn't serve never finished, which left the song loading for good | android | unit `player_test` "a seek that never completes"; Android e2e "seek works after a failure" |
+| Settings page (desktop sidebar, the gear on the phone's home, Ctrl+,): quality, save data on mobile, storage used by downloads and artwork (remove all / clear), version, source, shortcuts | all | widget "Ctrl + , opens settings", "the gear on home opens settings"; unit `downloads_test` "every download can be removed" |
 | Album / playlist play buttons say so when offline | all | (manual) |
 
 ## Player screens

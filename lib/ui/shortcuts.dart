@@ -82,6 +82,9 @@ class PlayerShortcuts extends StatelessWidget {
       SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true),
       SingleActivator(LogicalKeyboardKey.browserBack),
     ], goBack),
+    Shortcut('Ctrl + ,', 'Settings', const [
+      SingleActivator(LogicalKeyboardKey.comma, control: true),
+    ], openSettings),
     Shortcut('Esc', 'Close the player', const [
       SingleActivator(LogicalKeyboardKey.escape),
     ], closeOverlay),

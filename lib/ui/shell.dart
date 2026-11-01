@@ -9,6 +9,7 @@ import 'pages/collection_page.dart';
 import 'pages/home_page.dart';
 import 'pages/library_page.dart';
 import 'pages/search_page.dart';
+import 'pages/settings_page.dart';
 import 'player/player_ui.dart';
 import 'theme.dart';
 import 'widgets/widgets.dart';
@@ -26,6 +27,9 @@ void openArtist(String browseId) => openPage(ArtistPage(browseId));
 
 void openCollection(String browseId) =>
     openPage(CollectionPage.remote(browseId));
+
+/// Settings, in the current tab (Ctrl+, on desktop).
+void openSettings() => openPage(const SettingsPage());
 
 /// Ctrl+K: the cursor in the search box, from anywhere (closing the full
 /// player).
@@ -335,6 +339,12 @@ class _Sidebar extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+            const _SidebarItem(
+              icon: Icons.settings_outlined,
+              label: 'Settings',
+              selected: false,
+              onTap: openSettings,
             ),
           ],
         ),

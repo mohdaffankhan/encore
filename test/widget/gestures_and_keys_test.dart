@@ -1,7 +1,9 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/settings.dart';
 import 'package:encore/ui/pages/search_page.dart';
+import 'package:encore/ui/pages/settings_page.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shortcuts.dart';
 import 'package:encore/ui/theme.dart';
@@ -232,6 +234,25 @@ void main() {
       expect(find.text('Ctrl + S'), findsOneWidget);
       await press(tester, LogicalKeyboardKey.escape);
       expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('Ctrl + , opens settings, where quality can be picked', (
+      tester,
+    ) async {
+      addTearDown(() => settings.streamQuality.value = AudioQuality.high);
+      await pumpApp(tester, const Size(1400, 900));
+      await press(
+        tester,
+        LogicalKeyboardKey.comma,
+        holding: LogicalKeyboardKey.controlLeft,
+      );
+      expect(find.byType(SettingsPage), findsOneWidget);
+      await tester.tap(find.text('Streaming quality'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Low'));
+      await tester.pumpAndSettle();
+      expect(settings.streamQuality.value, AudioQuality.low);
+      expect(find.text('Low · Least data'), findsOneWidget);
     });
 
     testWidgets('Ctrl + S and Ctrl + R: shuffle and repeat', (tester) async {

@@ -43,4 +43,18 @@ void main() {
     await again.resume();
     expect(fetched, hasLength(3), reason: 'nothing left to download');
   });
+
+  // Settings: free up space.
+  test('every download can be removed at once, with its file', () async {
+    final folder = await Directory('${dir.path}/downloads').create();
+    for (final id in ['a', 'b']) {
+      await File('${folder.path}/$id').writeAsString('audio $id');
+    }
+    userLibrary.downloads.value = [_song('a'), _song('b')];
+    final downloads = Downloads();
+    expect(await downloads.size(), greaterThan(0));
+    await downloads.removeAll();
+    expect(userLibrary.downloads.value, isEmpty);
+    expect(await downloads.size(), 0);
+  });
 }

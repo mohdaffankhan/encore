@@ -62,6 +62,13 @@ void main() {
     expect(find.text("Couldn't load your home feed."), findsNothing);
   });
 
+  testWidgets('phone: the gear on home opens settings', (tester) async {
+    await pumpApp(tester, const Size(400, 860));
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Streaming quality'), findsOneWidget);
+  });
+
   testWidgets('library opens an empty liked songs page', (tester) async {
     await pumpApp(tester, const Size(400, 860));
     await tester.tap(find.text('Library').last);

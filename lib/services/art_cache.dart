@@ -156,6 +156,34 @@ Future<void> trimArtCache(Directory dir, {int maxBytes = _maxBytes}) async {
   }
 }
 
+/// How much space the art kept on disk takes, in bytes.
+Future<int> artCacheSize() async {
+  final dir = await _cacheDir();
+  if (dir == null) return 0;
+  try {
+    return await _filesIn(dir).fold<int>(0, (sum, f) => sum + f.lengthSync());
+  } catch (e) {
+    return 0;
+  }
+}
+
+/// Deletes the art kept on disk (Settings: free up space). It comes back
+/// as songs and pages are shown.
+Future<void> clearArtCache() async {
+  final dir = await _cacheDir();
+  if (dir == null) return;
+  await for (final file in _filesIn(dir)) {
+    try {
+      await file.delete();
+    } catch (_) {
+      // Being written: it goes next time.
+    }
+  }
+}
+
+Stream<File> _filesIn(Directory dir) =>
+    dir.list().where((f) => f is File).cast<File>();
+
 /// A file name for [url] (FNV-1a, 64 bits): the same on every launch,
 /// unlike [String.hashCode].
 String _name(String url) {

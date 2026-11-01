@@ -85,6 +85,26 @@ class Downloads {
 
   bool isDownloaded(Track track) => userLibrary.downloads.value.contains(track);
 
+  /// How much space the downloaded songs take, in bytes.
+  Future<int> size() async {
+    var total = 0;
+    try {
+      await for (final f in (await _folder()).list()) {
+        if (f is File) total += await f.length();
+      }
+    } catch (e) {
+      debugPrint('Measuring downloads failed: $e');
+    }
+    return total;
+  }
+
+  /// Removes every download (Settings: free up space).
+  Future<void> removeAll() async {
+    for (final track in [...userLibrary.downloads.value]) {
+      await remove(track);
+    }
+  }
+
   void download(Iterable<Track> tracks) {
     for (final t in tracks) {
       if (isDownloaded(t) || progress.value.containsKey(t.id)) continue;

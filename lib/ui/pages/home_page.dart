@@ -4,6 +4,7 @@ import '../../api/innertube.dart' as yt;
 import '../../models.dart';
 import '../../services/home_cache.dart';
 import '../../services/library.dart';
+import '../shell.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
 
@@ -53,12 +54,24 @@ class _HomePageState extends State<HomePage> {
               SliverToBoxAdapter(
                 child: PageTitle(
                   _greeting,
+                  // Phones: search and settings up here (desktop has the
+                  // sidebar).
                   trailing: wide
                       ? null
-                      : IconButton(
-                          tooltip: 'Search',
-                          onPressed: widget.onSearch,
-                          icon: const Icon(Icons.search_rounded),
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Search',
+                              onPressed: widget.onSearch,
+                              icon: const Icon(Icons.search_rounded),
+                            ),
+                            const IconButton(
+                              tooltip: 'Settings',
+                              onPressed: openSettings,
+                              icon: Icon(Icons.settings_outlined),
+                            ),
+                          ],
                         ),
                 ),
               ),
