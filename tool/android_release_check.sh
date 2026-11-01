@@ -70,7 +70,7 @@ a shell input keyevent KEYCODE_SLEEP
 sleep 15
 check "plays in background, screen off" 'alive && session | grep -q "state=PLAYING"'
 
-# The player in the notification panel / lock screen: exactly
+# The player in the notification panel / lock screen: exactly like,
 # previous, play/pause, next. Keep only Encore's notification record.
 # adb sometimes drops a command (v0.1.5's first check got nothing back), and
 # a real dump always has other apps' records, so an empty one is retried.
@@ -87,7 +87,8 @@ for _ in 1 2 3; do
 done
 check "media notification shown" 'grep -q MediaStyle build/encore_notification.txt'
 buttons=$(grep -cE '^ *\[[0-9]\] "' build/encore_notification.txt)
-check "3 notification buttons (got $buttons)" '[ "$buttons" = 3 ]'
+check "4 notification buttons (got $buttons)" '[ "$buttons" = 4 ]'
+check "like button" 'grep -qE "\"(Like|Unlike)\"" build/encore_notification.txt'
 check "no stop button" '! grep -qiE "\"Stop\"" build/encore_notification.txt'
 
 title() { session | grep -o "description=[^,]*" | head -1; }
@@ -97,6 +98,21 @@ sleep 8
 after=$(title)
 check "next changes the song" '[ -n "$after" ] && [ "$before" != "$after" ]'
 check "still playing after next" 'alive && session | grep -q "state=PLAYING"'
+
+# Swiped away from the recent apps: the music stops (as in Spotify).
+a shell input keyevent KEYCODE_WAKEUP
+sleep 1
+if a shell dumpsys window | grep -q 'isKeyguardShowing=true'; then
+  log "skipped: swipe from recents (the phone locked itself)"
+else
+  a shell input keyevent KEYCODE_APP_SWITCH
+  sleep 2
+  # Encore's card is the most recent, in the middle; flick it up.
+  a shell input swipe 540 1300 540 150 150
+  sleep 5
+  check "swiping it from recents stops the music" '! session | grep -q "state=PLAYING"'
+  a shell input keyevent KEYCODE_HOME
+fi
 
 a shell input keyevent KEYCODE_MEDIA_PAUSE
 a shell input keyevent KEYCODE_WAKEUP

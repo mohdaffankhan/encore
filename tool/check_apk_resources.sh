@@ -9,7 +9,7 @@ apk=$1
 aapt2=$(command -v aapt2 || ls "${ANDROID_HOME:-$LOCALAPPDATA/Android/Sdk}"/build-tools/*/aapt2* 2>/dev/null | tail -1)
 resources=$("$aapt2" dump resources "$apk") || exit 1
 missing=0
-for name in ic_stat_encore audio_service_play_arrow audio_service_pause \
+for name in ic_stat_encore ic_favorite ic_favorite_border audio_service_play_arrow audio_service_pause \
   audio_service_skip_next audio_service_skip_previous; do
   if ! echo "$resources" | grep -q "drawable/$name\$"; then
     echo "[apk] FAIL: missing drawable/$name"

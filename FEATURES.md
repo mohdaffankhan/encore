@@ -118,7 +118,8 @@ calling it done. Releases also go through the owner's own testing.
 | Search: ↓ / ↑ go through the suggestions (or recent searches), Enter searches the picked one, Esc drops it then leaves the box; ↓ moves into the results | desktop | widget "↓ / ↑ pick a suggestion", "Esc first drops the picked suggestion" |
 | More keys, as in Spotify: Esc closes the full player, Alt+← and the mouse's back button go back, Ctrl+K / Ctrl+F / / search from anywhere, Ctrl+S shuffle, Ctrl+R repeat, M mute, Ctrl+/ lists them all; the mouse wheel over the volume turns it | desktop | widget group "desktop keys"; unit `player_test` "unmuting goes back" |
 | Background playback, screen off | Android | e2e "background playback" |
-| Notification / lock screen player: exactly previous, play/pause, next; no stop | Android | e2e host checks; release check |
+| Notification / lock screen player: like (♡, filled when liked), previous, play/pause, next; no stop | Android | unit `media_session_test`; e2e host checks; release check |
+| Swiping Encore away from the recent apps stops the music and its notification (as in Spotify) | Android | release check "swiping it from recents stops the music" |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |
 | APK without the desktop player (mpv): 73 → 54 MB | Android | `check_apk_resources.sh` (also in CI) |
 | Tests never touch the real app on the phone | Android | `android_background_check.sh` fails if it goes missing |

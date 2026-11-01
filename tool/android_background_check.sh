@@ -40,9 +40,10 @@ if grep -q 'background: ready' "$log"; then
   # other apps' notifications).
   adb -s "$device" shell dumpsys notification --noredact     | awk '/NotificationRecord\(.*pkg=dev.encore.app.test /{n=45} n&&n--' > build/encore_notification.txt
   grep -E "android.template|^ *\[[0-9]\] " build/encore_notification.txt | sed 's/^ */[host] /'
-  # Exactly previous / play-pause / next, and no stop button anywhere.
+  # Exactly like / previous / play-pause / next, and no stop button.
   buttons=$(grep -cE '^ *\[[0-9]\] "' build/encore_notification.txt)
-  [ "$buttons" = 3 ] || { echo "[host] FAIL: expected 3 notification buttons, got $buttons"; host_fail=1; }
+  [ "$buttons" = 4 ] || { echo "[host] FAIL: expected 4 notification buttons, got $buttons"; host_fail=1; }
+  grep -qE '"(Like|Unlike)"' build/encore_notification.txt || { echo "[host] FAIL: no like button"; host_fail=1; }
   if grep -qiE '"Stop"' build/encore_notification.txt || echo "$session" | grep -q "mName='Stop"; then
     echo "[host] FAIL: stop button present"; host_fail=1
   fi
