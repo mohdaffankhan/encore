@@ -41,6 +41,7 @@ calling it done. Releases also go through the owner's own testing.
 |---|---|---|
 | **Bug fixed:** a 2nd/3rd song from search showed the earlier song's art and title (players, notification, colour) | all | widget `now_playing_test`; e2e "search result N shown in the player" |
 | Mini player: tap or swipe up opens the full player; swipe sideways skips | phones | widget "swipe up on the mini player", `swipe to skip` group |
+| **Bug fixed:** the volume control disappeared when the full player opened (it covers the bar): it has one too, and mute remembers the level across both | desktop | widget `now_playing_test` "the full player has the volume too" |
 | Desktop player bar: click anywhere that isn't a control opens the full player | desktop | widget `now_playing_test` group "desktop player bar"; e2e (opens it that way) |
 | Full player: swipe the artwork left/right for next/previous | all | widget `swipe to skip`; e2e "swipe left", "swipe right" |
 | Full player: pull down to close (follows the finger, springs back) | phones | widget "pulling the song down follows the finger" |

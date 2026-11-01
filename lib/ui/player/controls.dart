@@ -216,7 +216,9 @@ class VolumeControl extends StatefulWidget {
 }
 
 class _VolumeControlState extends State<VolumeControl> {
-  double _beforeMute = 1;
+  /// Shared: unmuting in the player bar after muting in the full player
+  /// goes back to the same level.
+  static double _beforeMute = 1;
 
   @override
   Widget build(BuildContext context) {

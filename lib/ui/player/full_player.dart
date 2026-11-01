@@ -304,7 +304,7 @@ class _FullPlayerState extends State<FullPlayer>
                     ),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 560),
-                      child: _NowPlayingInfo(track),
+                      child: _NowPlayingInfo(track, volume: true),
                     ),
                   ],
                 ),
@@ -511,9 +511,13 @@ class _BigArt extends StatelessWidget {
 
 /// Title, artist, like, seek bar and transport controls.
 class _NowPlayingInfo extends StatelessWidget {
-  const _NowPlayingInfo(this.track);
+  const _NowPlayingInfo(this.track, {this.volume = false});
 
   final Track track;
+
+  /// Desktop: the volume too, as the player bar it covers has it. (Phones
+  /// have their volume buttons.)
+  final bool volume;
 
   @override
   Widget build(BuildContext context) {
@@ -559,6 +563,7 @@ class _NowPlayingInfo extends StatelessWidget {
           const SeekBar(),
           const SizedBox(height: 8),
           const TransportControls(large: true),
+          if (volume) ...[const SizedBox(height: 8), const VolumeControl()],
         ],
       ),
     );

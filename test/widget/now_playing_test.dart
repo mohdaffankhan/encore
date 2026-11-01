@@ -123,6 +123,23 @@ void main() {
       expect(find.byType(FullPlayer), findsOneWidget);
     });
 
+    // Opening the full player covered the bar's volume control, and the
+    // full player had none.
+    testWidgets('the full player has the volume too', (tester) async {
+      final bar = await pumpBar(tester);
+      await tester.tapAt(tester.getTopLeft(bar) + const Offset(6, 44));
+      await tester.pumpAndSettle();
+      final volume = find.descendant(
+        of: find.byType(FullPlayer),
+        matching: find.byType(VolumeControl),
+      );
+      expect(volume, findsOneWidget);
+      expect(
+        find.descendant(of: volume, matching: find.byTooltip('Mute')),
+        findsOneWidget,
+      );
+    });
+
     for (final control in ['Like', 'More']) {
       testWidgets('its $control button does its own job only', (tester) async {
         final bar = await pumpBar(tester);
