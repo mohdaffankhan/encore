@@ -17,4 +17,11 @@ for name in ic_stat_encore audio_service_play_arrow audio_service_pause \
   fi
 done
 [ "$missing" = 0 ] && echo "[apk] ok: notification icons present"
+# The desktop player (mpv) isn't used on Android: ~19 MB for nothing.
+if unzip -l "$apk" | grep -q 'libmpv\.so'; then
+  echo "[apk] FAIL: libmpv.so is in the APK"
+  missing=1
+else
+  echo "[apk] ok: no desktop player libraries"
+fi
 exit $missing

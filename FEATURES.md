@@ -108,6 +108,7 @@ calling it done. Releases also go through the owner's own testing.
 | Background playback, screen off | Android | e2e "background playback" |
 | Notification / lock screen player: exactly previous, play/pause, next; no stop | Android | e2e host checks; release check |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |
+| APK without the desktop player (mpv): 73 → 54 MB | Android | `check_apk_resources.sh` (also in CI) |
 | Tests never touch the real app on the phone | Android | `android_background_check.sh` fails if it goes missing |
 | **Bug fixed:** a range request YouTube refuses or cuts short is tried again (from where it stopped) instead of stalling the song | all | unit `stream_test` |
 | **Bug fixed:** "1 song", not "1 songs" | all | widget "one song is \"1 song\"" |

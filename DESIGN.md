@@ -106,7 +106,7 @@ boundaries around everything that updates with playback position.
   pub cache are on different drives here, which breaks its caches.
 
 ## Dependencies
-`just_audio`, `just_audio_media_kit` + `media_kit_libs_audio` (desktop backend),
+`just_audio`, `just_audio_media_kit` + `media_kit_libs_windows_audio` / `media_kit_libs_linux` (desktop backend),
 `just_audio_background` (Android notification), `path_provider` (data folder).
 
 ## Done

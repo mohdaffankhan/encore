@@ -12,7 +12,10 @@ dependencies:
     sdk: flutter
   just_audio: ^0.10.6
   just_audio_media_kit: ^2.1.0
-  media_kit_libs_audio: ^1.0.7
+  # Only the desktop players: Android plays through ExoPlayer, and mpv
+  # there would add ~19 MB to the APK.
+  media_kit_libs_linux: ^1.2.1
+  media_kit_libs_windows_audio: ^1.0.9
   path_provider: ^2.1.6
   url_launcher: ^6.3.3
 
