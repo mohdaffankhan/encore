@@ -2,18 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../models.dart';
+import 'clients.dart';
 
 // YouTube Music's internal API, as used by music.youtube.com. Unofficial:
 // response shapes change occasionally, so parsing is defensive throughout.
 
 const _base = 'https://music.youtube.com/youtubei/v1';
-const _context = {
-  'client': {
-    'clientName': 'WEB_REMIX',
-    'clientVersion': '1.20261015.01.00',
-    'hl': 'en',
-  },
-};
 
 enum SearchFilter {
   songs('Songs', 'EgWKAQIIAWoSEAUQDhADEAkQChAEEBUQEBAR'),
@@ -28,8 +22,6 @@ enum SearchFilter {
   final String label;
   final String params;
 }
-
-final _http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
 
 /// The anonymous visitor id YouTube assigns; feed continuations only work
 /// when it is sent back.
@@ -47,7 +39,7 @@ Future<Map<String, dynamic>> _send(
   Map<String, dynamic> body, {
   String query = '',
 }) async {
-  final req = await _http.postUrl(
+  final req = await youtubeHttp.postUrl(
     Uri.parse('$_base/$endpoint?prettyPrint=false$query'),
   );
   req.headers
@@ -62,7 +54,13 @@ Future<Map<String, dynamic>> _send(
     jsonEncode({
       ...body,
       'context': {
-        'client': {..._context['client']!, 'visitorData': ?_visitorData},
+        'client': {
+          'clientName': 'WEB_REMIX',
+          // Kept current through the online clients file (clients.dart).
+          'clientVersion': musicClientVersion,
+          'hl': 'en',
+          'visitorData': ?_visitorData,
+        },
       },
     }),
   );

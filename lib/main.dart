@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
+import 'api/clients.dart';
 import 'app.dart';
 import 'self_test.dart';
 import 'services/downloads.dart';
@@ -60,6 +61,8 @@ Future<void> main([List<String> args = const []]) async {
     ..maximumSizeBytes = 48 << 20
     ..maximumSize = 400;
   await userLibrary.load();
+  // Which YouTube clients to ask for songs (an online file, kept current).
+  await loadClients();
   await settings.load();
   await playbackSession.restore();
   await loadLastHome();

@@ -1,0 +1,16 @@
+{
+  "_about": "Which YouTube apps Encore asks for songs, tried in order (after these, the built-in VISIONOS). Every installed Encore reads this file from GitHub when it starts, so a fix here reaches users without a release. Only clientName, clientId, clientVersion, userAgent, deviceMake, deviceModel, osName and osVersion are used. yt-dlp's youtube/_base.py lists the clients that work.",
+  "player": [
+    {
+      "clientName": "VISIONOS",
+      "clientId": 101,
+      "clientVersion": "1.02",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+      "deviceMake": "Apple",
+      "deviceModel": "RealityDevice17,1",
+      "osName": "visionOS",
+      "osVersion": "26.5.23O471"
+    }
+  ],
+  "musicClientVersion": "1.20261015.01.00"
+}

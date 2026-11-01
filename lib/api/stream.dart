@@ -6,18 +6,20 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../models.dart';
+import 'clients.dart';
 
-// Audio comes from the player API with the VISIONOS client: unlike most
-// clients it still serves full streams without a PO token (other clients cut
-// off after ~1 MB). This mirrors yt-dlp's defaults; when playback breaks,
-// check yt-dlp's youtube/_base.py for the current client details.
+// Audio comes from YouTube's player API, asked as one of [playerClients]
+// (see clients.dart): few clients still serve full streams without a
+// proof-of-origin token. When playback breaks, yt-dlp's youtube/_base.py
+// shows the clients that work now; they go in config/youtube_clients.json.
 
-const _clientVersion = '1.02';
-const userAgent =
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
-
-final _http = HttpClient()..connectionTimeout = const Duration(seconds: 10);
 String? _visitorData;
+
+/// Where the player API is; a local server in tests.
+@visibleForTesting
+Uri playerEndpoint = Uri.parse(
+  'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+);
 
 /// YouTube throttles one long request to about real-time speed but serves
 /// range requests at full speed, so streams are read in chunks this size.
@@ -41,7 +43,16 @@ Duration readTimeout = const Duration(seconds: 10);
 var failRenewals = false;
 
 class AudioStream {
-  AudioStream(this.url, this.mimeType, this.length, {this.renew});
+  AudioStream(
+    this.url,
+    this.mimeType,
+    this.length, {
+    this.renew,
+    this.userAgent = '',
+  });
+
+  /// The asking client's, sent with every range request.
+  final String userAgent;
 
   /// Changes when the link is renewed.
   Uri url;
@@ -72,7 +83,7 @@ class AudioStream {
     while (pos < end) {
       final last = min(pos + _chunkSize, end) - 1;
       try {
-        final req = await _http.getUrl(url);
+        final req = await youtubeHttp.getUrl(url);
         req.headers
           ..set(HttpHeaders.userAgentHeader, userAgent)
           ..set(HttpHeaders.rangeHeader, 'bytes=$pos-$last');
@@ -115,18 +126,40 @@ class AudioStream {
   }
 }
 
-/// The audio stream of [videoId] at [quality]; with [itag], that format
-/// (to renew a link to the same bytes).
+/// The audio stream of [videoId] at [quality]; with [itag] (and the
+/// [client] that gave it), that format, to renew a link to the same bytes.
+/// Each of [playerClients] is asked in turn until one can play the song.
 Future<AudioStream> audioStream(
   String videoId, {
   int? itag,
+  PlayerClient? client,
   AudioQuality quality = AudioQuality.high,
 }) async {
-  var json = await _player(videoId);
+  HttpException? refused;
+  for (final c in client == null ? playerClients : [client]) {
+    try {
+      return await _streamFrom(c, videoId, itag, quality);
+    } on HttpException catch (e) {
+      // This client can't have it (YouTube said no): the next one might.
+      // No connection is another matter, so that is thrown at once.
+      debugPrint('${c.name}: $e');
+      refused ??= e;
+    }
+  }
+  throw refused!;
+}
+
+Future<AudioStream> _streamFrom(
+  PlayerClient client,
+  String videoId,
+  int? itag,
+  AudioQuality quality,
+) async {
+  var json = await _player(client, videoId);
   if (json['playabilityStatus']?['status'] == 'LOGIN_REQUIRED') {
     // YouTube asks anonymous clients to identify as a visitor first.
     _visitorData = json['responseContext']?['visitorData'];
-    json = await _player(videoId);
+    json = await _player(client, videoId);
   }
   final status = json['playabilityStatus'];
   if (status?['status'] != 'OK') {
@@ -151,10 +184,15 @@ Future<AudioStream> audioStream(
     Uri.parse(best['url']),
     (best['mimeType'] as String).split(';').first,
     length,
+    userAgent: client.userAgent,
     renew: format == null
         ? null
         : () async {
-            final again = await audioStream(videoId, itag: format);
+            final again = await audioStream(
+              videoId,
+              itag: format,
+              client: client,
+            );
             if (again.length != length) {
               throw const HttpException('Audio stream changed');
             }
@@ -180,37 +218,26 @@ Map pickFormat(List formats, AudioQuality quality) {
 }
 
 /// Fails instead of waiting forever on a stalled connection.
-Future<Map<String, dynamic>> _player(String videoId) =>
-    _playerRequest(videoId).timeout(const Duration(seconds: 15));
+Future<Map<String, dynamic>> _player(PlayerClient client, String videoId) =>
+    _playerRequest(client, videoId).timeout(const Duration(seconds: 15));
 
-Future<Map<String, dynamic>> _playerRequest(String videoId) async {
-  final req = await _http.postUrl(
-    Uri.parse('https://www.youtube.com/youtubei/v1/player?prettyPrint=false'),
-  );
+Future<Map<String, dynamic>> _playerRequest(
+  PlayerClient client,
+  String videoId,
+) async {
+  final req = await youtubeHttp.postUrl(playerEndpoint);
   req.headers
     ..contentType = ContentType.json
-    ..set(HttpHeaders.userAgentHeader, userAgent)
-    ..set('X-YouTube-Client-Name', '101')
-    ..set('X-YouTube-Client-Version', _clientVersion);
+    ..set(HttpHeaders.userAgentHeader, client.userAgent)
+    ..set('X-YouTube-Client-Name', '${client.id}')
+    ..set('X-YouTube-Client-Version', client.version);
   if (_visitorData != null) req.headers.set('X-Goog-Visitor-Id', _visitorData!);
   req.write(
     jsonEncode({
       'videoId': videoId,
       'contentCheckOk': true,
       'racyCheckOk': true,
-      'context': {
-        'client': {
-          'clientName': 'VISIONOS',
-          'clientVersion': _clientVersion,
-          'deviceMake': 'Apple',
-          'deviceModel': 'RealityDevice17,1',
-          'userAgent': userAgent,
-          'osName': 'visionOS',
-          'osVersion': '26.5.23O471',
-          'hl': 'en',
-          'visitorData': ?_visitorData,
-        },
-      },
+      'context': {'client': client.context(_visitorData)},
     }),
   );
   final res = await req.close();
