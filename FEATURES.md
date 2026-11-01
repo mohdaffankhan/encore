@@ -126,7 +126,7 @@ calling it done. Releases also go through the owner's own testing.
 | Tray icon: closing the window keeps the music playing (Settings can turn it off); click to bring Encore back, right-click for play / pause, next, previous, quit; opening Encore again shows the running one | Windows | unit `desktop_window_test` (tray menu, setting); (checked by hand: close hides, second start hands over) |
 | Linux media controls (MPRIS): the desktop's player widget, playerctl and headset buttons show and control Encore | Linux | `linux_media_check.sh` (Docker: the desktop sees the song; playerctl next moves on one) |
 | Background playback, screen off | Android | e2e "background playback" |
-| Notification / lock screen player: like (♡, filled when liked), previous, play/pause, next; no stop | Android | unit `media_session_test`; e2e host checks; release check |
+| Notification / lock screen player: previous, play/pause, next, and like (♡, filled when liked; a media-session button, drawn by Android 13+); no stop. The collapsed view's buttons stay valid on Android 12 and older | Android | unit `media_session_test`; e2e host checks; release check (media panel screenshot) |
 | Swiping Encore away from the recent apps stops the music and its notification (as in Spotify) | Android | release check "swiping it from recents stops the music" |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |
 | APK without the desktop player (mpv): 73 → 54 MB | Android | `check_apk_resources.sh` (also in CI) |

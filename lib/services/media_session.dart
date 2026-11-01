@@ -6,7 +6,7 @@ import 'player.dart';
 
 /// Connects the player to the system media controls on Android: the player
 /// in the notification panel and on the lock screen, headset buttons, and
-/// background playback. Shows like, previous, play/pause and next (like
+/// background playback. Shows previous, play/pause, next and like (like
 /// Spotify and YouTube Music), and no stop.
 class EncoreAudioHandler extends BaseAudioHandler with SeekHandler {
   EncoreAudioHandler() {
@@ -37,6 +37,11 @@ class EncoreAudioHandler extends BaseAudioHandler with SeekHandler {
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
+          MediaControl.skipToPrevious,
+          audio.playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.skipToNext,
+          // A custom button: Android draws it from the media session (13
+          // and later), not among the notification's own buttons.
           MediaControl.custom(
             androidIcon: liked
                 ? 'drawable/ic_favorite'
@@ -44,13 +49,12 @@ class EncoreAudioHandler extends BaseAudioHandler with SeekHandler {
             label: liked ? 'Unlike' : 'Like',
             name: _like,
           ),
-          MediaControl.skipToPrevious,
-          audio.playing ? MediaControl.pause : MediaControl.play,
-          MediaControl.skipToNext,
         ],
         // Previous, play/pause and next also show in the compact
-        // (collapsed) view.
-        androidCompactActionIndices: const [1, 2, 3],
+        // (collapsed) view. These index the notification's own buttons,
+        // which leave out the custom one: an index past them crashes the
+        // notification on Android 12 and older.
+        androidCompactActionIndices: const [0, 1, 2],
         systemActions: const {MediaAction.seek},
         processingState: player.loading.value
             ? AudioProcessingState.loading
