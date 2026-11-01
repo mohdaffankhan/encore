@@ -85,6 +85,7 @@ calling it done. Releases also go through the owner's own testing.
 | **Bug fixed:** an unreadable library came up empty with nothing said: the app says so, and the old file is kept (beside any kept before) | all | unit `library_test` "an unreadable file is reported"; widget `shell_test` "a problem found before the app shows" |
 | Liked songs, history, downloads; saving can't be wiped by a crash | all | unit `library_test` group "saving" |
 | **Bug fixed:** each song played re-encoded the whole library (~20 ms with big imported playlists, a dropped frame): only the changed part is encoded | all | unit `library_test` "a played song encodes only the history" |
+| **Bug fixed:** closing the app lost the downloads not done yet (e.g. most of an album), with nothing said: they carry on the next time it opens | all | unit `downloads_test` |
 | Downloads play offline; failures say so and leave no files; removing a playing download works | all | e2e "download", "offline playback"; widget `downloads_test` |
 
 ## Playlists

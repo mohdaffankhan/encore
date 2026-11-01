@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,50 @@ class Downloads {
   bool _running = false;
   Directory? _dir;
 
+  /// The song downloading now.
+  Track? _current;
+
+  /// Downloads a song's file; replaced in tests.
+  @visibleForTesting
+  late Future<void> Function(Track track) fetch = _fetch;
+
+  Future<void> _lastWrite = Future.value();
+
+  /// Completes when the list of songs left to download is saved.
+  @visibleForTesting
+  Future<void> get saved => _lastWrite;
+
+  Future<File> _pendingFile() async =>
+      File('${(await _folder()).path}${Platform.pathSeparator}pending.json');
+
+  /// Carries on with the downloads not done when the app last closed.
+  Future<void> resume() async {
+    try {
+      final json = jsonDecode(await (await _pendingFile()).readAsString());
+      download([for (final t in json as List) Track.fromJson(t)]);
+    } on PathNotFoundException {
+      // None left.
+    } catch (e) {
+      debugPrint('Pending downloads unreadable: $e');
+    }
+  }
+
+  /// Keeps the songs left to download, so closing the app doesn't lose
+  /// them (an album's worth, with nothing said).
+  void _savePending() {
+    final json = jsonEncode([?_current, ..._queue]);
+    _lastWrite = _lastWrite.then((_) async {
+      try {
+        final file = await _pendingFile();
+        final temp = File('${file.path}.tmp');
+        await temp.writeAsString(json, flush: true);
+        await temp.rename(file.path);
+      } catch (e) {
+        debugPrint('Saving pending downloads failed: $e');
+      }
+    });
+  }
+
   Future<Directory> _folder() async => _dir ??= await Directory(
     '${(await dataDir()).path}${Platform.pathSeparator}downloads',
   ).create(recursive: true);
@@ -43,6 +88,7 @@ class Downloads {
       _queue.add(t);
       _setProgress(t.id, 0);
     }
+    _savePending();
     _run();
   }
 
@@ -66,15 +112,17 @@ class Downloads {
     if (_running) return;
     _running = true;
     while (_queue.isNotEmpty) {
-      final track = _queue.removeAt(0);
+      final track = _current = _queue.removeAt(0);
       try {
-        await _fetch(track);
+        await fetch(track);
         userLibrary.downloads.value = [track, ...userLibrary.downloads.value];
       } catch (e) {
         debugPrint('Download failed for ${track.id}: $e');
         error.value = 'Couldn\'t download "${track.title}"';
       }
       progress.value = {...progress.value}..remove(track.id);
+      _current = null;
+      _savePending();
     }
     _running = false;
   }

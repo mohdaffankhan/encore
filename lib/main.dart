@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
@@ -6,6 +7,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'app.dart';
 import 'self_test.dart';
+import 'services/downloads.dart';
 import 'services/home_cache.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
@@ -40,6 +42,7 @@ Future<void> main([List<String> args = const []]) async {
   await userLibrary.load();
   await playbackSession.restore();
   await loadLastHome();
+  unawaited(downloads.resume());
   watchNowPlayingColor();
   runApp(const EncoreApp());
   if (selfTest) await runSelfTest();
