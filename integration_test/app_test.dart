@@ -384,6 +384,29 @@ void main() {
     );
     _log('next track', 'ok');
 
+    // Songs follow without a gap: the next one is lined up in the player
+    // ahead of time, and at the end the player moves on by itself, with
+    // nothing loading in between.
+    await _untilTrue(tester, () => player.audio.sequence.length > 1);
+    final ended = player.current;
+    var loaded = false;
+    void watch() => loaded |= player.loading.value;
+    player.loading.addListener(watch);
+    await player.seek(player.audio.duration! - const Duration(seconds: 4));
+    await _step(
+      'no gap: next song follows',
+      () => _untilTrue(
+        tester,
+        () =>
+            player.current != ended &&
+            player.audio.playing &&
+            player.audio.position > const Duration(milliseconds: 500),
+      ),
+    );
+    player.loading.removeListener(watch);
+    _log('no gap', loaded ? 'the next song had to load' : 'moved on by itself');
+    expect(loaded, isFalse, reason: 'a gap between songs');
+
     // Sleep timer, end of song: pauses there with the next song lined up.
     final ending = player.index.value;
     sleepTimer.untilEndOfSong();
