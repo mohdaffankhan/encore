@@ -113,6 +113,7 @@ calling it done. Releases also go through the owner's own testing.
 | Feature | Platforms | Tests |
 |---|---|---|
 | Keyboard: Space/K play-pause, ←/→ seek, Ctrl+←/→ songs, Ctrl+↑/↓ volume, L like, media keys | desktop | e2e "keyboard shortcuts" |
+| Search: ↓ / ↑ go through the suggestions (or recent searches), Enter searches the picked one, Esc drops it then leaves the box; ↓ moves into the results | desktop | widget "↓ / ↑ pick a suggestion", "Esc first drops the picked suggestion" |
 | Background playback, screen off | Android | e2e "background playback" |
 | Notification / lock screen player: exactly previous, play/pause, next; no stop | Android | e2e host checks; release check |
 | Release APK keeps the notification icons (v0.1.1 crash) | Android | `check_apk_resources.sh` (also in CI) |

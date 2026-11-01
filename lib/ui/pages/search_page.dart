@@ -13,6 +13,10 @@ import '../theme.dart';
 import '../widgets/widgets.dart';
 import 'import_page.dart';
 
+/// The search box, so a shortcut (Ctrl+K) can put the cursor in it from
+/// anywhere (see [focusSearch]).
+final searchField = FocusNode(debugLabel: 'search');
+
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -22,9 +26,58 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final _controller = TextEditingController();
-  final _focus = FocusNode();
+  FocusNode get _focus => searchField;
   Timer? _debounce;
   List<String> _suggestions = [];
+
+  /// The suggestion (or recent search) picked with the arrow keys; -1 for
+  /// none, when Enter searches what was typed.
+  var _highlight = -1;
+
+  /// What the arrow keys move through: suggestions while typing, recent
+  /// searches before.
+  List<String> get _options => _controller.text.trim().isEmpty
+      ? userLibrary.searches.value
+      : _suggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.onKeyEvent = _onKey;
+  }
+
+  /// Keys in the search box, before the text field takes them (it would
+  /// move the cursor on ↑ / ↓): like Spotify and every browser, ↓ / ↑ go
+  /// through the suggestions, Enter picks one, Esc leaves.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      if (_highlight >= 0) {
+        setState(() => _highlight = -1);
+      } else {
+        _focus.unfocus();
+      }
+      return KeyEventResult.handled;
+    }
+    final down = key == LogicalKeyboardKey.arrowDown;
+    if (!down && key != LogicalKeyboardKey.arrowUp) {
+      return KeyEventResult.ignored;
+    }
+    if (_results != null) {
+      // Into the results (the filters first), then on with the arrows.
+      if (down) _focus.focusInDirection(TraversalDirection.down);
+      return KeyEventResult.handled;
+    }
+    final count = _options.length;
+    if (count > 0) {
+      setState(
+        () => _highlight = (_highlight + (down ? 1 : -1)).clamp(-1, count - 1),
+      );
+    }
+    return KeyEventResult.handled;
+  }
+
   String? _query;
   var _filter = yt.SearchFilter.songs;
   Future<List<Object>>? _results;
@@ -33,13 +86,14 @@ class _SearchPageState extends State<SearchPage> {
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
-    _focus.dispose();
+    _focus.onKeyEvent = null;
     super.dispose();
   }
 
   void _onChanged(String text) {
     _debounce?.cancel();
     setState(() {
+      _highlight = -1;
       _query = null;
       _results = null;
       if (text.trim().isEmpty) _suggestions = [];
@@ -54,13 +108,20 @@ class _SearchPageState extends State<SearchPage> {
       try {
         final s = await yt.suggestions(text);
         if (mounted && _controller.text == text) {
-          setState(() => _suggestions = s);
+          setState(() {
+            _suggestions = s;
+            _highlight = -1;
+          });
         }
       } catch (_) {}
     });
   }
 
   void _submit(String query) {
+    if (_highlight >= 0 && _highlight < _options.length) {
+      query = _options[_highlight];
+    }
+    _highlight = -1;
     query = query.trim();
     if (query.isEmpty) return;
     _debounce?.cancel();
@@ -137,40 +198,33 @@ class _SearchPageState extends State<SearchPage> {
             Padding(
               padding: EdgeInsets.fromLTRB(pad, 8, pad, 12),
               // Full width of the page, like the results below it.
-              child: CallbackShortcuts(
-                // Esc leaves the box, so the player keys work again.
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.escape):
-                      _focus.unfocus,
-                },
-                child: SearchBar(
-                  controller: _controller,
-                  focusNode: _focus,
-                  // Clicking anywhere else leaves the box too (on desktop
-                  // the text field would otherwise keep the keyboard).
-                  onTapOutside: (_) => _focus.unfocus(),
-                  // No 800 px cap (SearchBar's default): span the page.
-                  constraints: const BoxConstraints(minHeight: 56),
-                  hintText: 'Songs, artists or a YouTube link',
-                  leading: const Icon(
-                    Icons.search_rounded,
-                    color: EncoreColors.textSecondary,
-                  ),
-                  trailing: [
-                    ListenableBuilder(
-                      listenable: _controller,
-                      builder: (context, _) => _controller.text.isEmpty
-                          ? const SizedBox.shrink()
-                          : IconButton(
-                              tooltip: 'Clear',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: _clear,
-                            ),
-                    ),
-                  ],
-                  onChanged: _onChanged,
-                  onSubmitted: _submit,
+              child: SearchBar(
+                controller: _controller,
+                focusNode: _focus,
+                // Clicking anywhere else leaves the box too (on desktop
+                // the text field would otherwise keep the keyboard).
+                onTapOutside: (_) => _focus.unfocus(),
+                // No 800 px cap (SearchBar's default): span the page.
+                constraints: const BoxConstraints(minHeight: 56),
+                hintText: 'Songs, artists or a YouTube link',
+                leading: const Icon(
+                  Icons.search_rounded,
+                  color: EncoreColors.textSecondary,
                 ),
+                trailing: [
+                  ListenableBuilder(
+                    listenable: _controller,
+                    builder: (context, _) => _controller.text.isEmpty
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                            tooltip: 'Clear',
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: _clear,
+                          ),
+                  ),
+                ],
+                onChanged: _onChanged,
+                onSubmitted: _submit,
               ),
             ),
             if (_results != null && !_isLink)
@@ -235,10 +289,11 @@ class _SearchPageState extends State<SearchPage> {
     if (_controller.text.trim().isNotEmpty) {
       return ListView(
         children: [
-          for (final s in _suggestions)
+          for (final (i, s) in _suggestions.indexed)
             _SimpleRow(
               icon: Icons.search_rounded,
               label: s,
+              highlighted: i == _highlight,
               onTap: () => _submit(s),
               trailing: IconButton(
                 tooltip: 'Edit',
@@ -266,10 +321,11 @@ class _SearchPageState extends State<SearchPage> {
         return ListView(
           children: [
             const SectionHeader('Recent searches'),
-            for (final q in searches)
+            for (final (i, q) in searches.indexed)
               _SimpleRow(
                 icon: Icons.history_rounded,
                 label: q,
+                highlighted: i == _highlight,
                 onTap: () => _submit(q),
                 trailing: IconButton(
                   tooltip: 'Remove',
@@ -291,6 +347,7 @@ class _SimpleRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.trailing,
+    this.highlighted = false,
   });
 
   final IconData icon;
@@ -298,28 +355,35 @@ class _SimpleRow extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? trailing;
 
+  /// Picked with the arrow keys: Enter searches it.
+  final bool highlighted;
+
   @override
   Widget build(BuildContext context) {
     final pad = pagePadding(context);
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: pad - 8),
-      child: InkWell(
+      child: Material(
+        color: highlighted ? EncoreColors.surfaceHigh : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 0, 4),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: EncoreColors.textSecondary),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyLarge,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 0, 4),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: EncoreColors.textSecondary),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                 ),
-              ),
-              ?trailing,
-            ],
+                ?trailing,
+              ],
+            ),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:encore/models.dart';
+import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/ui/pages/search_page.dart';
 import 'package:encore/ui/player/player_ui.dart';
@@ -76,6 +77,46 @@ void main() {
 
     testWidgets('Esc leaves the search box', (tester) async {
       await focusSearch(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(PlayerShortcuts.isTyping, isFalse);
+    });
+
+    // Up / down did nothing in the suggestions (they moved the cursor).
+    testWidgets('↓ / ↑ pick a suggestion and Enter searches it', (
+      tester,
+    ) async {
+      userLibrary.searches.value = ['first', 'second', 'third'];
+      addTearDown(() => userLibrary.searches.value = []);
+      await focusSearch(tester);
+      for (final key in [
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.arrowUp,
+      ]) {
+        await tester.sendKeyEvent(key);
+      }
+      await tester.pump();
+      expect(PlayerShortcuts.isTyping, isTrue, reason: 'still in the box');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      expect(
+        tester.widget<SearchBar>(find.byType(SearchBar)).controller!.text,
+        'second',
+      );
+    });
+
+    testWidgets('Esc first drops the picked suggestion, then leaves', (
+      tester,
+    ) async {
+      userLibrary.searches.value = ['first'];
+      addTearDown(() => userLibrary.searches.value = []);
+      await focusSearch(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(PlayerShortcuts.isTyping, isTrue);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
       expect(PlayerShortcuts.isTyping, isFalse);
