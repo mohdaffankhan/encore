@@ -59,6 +59,10 @@ class ShellState extends State<Shell> {
     for (final errors in _errors) {
       errors.addListener(_showErrors);
     }
+    // Some come before the app shows (the library loads first).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showErrors();
+    });
   }
 
   @override
@@ -70,7 +74,7 @@ class ShellState extends State<Shell> {
   }
 
   /// Error messages from the services, each shown once as a snackbar.
-  final _errors = [player.error, downloads.error];
+  final _errors = [player.error, downloads.error, userLibrary.error];
 
   void _showErrors() {
     for (final errors in _errors) {

@@ -1,4 +1,5 @@
 import 'package:encore/app.dart';
+import 'package:encore/services/library.dart';
 import 'package:encore/ui/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,13 @@ void main() {
     expect(find.text('Liked songs'), findsOneWidget);
     expect(find.text('Downloads'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+  });
+
+  testWidgets('a problem found before the app shows is shown', (tester) async {
+    userLibrary.error.value = "Your library couldn't be read";
+    await pumpApp(tester, const Size(400, 860));
+    expect(find.text("Your library couldn't be read"), findsOneWidget);
+    expect(userLibrary.error.value, isNull, reason: 'shown once');
   });
 
   testWidgets('phone: bottom navigation, no sidebar', (tester) async {

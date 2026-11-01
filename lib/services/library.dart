@@ -21,6 +21,9 @@ class UserLibrary {
   File? _file;
   Future<void> _lastWrite = Future.value();
 
+  /// A problem to tell the user about (shown once, then cleared).
+  final error = ValueNotifier<String?>(null);
+
   /// Completes when everything changed so far is saved.
   Future<void> get saved => _lastWrite;
 
@@ -49,11 +52,22 @@ class UserLibrary {
     } on PathNotFoundException {
       // First run: start empty.
     } catch (e) {
-      // Unreadable: keep it aside rather than overwrite it on the next save.
+      // Unreadable: keep it aside rather than overwrite it on the next
+      // save (beside any kept before), and say so: the user would only see
+      // their songs and playlists gone.
       debugPrint('Library unreadable, starting empty: $e');
+      var aside = File('${file.path}.unreadable');
+      for (var n = 2; await aside.exists(); n++) {
+        aside = File('${file.path}.unreadable$n');
+      }
       try {
-        await file.rename('${file.path}.unreadable');
-      } catch (_) {}
+        await file.rename(aside.path);
+        error.value =
+            "Your library couldn't be read, so it starts empty. The old file "
+            'is kept as ${aside.uri.pathSegments.last}.';
+      } catch (_) {
+        error.value = "Your library couldn't be read, so it starts empty.";
+      }
     }
     for (final MapEntry(key: name, value: part) in _parts.entries) {
       part.addListener(() {

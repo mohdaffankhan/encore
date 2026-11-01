@@ -181,6 +181,19 @@ void main() {
       );
       expect((await loaded()).liked.value.map((t) => t.id), ['b']);
     });
+
+    // The library just came up empty, with nothing said.
+    test(
+      'an unreadable file is reported, and kept beside older ones',
+      () async {
+        await File('${file.path}.unreadable').writeAsString('older');
+        await file.writeAsString('{"liked": [');
+        final library = await loaded();
+        expect(library.error.value, contains("couldn't be read"));
+        expect(library.error.value, contains('library.json.unreadable2'));
+        expect(File('${file.path}.unreadable').readAsStringSync(), 'older');
+      },
+    );
   });
 }
 
