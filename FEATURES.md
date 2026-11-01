@@ -30,6 +30,7 @@ calling it done. Releases also go through the owner's own testing.
 | **Bug fixed:** a song that broke off anyway (no network for a moment) stayed stuck: it is loaded again from where it stopped (3 tries), Play or the seek bar loads it again, and the desktop player taking the break for the end no longer skips the song | all | unit `player_test`; e2e "seek works after a failure" |
 | **Bug fixed:** a connection that went silent without closing hung the song (and the download queue) forever: dropped after 10 s and tried again; YouTube requests time out instead of spinning | all | unit `stream_test` "a connection that goes silent" |
 | Seeking while a song loads is kept for when it is ready; the seek bar shows the song's length while it loads | all | unit `player_test` "a seek while the song loads"; widget `now_playing_test` "the seek bar shows the song's length" |
+| **Bug fixed (Android):** a seek the stream couldn't serve never finished, which left the song loading for good | android | unit `player_test` "a seek that never completes"; Android e2e "seek works after a failure" |
 | Album / playlist play buttons say so when offline | all | (manual) |
 
 ## Player screens

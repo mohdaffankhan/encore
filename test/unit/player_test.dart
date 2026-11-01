@@ -22,6 +22,9 @@ class _FakeAudio implements AudioPlayer {
   /// While set, loading waits for it.
   Completer<void>? gate;
 
+  /// Seeks never complete (Android, when the stream can't serve them).
+  var seeksHang = false;
+
   @override
   Stream<PlayerException> get errorStream => errors.stream;
   @override
@@ -63,6 +66,7 @@ class _FakeAudio implements AudioPlayer {
   Future<void> seek(Duration? to, {int? index}) async {
     seeks.add(to!);
     position = to;
+    if (seeksHang) await Completer<void>().future;
   }
 
   /// What the desktop player reports when a stream breaks off: the end,
@@ -161,6 +165,19 @@ void main() {
     audio.gate!.complete();
     await playing;
     expect(audio.seeks, [const Duration(minutes: 1)]);
+  });
+
+  test('a seek that never completes does not leave the song loading', () async {
+    audio
+      ..gate = Completer()
+      ..seeksHang = true;
+    final playing = player.jumpTo(1);
+    await settle();
+    await player.seek(const Duration(minutes: 1));
+    audio.gate!.complete();
+    await playing.timeout(const Duration(seconds: 2));
+    expect(player.loading.value, isFalse);
+    expect(audio.playing, isTrue);
   });
 
   test(

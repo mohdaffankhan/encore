@@ -482,14 +482,15 @@ void main() {
     failRenewals = true;
     middle = player.audio.duration! ~/ 3;
     try {
-      await player.seek(middle);
+      // Not awaited: a seek the stream can't serve never completes.
+      unawaited(player.seek(middle));
       final failed = DateTime.now().add(const Duration(seconds: 8));
       await _untilTrue(tester, () => DateTime.now().isAfter(failed));
     } finally {
       failRenewals = false;
     }
     _log('after the failure', player.audio.processingState.name);
-    await player.seek(middle);
+    unawaited(player.seek(middle));
     await _step('seek works after a failure', () => playsFrom(middle));
     expect(player.current, track, reason: 'the same song');
 
@@ -517,7 +518,8 @@ void main() {
     await downloads.remove(track);
     userLibrary.toggleLike(track);
     await player.audio.stop();
-  }, timeout: const Timeout(Duration(minutes: 10)));
+    // Phones take about 9 minutes since the recovery steps were added.
+  }, timeout: const Timeout(Duration(minutes: 15)));
 }
 
 /// Set by tool/android_background_check.sh, which presses Home and turns

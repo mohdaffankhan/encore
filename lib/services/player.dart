@@ -396,7 +396,9 @@ class Player {
       _skippedInRow = 0;
       if (_pendingSeek case final at?) {
         _pendingSeek = null;
-        await audio.seek(at);
+        // Not awaited: a seek the stream can't serve never completes on
+        // Android, which left the song loading for good.
+        unawaited(audio.seek(at));
       }
       if (autoplay) {
         audio.play();
