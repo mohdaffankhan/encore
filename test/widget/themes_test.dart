@@ -66,7 +66,7 @@ void main() {
     expect(find.text('Appearance'), findsOneWidget);
     expect(
       tester.getSemantics(find.bySemanticsLabel('Ocean theme')),
-      containsSemantics(
+      isSemantics(
         label: 'Ocean theme',
         isButton: true,
         isSelected: true,
