@@ -633,6 +633,34 @@ void main() {
       expect(find.byType(LyricsSheet), findsOneWidget);
     });
 
+    // There was no way to save the queue, or clear what's up next.
+    testWidgets('up next saves the queue as a playlist, and clears', (
+      tester,
+    ) async {
+      await pumpPlayer(tester);
+      const other = Track(id: 'o', title: 'Other', artist: 'B', artUrl: '');
+      player.queue.value = [track, other];
+      final before = userLibrary.playlists.value;
+      addTearDown(() => userLibrary.playlists.value = before);
+      await tester.tap(find.text('Up next'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save queue'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Road trip');
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = userLibrary.playlists.value.first;
+      expect(saved.name, 'Road trip');
+      expect(saved.tracks, [track, other], reason: 'the current song too');
+
+      await tester.tap(find.text('Clear queue'));
+      await tester.pumpAndSettle();
+      expect(player.queue.value, [track]);
+      expect(find.text('Nothing queued'), findsOneWidget);
+    });
+
     // The Song / Lyrics / Up next tabs were bare gestures: a screen reader
     // couldn't tell they were there, or use them.
     testWidgets('screen readers can use the player tabs', (tester) async {

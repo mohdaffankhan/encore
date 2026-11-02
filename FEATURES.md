@@ -53,6 +53,7 @@ calling it done. Releases also go through the owner's own testing.
 | Full player: pull down to close (follows the finger, springs back) | phones | widget "pulling the song down follows the finger" |
 | Lyrics sheet: drag up/down with the finger, snaps, swipe down / ⌄ / Back closes, follows the song | phones | widget group "full player on a phone"; e2e "swipe up: lyrics" |
 | Up next: drag the handle to reorder (desktop: shown on hover), "Remove from queue" in the song's menu (it stays out when shuffle is turned off) | all | unit `player_test` group "up next"; widget "a song can be taken out of up next" |
+| Up next: "Save queue" saves the whole queue (the current song too) as a new playlist; "Clear queue" empties what's up next (the song plays on; it stays cleared when shuffle is turned off) | all | unit `player_test` "clearing up next…"; widget "up next saves the queue as a playlist, and clears" |
 | Lyrics / Up next side panel | desktop | e2e "lyrics load" |
 | Lyrics: synced, tap a line to seek; "couldn't load" + Retry when offline | all | widget (offline Retry); e2e "lyrics load" |
 | Seek bar stays enabled while a song loads (accessibility tree fix) | all | widget "the seek bar stays enabled" |

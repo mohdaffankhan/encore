@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../services/library.dart';
 import '../../services/player.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
 
 /// The songs after the current one: tap to jump, drag the handle to
 /// reorder, and the song's menu (⋯, right-click, long-press) takes one out.
+/// Above them: save the queue as a playlist, or clear what's up next.
 class UpNext extends StatelessWidget {
   const UpNext({super.key});
 
@@ -29,8 +31,8 @@ class UpNext extends StatelessWidget {
           for (final t in upNext)
             ValueKey((t.id, seen[t.id] = (seen[t.id] ?? -1) + 1)),
         ];
-        return ReorderableList(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        final list = ReorderableList(
+          padding: const EdgeInsets.only(bottom: 8),
           itemCount: upNext.length,
           onReorderItem: player.moveUpNext,
           itemBuilder: (context, i) => _Row(
@@ -45,8 +47,50 @@ class UpNext extends StatelessWidget {
             ),
           ),
         );
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: () => _saveQueue(context),
+                      icon: const Icon(Icons.playlist_add_rounded, size: 20),
+                      label: const Text(
+                        'Save queue',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: player.clearUpNext,
+                      icon: const Icon(Icons.clear_all_rounded, size: 20),
+                      label: const Text(
+                        'Clear queue',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: list),
+          ],
+        );
       },
     );
+  }
+
+  /// The whole queue (the current song too), as a new playlist.
+  static Future<void> _saveQueue(BuildContext context) async {
+    final tracks = [...player.queue.value];
+    final name = await askPlaylistName(context, action: 'Save');
+    if (name == null || !context.mounted) return;
+    final playlist = userLibrary.createPlaylist(name, tracks: tracks);
+    showToast(context, 'Saved as ${playlist.name}');
   }
 }
 

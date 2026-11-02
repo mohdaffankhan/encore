@@ -203,6 +203,15 @@ class Player {
     _prepareNext();
   }
 
+  /// Takes every song after the current one out of the queue (the current
+  /// one plays on).
+  void clearUpNext() {
+    if (upNext.isEmpty) return;
+    queue.value = queue.value.sublist(0, index.value + 1);
+    // Not back when shuffle is turned off, either.
+    if (_ordered != null) _ordered = [...queue.value];
+  }
+
   /// Moves to the next song; with [autoplay] false it is loaded paused.
   Future<void> next({bool autoplay = true}) => _advance(autoplay: autoplay);
 

@@ -232,6 +232,15 @@ void main() {
       expect(player.queue.value, isNot(contains(out)));
       expect(player.queue.value, hasLength(4));
     });
+
+    test('clearing up next keeps the song playing, and stays cleared', () {
+      player.toggleShuffle();
+      player.clearUpNext();
+      expect(queue(), ['a']);
+      expect(player.current?.id, 'a');
+      player.toggleShuffle();
+      expect(queue(), ['a'], reason: 'not back when shuffle is turned off');
+    });
   });
 
   test('gives up after three tries and says so', () async {
