@@ -147,6 +147,7 @@ calling it done. Releases also go through the owner's own testing.
 | **Bug fixed:** "1 song", not "1 songs" | all | widget "one song is \"1 song\"" |
 | Linux tar.gz: launcher, icons, app metadata, `install.sh` / `--uninstall` for the user; plugin libraries search only their own folder (no build-folder RUNPATH) | Linux | CI "Check plugin library paths"; `linux_release_check.sh` (Ubuntu: install, play, uninstall) |
 | Linux AppImage: one file with libmpv (and what it needs) inside: nothing to install on a desktop Linux; built from the tar.gz in CI (linuxdeploy, pinned) | Linux | `tool/linux_appimage_check.sh` (Fedora, built on Ubuntu, no libmpv: plays, media controls, window title, Next); in `release_check.sh` |
+| Closing Encore's window on Linux while music plays ends it cleanly (no crash report); the self-test shuts the player down before it exits (it aborted on Linux, leaving a ~600 MB crash dump each check) | Linux | `tool/linux_quit_check.sh`; `linux_media_check.sh` "ended cleanly" |
 | Flatpak (`io.github.mohdaffankhan.Encore`) with libmpv built in (not released yet) | Linux | CI flatpak job (manual runs); `linux_release_check.sh` (install the bundle, play) |
 | AUR `encore-music-bin` (command `encore-music`) (not released yet) | Linux | CI aur job, manual runs (makepkg, namcap, install); `linux_release_check.sh` (Arch: install, play) |
 | Linux app id is `io.github.mohdaffankhan.Encore`; the library moves over from the old `dev.encore.app` folder once, never over an existing one | Linux | unit `storage_test` |

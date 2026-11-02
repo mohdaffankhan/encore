@@ -115,8 +115,10 @@ Future<void> runSelfTest({bool mediaKeys = false}) async {
   }
   if (await mediaCheckFile.exists()) await mediaCheckFile.delete();
   log(ok ? 'PASSED' : 'FAILED');
-  await player.audio.stop();
   await selfTestLog.writeAsString(report.toString());
+  // The player (mpv's threads) shut down first: exiting with them running
+  // aborted on Linux, leaving a crash dump each run.
+  await player.audio.dispose();
   exit(ok ? 0 : 1);
 }
 

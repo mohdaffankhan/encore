@@ -40,5 +40,12 @@ case "$window" in
 esac
 playerctl -p "$name" next
 wait $app
+code=$?
 grep self-test /tmp/out
+# An abort on the way out (134) leaves a crash dump and a crash report.
+if [ $code = 0 ]; then
+  echo "[linux] ok: ended cleanly"
+else
+  echo "[linux] FAIL: exit code $code"
+fi
 '
