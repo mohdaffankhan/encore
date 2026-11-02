@@ -42,7 +42,7 @@
 |---|---|
 | **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) (any phone) · smaller, per chip: [arm64-v8a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-x86_64.apk) |
 | **Windows** 10 / 11 | [`encore-windows-setup.exe`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) |
-| **Linux** x64 | [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
+| **Linux** x64 | [`Encore-x86_64.AppImage`](https://github.com/mohdaffankhan/encore/releases/latest/download/Encore-x86_64.AppImage) (nothing to install) · [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
 
 All downloads are on the [Releases](https://github.com/mohdaffankhan/encore/releases)
 page. Install steps for each are [below](#install).
@@ -98,7 +98,19 @@ Prefer no installer? Unzip **`encore-windows-portable.zip`** anywhere and run
 
 ### Linux
 
-Encore needs `libmpv` for sound:
+**AppImage** (the simplest): download `Encore-x86_64.AppImage`, make it
+runnable and open it. Everything it needs is inside; nothing to install.
+
+```sh
+chmod +x Encore-x86_64.AppImage
+./Encore-x86_64.AppImage
+```
+
+It needs a 2024 or newer Linux (glibc 2.39: Ubuntu 24.04, Fedora 40,
+Debian 13 and later). If it doesn't open, your system may lack FUSE,
+which AppImages use: run it with `--appimage-extract-and-run` instead.
+
+**tar.gz** (adds Encore to your app menu): Encore needs `libmpv` for sound:
 
 ```sh
 sudo apt install libmpv2      # Debian, Ubuntu (libmpv1 on older releases)

@@ -54,6 +54,8 @@ fi
 # once they are.
 log "--- Linux: tar.gz in a clean container"
 sh tool/linux_release_check.sh "$dir" tar || fail=1
+log "--- Linux: AppImage on another Linux, nothing installed"
+sh tool/linux_appimage_check.sh "$dir" || fail=1
 
 if [ "$fail" != 0 ]; then
   log "FAILED: $tag stays a draft. Fix, delete the draft and tag, and retag."

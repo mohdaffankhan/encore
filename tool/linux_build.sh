@@ -18,7 +18,7 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends git curl unzip xz-utils ca-certificates \
-  build-essential clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev patchelf rsync > /dev/null
+  build-essential clang cmake ninja-build pkg-config libgtk-3-dev libmpv-dev patchelf rsync file > /dev/null
 if [ ! -x /flutter/bin/flutter ]; then
   git clone -q --depth 1 --branch $flutter_version https://github.com/flutter/flutter.git /flutter
 fi
@@ -34,5 +34,6 @@ if ldd build/linux/x64/release/bundle/encore build/linux/x64/release/bundle/lib/
   exit 1
 fi
 sh linux/packaging/make_tarball.sh build/linux/x64/release/bundle /out/encore-linux-x64.tar.gz
+sh linux/packaging/make_appimage.sh /out/encore-linux-x64.tar.gz /out/Encore-x86_64.AppImage
 "
-echo "[linux] built build/linux-docker/encore-linux-x64.tar.gz"
+echo "[linux] built build/linux-docker/encore-linux-x64.tar.gz and Encore-x86_64.AppImage"

@@ -3,11 +3,20 @@
 # self-test plays a song; playerctl checks the desktop sees it, then
 # presses Next, which the self-test waits for. The window title shows the
 # song meanwhile.
-mkdir -p ~/encore && tar -xzf /pkg/encore-linux-x64.tar.gz -C ~/encore
+# The AppImage when asked for (tool/linux_appimage_check.sh), else the
+# tar.gz.
+if [ "${ENCORE_PKG:-}" = appimage ]; then
+  cp /pkg/Encore-x86_64.AppImage ~/Encore.AppImage && chmod +x ~/Encore.AppImage
+  export APPIMAGE_EXTRACT_AND_RUN=1 # no FUSE in a container
+  export ENCORE=~/Encore.AppImage
+else
+  mkdir -p ~/encore && tar -xzf /pkg/encore-linux-x64.tar.gz -C ~/encore
+  export ENCORE=~/encore/encore
+fi
 pulseaudio --start --exit-idle-time=-1 --load="module-null-sink sink_name=null" 2>/dev/null
 exec dbus-run-session -- xvfb-run -a sh -c '
 rm -f /tmp/encore_media_check.ready
-timeout 180 ~/encore/encore --self-test --media-check > /tmp/out 2>&1 &
+timeout 180 "$ENCORE" --self-test --media-check > /tmp/out 2>&1 &
 app=$!
 for _ in $(seq 150); do
   [ -f /tmp/encore_media_check.ready ] && break

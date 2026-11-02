@@ -132,6 +132,9 @@ jobs:
           fi
       - name: Tarball (with launcher, icons and app metadata)
         run: sh linux/packaging/make_tarball.sh build/linux/x64/release/bundle dist/encore-linux-x64.tar.gz
+      # One file with libmpv and the rest inside (nothing to install).
+      - name: AppImage
+        run: sh linux/packaging/make_appimage.sh dist/encore-linux-x64.tar.gz dist/Encore-x86_64.AppImage
       - name: Check plugin library paths
         run: |
           mkdir check && tar -xzf dist/encore-linux-x64.tar.gz -C check
@@ -225,6 +228,6 @@ jobs:
             |---|---|
             | Android | `encore-android.apk` (any phone), or the smaller one for its chip: `encore-android-arm64-v8a.apk` (most phones), `-armeabi-v7a` (older phones), `-x86_64` (emulators, Chromebooks) |
             | Windows | `encore-windows-setup.exe` (or the portable zip) |
-            | Linux | `encore-linux-x64.tar.gz` (needs `libmpv2`) |
+            | Linux | `Encore-x86_64.AppImage` (nothing to install), or `encore-linux-x64.tar.gz` (needs `libmpv2`) |
 
             Install steps are in the README.
