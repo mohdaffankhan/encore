@@ -12,7 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
   just_audio: ^0.10.6
-  just_audio_media_kit: ^2.1.0
+  # 2.1.0 with a small patch for the desktop equalizer (mpv's audio
+  # filters): see third_party/just_audio_media_kit/ENCORE_PATCH.md.
+  just_audio_media_kit:
+    path: third_party/just_audio_media_kit
   # Only the desktop players: Android plays through ExoPlayer, and mpv
   # there would add ~19 MB to the APK.
   media_kit_libs_linux: ^1.2.1

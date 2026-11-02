@@ -4,10 +4,12 @@ import '../../models.dart';
 import '../../services/downloads.dart';
 import '../../services/library.dart';
 import '../../services/player.dart';
+import '../../services/settings.dart';
 import '../shell.dart';
 import '../theme.dart';
 import 'artwork.dart';
 import 'common.dart';
+import 'equalizer_panel.dart';
 import 'playlist_dialogs.dart';
 import 'share.dart';
 import 'sleep_timer_picker.dart';
@@ -194,6 +196,14 @@ List<MenuAction> _actions(
         'Playback speed',
         showPlaybackSpeed,
         detail: speedStatus(),
+        live: true,
+      ),
+    if (inPlayer)
+      MenuAction(
+        Icons.equalizer_rounded,
+        'Equalizer',
+        showEqualizer,
+        detail: settings.equalizerOn.value ? equalizerStatus() : null,
         live: true,
       ),
   ];

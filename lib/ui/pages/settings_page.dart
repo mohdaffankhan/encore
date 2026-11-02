@@ -72,6 +72,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: 'Download quality',
                 setting: settings.downloadQuality,
               ),
+              ListenableBuilder(
+                listenable: Listenable.merge([
+                  settings.equalizerOn,
+                  settings.equalizerGains,
+                ]),
+                builder: (context, _) => _Row(
+                  title: 'Equalizer',
+                  subtitle: equalizerStatus(),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: EncoreColors.textSecondary,
+                  ),
+                  onTap: () => showEqualizer(context),
+                ),
+              ),
               if (Platform.isWindows)
                 ValueListenableBuilder(
                   valueListenable: settings.closeToTray,

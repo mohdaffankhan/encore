@@ -8,6 +8,7 @@ import 'package:encore/api/stream.dart';
 import 'package:encore/main.dart' as app;
 import 'package:encore/models.dart';
 import 'package:encore/services/downloads.dart';
+import 'package:encore/services/equalizer.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/services/settings.dart';
@@ -26,6 +27,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 
 // End-to-end journey through the real app: real network, real audio.
@@ -60,11 +62,12 @@ void main() {
     // A song from a home section queues the rest of that section after it.
     // The feed differs per visit: a section of songs may be further down,
     // and sections are only built once scrolled to.
-    final songShelf = find.byWidgetPredicate(
-      (w) => w is ShelfView && w.shelf.tracks.length >= 3,
+    final homeSongs = find.descendant(
+      of: find.byType(HomePage),
+      matching: find.byType(TrackTile),
     );
     await tester.scrollUntilVisible(
-      songShelf.first, // Several may be on screen.
+      homeSongs.at(1),
       300,
       scrollable: find
           .descendant(
@@ -74,28 +77,33 @@ void main() {
           .first,
       maxScrolls: 60,
     );
-    final section = tester.widget<ShelfView>(songShelf.first).shelf.tracks;
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byWidgetPredicate(
-              (w) => w is ShelfView && identical(w.shelf.tracks, section),
-            ),
-            matching: find.byType(TrackTile),
-          )
-          .at(1),
-    );
+    final sectionSong = homeSongs.at(1);
+    // All of it on screen: scrolling stops once it shows, which can leave
+    // it under the player bar.
+    await tester.ensureVisible(sectionSong);
+    await tester.pumpAndSettle();
+    // Read just before the tap: the feed shown first (from the last visit)
+    // is replaced by the new one as it arrives.
+    final section = tester
+        .widget<ShelfView>(
+          find.ancestor(of: sectionSong, matching: find.byType(ShelfView)),
+        )
+        .shelf
+        .tracks;
+    final tapped = tester.widget<TrackTile>(sectionSong).track;
+    await tester.tap(sectionSong);
+    await tester.pump(const Duration(seconds: 2));
     await _step(
       'section song plays',
       () => _untilTrue(
         tester,
-        () => player.audio.playing && player.current == section[1],
+        () => player.audio.playing && player.current == tapped,
         timeout: const Duration(seconds: 60),
       ),
     );
     // The whole section is queued, starting at the tapped song.
     expect(player.queue.value.take(section.length).toList(), section);
-    expect(player.index.value, 1);
+    expect(player.index.value, section.indexOf(tapped));
     await player.audio.pause();
 
     // Search for a song.
@@ -396,17 +404,52 @@ void main() {
     );
     _log('next track', 'ok');
 
-    // Playback speed: at 1.5×, 4 seconds play 6 seconds of the song.
+    // Playback speed: at 1.5×, 5 seconds play 7.5 seconds of the song.
     settings.speed.value = 1.5;
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    // Android's player takes a moment to change speed (its audio chain,
+    // with the equalizer, is set up again): measure once it has.
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     final from = player.audio.position;
     final clock = Stopwatch()..start();
-    await _untilTrue(tester, () => clock.elapsed >= const Duration(seconds: 4));
+    await _untilTrue(tester, () => clock.elapsed >= const Duration(seconds: 5));
     final played = player.audio.position - from;
     final ratio = played.inMilliseconds / clock.elapsedMilliseconds;
     settings.speed.value = 1;
     _log('playback speed 1.5×', 'played at ${ratio.toStringAsFixed(2)}×');
     expect(ratio, inInclusiveRange(1.3, 1.7));
+
+    // Equalizer: Bass boost on while a song plays; it plays on, and on
+    // Android the system equalizer has the gains.
+    settings.equalizerGains.value = Equalizer.presets['Bass boost']!;
+    settings.equalizerOn.value = true;
+    final eqFrom = player.audio.position;
+    final eqClock = Stopwatch()..start();
+    await _untilTrue(
+      tester,
+      () => eqClock.elapsed >= const Duration(seconds: 3),
+    );
+    final eqPlayed = player.audio.position - eqFrom;
+    expect(player.audio.playing, isTrue);
+    expect(eqPlayed, greaterThan(const Duration(seconds: 2)));
+    if (androidEqualizer case final eq?) {
+      final params = await eq.parameters;
+      final gains = {
+        for (final b in params.bands) b.centerFrequency.round(): b.gain,
+      };
+      _log('equalizer bands', '$gains');
+      expect(params.bands.first.gain, 6, reason: 'the lowest band boosted');
+      expect(eq.enabled, isTrue);
+    }
+    if (!Platform.isAndroid) {
+      final inEffect = await JustAudioMediaKit.audioFilterInEffect();
+      _log('equalizer in mpv', '$inEffect');
+      expect(inEffect, contains('equalizer'), reason: 'mpv took the filter');
+    }
+    settings.equalizerOn.value = false;
+    _log(
+      'equalizer',
+      'plays on with Bass boost (+${eqPlayed.inMilliseconds} ms in 3 s)',
+    );
 
     // Songs follow without a gap: the next one is lined up in the player
     // ahead of time, and at the end the player moves on by itself, with

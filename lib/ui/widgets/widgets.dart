@@ -1,5 +1,6 @@
 export 'artwork.dart';
 export 'common.dart';
+export 'equalizer_panel.dart';
 export 'logo.dart';
 export 'media_card.dart';
 export 'playlist_dialogs.dart';

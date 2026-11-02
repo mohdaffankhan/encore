@@ -28,6 +28,11 @@ class Settings {
   /// The name of the app's theme (one of `encoreThemes`).
   final theme = ValueNotifier('Ember');
 
+  /// The equalizer (see equalizer.dart): on or off, and each band's gain
+  /// in dB.
+  final equalizerOn = ValueNotifier(false);
+  final equalizerGains = ValueNotifier<List<double>>(const [0, 0, 0, 0, 0]);
+
   /// The speeds offered.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -38,6 +43,8 @@ class Settings {
     'closeToTray': closeToTray,
     'speed': speed,
     'theme': theme,
+    'equalizerOn': equalizerOn,
+    'equalizerGains': equalizerGains,
   };
 
   File? _file;
@@ -62,6 +69,13 @@ class Settings {
       }
       if (json['closeToTray'] case final bool tray) closeToTray.value = tray;
       if (json['theme'] case final String name) theme.value = name;
+      if (json['equalizerOn'] case final bool on) equalizerOn.value = on;
+      if (json['equalizerGains'] case final List gains
+          when gains.length == 5 && gains.every((g) => g is num)) {
+        equalizerGains.value = [
+          for (final g in gains) (g as num).toDouble().clamp(-12.0, 12.0),
+        ];
+      }
       if (json['speed'] case final num s when speeds.contains(s.toDouble())) {
         speed.value = s.toDouble();
       }

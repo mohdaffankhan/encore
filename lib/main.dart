@@ -11,6 +11,7 @@ import 'self_test.dart';
 import 'services/desktop_window.dart';
 import 'services/download_notice.dart';
 import 'services/downloads.dart';
+import 'services/equalizer.dart';
 import 'services/home_cache.dart';
 import 'services/library.dart';
 import 'services/media_session.dart';
@@ -30,6 +31,10 @@ Future<void> main([List<String> args = const []]) async {
   // The next song is lined up in the player; mpv opens it ahead, so it
   // follows without a gap.
   JustAudioMediaKit.prefetchPlaylist = true;
+  // Speed through mpv's `speed` (it keeps the pitch by itself), not its
+  // audio filters: those are the equalizer's (media_kit's pitch support
+  // replaces them whenever the speed changes).
+  JustAudioMediaKit.pitch = false;
   JustAudioMediaKit.ensureInitialized(); // Windows + Linux backend
   if (Platform.isAndroid) {
     // Notification panel / lock screen player and background playback.
@@ -72,6 +77,7 @@ Future<void> main([List<String> args = const []]) async {
   // Which YouTube clients to ask for songs (an online file, kept current).
   await loadClients();
   await settings.load();
+  equalizer.start();
   await playbackSession.restore();
   await loadLastHome();
   unawaited(downloads.resume());

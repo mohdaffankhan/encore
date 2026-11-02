@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
+
+# Encore: upstream's code is kept as it is; newer lints than it was
+# written for are quiet.
+analyzer:
+  errors:
+    unnecessary_library_name: ignore

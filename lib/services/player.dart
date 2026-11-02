@@ -8,6 +8,7 @@ import '../api/innertube.dart' as yt;
 import '../api/stream.dart';
 import '../models.dart';
 import 'downloads.dart';
+import 'equalizer.dart';
 import 'library.dart';
 import 'settings.dart';
 import 'sleep_timer.dart';
@@ -52,7 +53,14 @@ class Player {
     AudioPlayer? audio,
     Future<AudioSource> Function(Track)? source,
     void Function(Track)? prepare,
-  }) : audio = audio ?? AudioPlayer(),
+  }) : audio =
+           audio ??
+           AudioPlayer(
+             // Android's equalizer works on the player's own sound.
+             audioPipeline: androidEqualizer == null
+                 ? null
+                 : AudioPipeline(androidAudioEffects: [androidEqualizer!]),
+           ),
        _source = source ?? sourceFor,
        _prepare = prepare ?? (source == null ? _prepareStream : (_) {}) {
     // The speed setting, for every song (the player keeps it).
