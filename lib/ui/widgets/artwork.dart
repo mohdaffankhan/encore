@@ -45,7 +45,7 @@ class _ArtworkState extends State<Artwork> {
   /// Art has been shown here, so the next art can replace it directly.
   var _shown = false;
 
-  static const _placeholder = ColoredBox(
+  static Widget get _placeholder => ColoredBox(
     color: EncoreColors.surfaceHigh,
     child: Center(
       child: Icon(Icons.music_note_rounded, color: EncoreColors.textTertiary),

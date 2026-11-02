@@ -25,6 +25,9 @@ class Settings {
   /// How fast songs play (1 is normal), at the same pitch.
   final speed = ValueNotifier(1.0);
 
+  /// The name of the app's theme (one of `encoreThemes`).
+  final theme = ValueNotifier('Ember');
+
   /// The speeds offered.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -34,6 +37,7 @@ class Settings {
     'downloadQuality': downloadQuality,
     'closeToTray': closeToTray,
     'speed': speed,
+    'theme': theme,
   };
 
   File? _file;
@@ -57,6 +61,7 @@ class Settings {
         saveDataOnMobile.value = save;
       }
       if (json['closeToTray'] case final bool tray) closeToTray.value = tray;
+      if (json['theme'] case final String name) theme.value = name;
       if (json['speed'] case final num s when speeds.contains(s.toDouble())) {
         speed.value = s.toDouble();
       }

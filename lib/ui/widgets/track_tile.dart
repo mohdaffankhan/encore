@@ -89,7 +89,7 @@ class TrackTile extends StatelessWidget {
                                 color: Colors.black54,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.graphic_eq_rounded,
                                 color: EncoreColors.accent,
                               ),
@@ -194,7 +194,7 @@ class _DownloadBadge extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: userLibrary.downloads,
       builder: (context, _, _) => downloads.isDownloaded(track)
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.only(right: 5),
               child: Icon(
                 Icons.arrow_circle_down_rounded,

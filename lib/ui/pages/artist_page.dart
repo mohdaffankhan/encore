@@ -89,7 +89,7 @@ class _Hero extends StatelessWidget {
               alignment: const Alignment(0, -0.35),
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,

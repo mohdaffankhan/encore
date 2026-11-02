@@ -3,7 +3,6 @@ import 'package:encore/services/library.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/shell.dart';
 import 'package:encore/ui/widgets/widgets.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

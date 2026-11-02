@@ -57,6 +57,7 @@ calling it done. Releases also go through the owner's own testing.
 | Playback speed (0.5× to 2×, same pitch) in the player's ⋯ menu, shown there while not normal; kept for every song and the next time | all | unit `player_test` "the speed setting…", `settings_test`; widget "playback speed is in the ⋯ menu"; e2e "playback speed 1.5×" (Windows, Android) |
 | Liked songs, History, Downloads and playlists: search (title, artist or album) and sort (their own order, title, artist, album); a song plays the list as shown; playlists are reordered by hand only in their own order | all | widget `song_lists_test` |
 | Share a song (⋯ menu), an album or YouTube playlist (header), or one of your playlists (its options: links that play it on YouTube, 50 songs a link): Android's share sheet; desktop copies it and says "Link copied" | all | widget `share_test`; share sheet opened on the phone (ChooserActivity on top) |
+| Named themes (Ember, Ocean, Forest, Orchid, Rose, Graphite; all dark) in Settings: accent, brand gradient and a tint in the background layers; switching redraws the app in place and is kept | all | widget `themes_test` |
 | Lyrics / Up next side panel | desktop | e2e "lyrics load" |
 | Lyrics: synced, tap a line to seek; "couldn't load" + Retry when offline | all | widget (offline Retry); e2e "lyrics load" |
 | Seek bar stays enabled while a song loads (accessibility tree fix) | all | widget "the seek bar stays enabled" |

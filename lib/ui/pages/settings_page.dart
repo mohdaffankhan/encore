@@ -48,6 +48,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             children: [
               const PageTitle('Settings'),
+              const SectionHeader('Appearance'),
+              const _ThemePicker(),
               const SectionHeader('Sound and data'),
               _QualityRow(
                 title: 'Streaming quality',
@@ -293,4 +295,102 @@ class _SheetTitle extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
     child: Text(title, style: Theme.of(context).textTheme.titleMedium),
   );
+}
+
+/// The named themes, as swatches of their colours: tap one to switch.
+class _ThemePicker extends StatelessWidget {
+  const _ThemePicker();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: settings.theme,
+      builder: (context, chosen, _) => Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: pagePadding(context) - 8,
+          vertical: 4,
+        ),
+        child: Wrap(
+          children: [
+            for (final theme in encoreThemes)
+              _Swatch(
+                theme,
+                selected:
+                    theme.name == chosen ||
+                    (theme == encoreThemes.first &&
+                        !encoreThemes.any((t) => t.name == chosen)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch(this.theme, {required this.selected});
+
+  final EncoreTheme theme;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    void choose() => settings.theme.value = theme.name;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${theme.name} theme',
+      onTap: choose,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: choose,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    width: 2,
+                    color: selected ? EncoreColors.text : Colors.transparent,
+                  ),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [theme.gold, theme.coral],
+                    ),
+                  ),
+                  child: selected
+                      ? const Icon(Icons.check_rounded, color: Colors.black)
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                theme.name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? EncoreColors.text
+                      : EncoreColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

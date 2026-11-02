@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('Encore mark', (tester) async {
     await tester.pumpWidget(
-      const Center(
+      Center(
         child: RepaintBoundary(
           child: ColoredBox(
             color: EncoreColors.background,

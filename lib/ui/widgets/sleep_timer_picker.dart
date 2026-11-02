@@ -70,7 +70,7 @@ Future<String?> chooseOption(
         ListTile(
           title: Text(label),
           trailing: selected
-              ? const Icon(Icons.check_rounded, color: EncoreColors.accent)
+              ? Icon(Icons.check_rounded, color: EncoreColors.accent)
               : null,
           onTap: () => Navigator.pop(context, label),
         ),

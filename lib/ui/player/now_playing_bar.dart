@@ -46,7 +46,7 @@ class NowPlayingBar extends StatelessWidget {
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: EncoreColors.background,
         border: Border(top: BorderSide(color: EncoreColors.hairline)),
       ),

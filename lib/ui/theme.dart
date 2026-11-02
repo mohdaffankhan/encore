@@ -1,13 +1,110 @@
 import 'package:flutter/material.dart';
 
-/// Encore's palette: near-black layers, Apple-style greys, and one warm
-/// accent used sparingly. Player screens take their accent from the artwork.
+/// One of Encore's named themes: all dark, each with its own accent, brand
+/// gradient, and a faint tint in the background layers.
+class EncoreTheme {
+  const EncoreTheme(
+    this.name, {
+    required this.accent,
+    required this.gold,
+    required this.coral,
+    required this.tint,
+    this.tintAmount = 0.07,
+  });
+
+  final String name;
+  final Color accent;
+
+  /// The brand gradient's two ends (gold to coral in Ember).
+  final Color gold;
+  final Color coral;
+
+  /// Mixed into the near-black layers, [tintAmount] of it.
+  final Color tint;
+  final double tintAmount;
+}
+
+const encoreThemes = [
+  EncoreTheme(
+    'Ember',
+    accent: Color(0xFFFF8A4C),
+    gold: Color(0xFFFFC466),
+    coral: Color(0xFFFF5448),
+    tint: Color(0xFF000000),
+    tintAmount: 0,
+  ),
+  EncoreTheme(
+    'Ocean',
+    accent: Color(0xFF4CB4FF),
+    gold: Color(0xFF6EE7F9),
+    coral: Color(0xFF3B6FFF),
+    tint: Color(0xFF1E4D8C),
+  ),
+  EncoreTheme(
+    'Forest',
+    accent: Color(0xFF4FD68C),
+    gold: Color(0xFFC4F06A),
+    coral: Color(0xFF22B573),
+    tint: Color(0xFF1F5C3A),
+  ),
+  EncoreTheme(
+    'Orchid',
+    accent: Color(0xFFC08BFF),
+    gold: Color(0xFFF29BFF),
+    coral: Color(0xFF7E5CFF),
+    tint: Color(0xFF4B2A7A),
+  ),
+  EncoreTheme(
+    'Rose',
+    accent: Color(0xFFFF6E9C),
+    gold: Color(0xFFFFB29B),
+    coral: Color(0xFFFF3D7F),
+    tint: Color(0xFF7A2244),
+  ),
+  EncoreTheme(
+    'Graphite',
+    accent: Color(0xFFE4E4E9),
+    // Dark enough for white icons on it (the liked songs heart).
+    gold: Color(0xFFA6A6AE),
+    coral: Color(0xFF45454D),
+    tint: Color(0xFF000000),
+    tintAmount: 0,
+  ),
+];
+
+/// Encore's palette: near-black layers, Apple-style greys, and one accent
+/// used sparingly, from the chosen [EncoreTheme]. Player screens take
+/// their accent from the artwork.
 abstract final class EncoreColors {
-  static const background = Color(0xFF09090B);
-  static const surface = Color(0xFF111114);
-  static const surfaceRaised = Color(0xFF18181C);
-  static const surfaceHigh = Color(0xFF212126);
-  static const surfaceHighest = Color(0xFF2A2A30);
+  static EncoreTheme _theme = encoreThemes.first;
+  static EncoreTheme get theme => _theme;
+
+  /// Switches the theme's colours (the app then redraws: see
+  /// [redrawAll]).
+  static set theme(EncoreTheme theme) {
+    _theme = theme;
+    Color layer(int argb) =>
+        Color.lerp(Color(argb), theme.tint, theme.tintAmount)!;
+    background = layer(0xFF09090B);
+    surface = layer(0xFF111114);
+    surfaceRaised = layer(0xFF18181C);
+    surfaceHigh = layer(0xFF212126);
+    surfaceHighest = layer(0xFF2A2A30);
+    accent = theme.accent;
+    accentGold = theme.gold;
+    accentCoral = theme.coral;
+    brandGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [accentGold, accentCoral],
+    );
+  }
+
+  static Color background = const Color(0xFF09090B);
+  static Color surface = const Color(0xFF111114);
+  static Color surfaceRaised = const Color(0xFF18181C);
+  static Color surfaceHigh = const Color(0xFF212126);
+  static Color surfaceHighest = const Color(0xFF2A2A30);
   static const hairline = Color(0x14FFFFFF);
   static const hover = Color(0x0FFFFFFF);
 
@@ -15,15 +112,27 @@ abstract final class EncoreColors {
   static const textSecondary = Color(0xFF9A9AA2);
   static const textTertiary = Color(0xFF5E5E66);
 
-  static const accent = Color(0xFFFF8A4C);
-  static const accentGold = Color(0xFFFFC466);
-  static const accentCoral = Color(0xFFFF5448);
+  static Color accent = const Color(0xFFFF8A4C);
+  static Color accentGold = const Color(0xFFFFC466);
+  static Color accentCoral = const Color(0xFFFF5448);
 
-  static const brandGradient = LinearGradient(
+  static LinearGradient brandGradient = const LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [accentGold, accentCoral],
+    colors: [Color(0xFFFFC466), Color(0xFFFF5448)],
   );
+}
+
+/// Rebuilds every widget under [context], so colours read from
+/// [EncoreColors] (many in const-free build methods) take a new theme,
+/// keeping the app's state (the page open, scroll positions).
+void redrawAll(BuildContext context) {
+  void rebuild(Element element) {
+    element.markNeedsBuild();
+    element.visitChildren(rebuild);
+  }
+
+  (context as Element).visitChildren(rebuild);
 }
 
 const _font = 'PlusJakartaSans';
@@ -147,7 +256,7 @@ ThemeData appTheme() {
         ),
       ),
     ),
-    chipTheme: const ChipThemeData(
+    chipTheme: ChipThemeData(
       shape: StadiumBorder(),
       side: BorderSide.none,
       backgroundColor: EncoreColors.surfaceHigh,
@@ -161,7 +270,7 @@ ThemeData appTheme() {
       ),
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     ),
-    searchBarTheme: const SearchBarThemeData(
+    searchBarTheme: SearchBarThemeData(
       elevation: WidgetStatePropertyAll(0),
       backgroundColor: WidgetStatePropertyAll(EncoreColors.surfaceHigh),
       overlayColor: WidgetStatePropertyAll(Colors.transparent),
@@ -179,7 +288,7 @@ ThemeData appTheme() {
         ),
       ),
     ),
-    navigationBarTheme: const NavigationBarThemeData(
+    navigationBarTheme: NavigationBarThemeData(
       backgroundColor: EncoreColors.background,
       surfaceTintColor: Colors.transparent,
       indicatorColor: Colors.transparent,
@@ -238,7 +347,7 @@ ThemeData appTheme() {
         color: c,
       ),
     ),
-    sliderTheme: const SliderThemeData(
+    sliderTheme: SliderThemeData(
       trackHeight: 4,
       activeTrackColor: c,
       inactiveTrackColor: EncoreColors.surfaceHighest,
@@ -246,7 +355,7 @@ ThemeData appTheme() {
       overlayShape: RoundSliderOverlayShape(overlayRadius: 0),
       thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
+    progressIndicatorTheme: ProgressIndicatorThemeData(
       color: c,
       linearTrackColor: EncoreColors.surfaceHighest,
     ),

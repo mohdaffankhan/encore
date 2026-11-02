@@ -294,7 +294,7 @@ class _ReviewState extends State<_Review> {
                   child: Text(
                     'Spotify shares only the first ${list.songs.length} of '
                     'its ${list.total} songs without signing in.',
-                    style: const TextStyle(color: EncoreColors.accent),
+                    style: TextStyle(color: EncoreColors.accent),
                   ),
                 ),
               if (unsure.isNotEmpty) ...[
