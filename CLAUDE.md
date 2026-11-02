@@ -15,8 +15,9 @@ notification icons were stripped). Verify fixes on a release build.
 Linux packages (tar.gz, Flatpak, AUR `encore-music-bin`) are built by CI
 from `linux/packaging/`; `release_check.sh` tests them in Docker (Docker
 Desktop must be running). The owner has put the Flatpak and AUR releases
-on hold: tags release only the tar.gz, and the other two build only on a
-manual workflow run. Don't release them until the owner says so. Before tagging, the version in `pubspec.yaml`,
+on hold: tags release the tar.gz and the AppImage (made from it, with
+libmpv inside; checked by `tool/linux_appimage_check.sh`), and the other
+two build only on a manual workflow run. Don't release them until the owner says so. Before tagging, the version in `pubspec.yaml`,
 `pkgver` in `linux/packaging/aur/PKGBUILD` and a `<release>` in the
 metainfo.xml must agree (CI fails otherwise). After publishing, the AUR
 update (`tool/aur_update.sh <version> --push`) is the owner's to run or
