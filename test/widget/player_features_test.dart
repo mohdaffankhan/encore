@@ -1,6 +1,7 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/settings.dart';
 import 'package:encore/services/sleep_timer.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shell.dart';
@@ -110,6 +111,33 @@ void main() {
       await tester.pumpAndSettle();
       expect(sleepTimer.setting.value, isNull);
       expect(moonIcon, findsNothing);
+    });
+  }
+
+  // There was no way to play faster or slower.
+  for (final desktop in [false, true]) {
+    final where = desktop ? 'desktop' : 'phone';
+    testWidgets('$where: playback speed is in the ⋯ menu', (tester) async {
+      addTearDown(() => settings.speed.value = 1);
+      await pumpPlayer(tester, desktop: desktop);
+      await openMenu(tester);
+      await tester.tap(find.text('Playback speed'));
+      await tester.pumpAndSettle();
+      for (final option in ['0.5×', '0.75×', 'Normal', '1.25×', '1.5×', '2×']) {
+        expect(find.text(option), findsOneWidget);
+      }
+      await tester.tap(find.text('1.5×'));
+      await tester.pumpAndSettle();
+      expect(settings.speed.value, 1.5);
+      expect(
+        find.text('Playback speed: 1.5×'),
+        findsOneWidget,
+        reason: 'toast',
+      );
+
+      // The menu shows the speed while it isn't normal.
+      await openMenu(tester);
+      expect(find.text('1.5×'), findsOneWidget);
     });
   }
 

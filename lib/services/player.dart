@@ -55,6 +55,8 @@ class Player {
   }) : audio = audio ?? AudioPlayer(),
        _source = source ?? sourceFor,
        _prepare = prepare ?? (source == null ? _prepareStream : (_) {}) {
+    // The speed setting, for every song (the player keeps it).
+    settings.speed.addListener(_applySpeed);
     this.audio.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) _onCompleted();
     });
@@ -202,6 +204,12 @@ class Player {
     if (_ordered case final ordered?) _ordered = [...ordered]..remove(track);
     _prepareNext();
   }
+
+  void _applySpeed() => unawaited(
+    audio.setSpeed(settings.speed.value).catchError((Object e) {
+      debugPrint('Setting the speed failed: $e');
+    }),
+  );
 
   /// Takes every song after the current one out of the queue (the current
   /// one plays on).

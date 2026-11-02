@@ -22,11 +22,18 @@ class Settings {
   /// Windows: closing the window keeps the music playing in the tray.
   final closeToTray = ValueNotifier(true);
 
+  /// How fast songs play (1 is normal), at the same pitch.
+  final speed = ValueNotifier(1.0);
+
+  /// The speeds offered.
+  static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
   late final _all = <String, ValueNotifier<Object>>{
     'streamQuality': streamQuality,
     'saveDataOnMobile': saveDataOnMobile,
     'downloadQuality': downloadQuality,
     'closeToTray': closeToTray,
+    'speed': speed,
   };
 
   File? _file;
@@ -50,6 +57,9 @@ class Settings {
         saveDataOnMobile.value = save;
       }
       if (json['closeToTray'] case final bool tray) closeToTray.value = tray;
+      if (json['speed'] case final num s when speeds.contains(s.toDouble())) {
+        speed.value = s.toDouble();
+      }
     } on PathNotFoundException {
       // Never changed: the defaults.
     } catch (e) {

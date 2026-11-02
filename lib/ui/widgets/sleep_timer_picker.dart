@@ -36,56 +36,12 @@ Future<void> showSleepTimer(BuildContext context) async {
     ('End of song', sleepTimer.untilEndOfSong, endOfSong),
     if (status != null) ('Turn off', sleepTimer.cancel, false),
   ];
-  Widget list(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final (label, _, selected) in options)
-        ListTile(
-          title: Text(label),
-          trailing: selected
-              ? const Icon(Icons.check_rounded, color: EncoreColors.accent)
-              : null,
-          onTap: () => Navigator.pop(context, label),
-        ),
-    ],
+  final chosen = await chooseOption(
+    context,
+    title: status ?? 'Sleep timer',
+    highlight: status != null,
+    options: [for (final (label, _, selected) in options) (label, selected)],
   );
-  final title = Text(
-    status ?? 'Sleep timer',
-    style: TextStyle(
-      fontWeight: FontWeight.w700,
-      color: status == null ? EncoreColors.text : EncoreColors.accent,
-    ),
-  );
-  final String? chosen;
-  if (isWide(context)) {
-    chosen = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: title,
-        backgroundColor: EncoreColors.surfaceRaised,
-        children: [SizedBox(width: 320, child: list(context))],
-      ),
-    );
-  } else {
-    chosen = await showModalBottomSheet<String>(
-      context: context,
-      useRootNavigator: true,
-      showDragHandle: true,
-      backgroundColor: EncoreColors.surfaceRaised,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Align(alignment: Alignment.centerLeft, child: title),
-            ),
-            list(context),
-          ],
-        ),
-      ),
-    );
-  }
   if (chosen == null) return;
   for (final (label, apply, _) in options) {
     if (label == chosen) apply();
@@ -96,4 +52,63 @@ Future<void> showSleepTimer(BuildContext context) async {
       chosen == 'Turn off' ? 'Sleep timer off' : sleepTimerStatus()!,
     );
   }
+}
+
+/// One of [options] (label, whether it is the current one), picked from a
+/// sheet on phones or a dialog on desktop; null when dismissed. [highlight]
+/// shows [title] in the accent colour (something is on).
+Future<String?> chooseOption(
+  BuildContext context, {
+  required String title,
+  required List<(String, bool)> options,
+  bool highlight = false,
+}) async {
+  Widget list(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (final (label, selected) in options)
+        ListTile(
+          title: Text(label),
+          trailing: selected
+              ? const Icon(Icons.check_rounded, color: EncoreColors.accent)
+              : null,
+          onTap: () => Navigator.pop(context, label),
+        ),
+    ],
+  );
+  final heading = Text(
+    title,
+    style: TextStyle(
+      fontWeight: FontWeight.w700,
+      color: highlight ? EncoreColors.accent : EncoreColors.text,
+    ),
+  );
+  if (isWide(context)) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: heading,
+        backgroundColor: EncoreColors.surfaceRaised,
+        children: [SizedBox(width: 320, child: list(context))],
+      ),
+    );
+  }
+  return showModalBottomSheet<String>(
+    context: context,
+    useRootNavigator: true,
+    showDragHandle: true,
+    backgroundColor: EncoreColors.surfaceRaised,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Align(alignment: Alignment.centerLeft, child: heading),
+          ),
+          list(context),
+        ],
+      ),
+    ),
+  );
 }

@@ -10,6 +10,7 @@ import 'artwork.dart';
 import 'common.dart';
 import 'playlist_dialogs.dart';
 import 'sleep_timer_picker.dart';
+import 'speed_picker.dart';
 
 /// The ⋯ button for a song. [inPlayer]: the playing song's menu (full
 /// player and desktop player bar), which also has the sleep timer.
@@ -179,6 +180,14 @@ List<MenuAction> _actions(
         'Sleep timer',
         showSleepTimer,
         detail: sleepTimerStatus(short: true),
+        live: true,
+      ),
+    if (inPlayer)
+      MenuAction(
+        Icons.speed_rounded,
+        'Playback speed',
+        showPlaybackSpeed,
+        detail: speedStatus(),
         live: true,
       ),
   ];

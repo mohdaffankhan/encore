@@ -107,6 +107,8 @@ class FakeAudio implements AudioPlayer {
 
   @override
   Future<void> setVolume(double volume) async => this.volume = volume;
+  @override
+  Future<void> setSpeed(double speed) async => this.speed = speed;
 
   /// Plays on to [to], as the position updates say.
   void playTo(Duration to) => positions.add(position = to);

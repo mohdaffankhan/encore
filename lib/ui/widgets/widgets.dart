@@ -5,5 +5,6 @@ export 'media_card.dart';
 export 'playlist_dialogs.dart';
 export 'shelves.dart';
 export 'sleep_timer_picker.dart';
+export 'speed_picker.dart';
 export 'track_menu.dart';
 export 'track_tile.dart';

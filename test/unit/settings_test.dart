@@ -50,6 +50,7 @@ void main() {
       before.streamQuality.value = AudioQuality.low;
       before.downloadQuality.value = AudioQuality.normal;
       before.saveDataOnMobile.value = false;
+      before.speed.value = 1.25;
       await before.saved;
 
       final after = Settings();
@@ -57,6 +58,7 @@ void main() {
       expect(after.streamQuality.value, AudioQuality.low);
       expect(after.downloadQuality.value, AudioQuality.normal);
       expect(after.saveDataOnMobile.value, isFalse);
+      expect(after.speed.value, 1.25);
     });
 
     test('a damaged file leaves the defaults', () async {

@@ -10,6 +10,7 @@ import 'package:encore/models.dart';
 import 'package:encore/services/downloads.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/settings.dart';
 import 'package:encore/services/sleep_timer.dart';
 import 'package:encore/services/youtube_audio_source.dart';
 import 'package:encore/ui/pages/collection_page.dart';
@@ -280,6 +281,17 @@ void main() {
 
     // Keyboard: space toggles, arrows seek, L likes.
     FocusManager.instance.primaryFocus?.unfocus();
+    // A key held while the window lost focus (Alt+Tab on the PC running
+    // this) stays down for Flutter until the next real key press, which
+    // these simulated ones aren't: start from no keys down.
+    final stale = HardwareKeyboard.instance.logicalKeysPressed;
+    if (stale.isNotEmpty) {
+      _log(
+        'keyboard',
+        'cleared keys left down: ${stale.map((k) => k.keyLabel)}',
+      );
+      HardwareKeyboard.instance.clearState();
+    }
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await _untilTrue(tester, () => !player.audio.playing);
@@ -383,6 +395,18 @@ void main() {
       () => player.index.value == index + 1 && player.audio.playing,
     );
     _log('next track', 'ok');
+
+    // Playback speed: at 1.5×, 4 seconds play 6 seconds of the song.
+    settings.speed.value = 1.5;
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final from = player.audio.position;
+    final clock = Stopwatch()..start();
+    await _untilTrue(tester, () => clock.elapsed >= const Duration(seconds: 4));
+    final played = player.audio.position - from;
+    final ratio = played.inMilliseconds / clock.elapsedMilliseconds;
+    settings.speed.value = 1;
+    _log('playback speed 1.5×', 'played at ${ratio.toStringAsFixed(2)}×');
+    expect(ratio, inInclusiveRange(1.3, 1.7));
 
     // Songs follow without a gap: the next one is lined up in the player
     // ahead of time, and at the end the player moves on by itself, with

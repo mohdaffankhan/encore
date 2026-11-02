@@ -5,6 +5,7 @@ import 'package:encore/api/stream.dart';
 import 'package:encore/models.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/settings.dart';
 import 'package:encore/services/youtube_audio_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
@@ -131,6 +132,13 @@ void main() {
     expect(audio.volume, 0);
     player.toggleMute();
     expect(audio.volume, 0.4);
+  });
+
+  test('the speed setting plays every song at that speed', () async {
+    addTearDown(() => settings.speed.value = 1);
+    settings.speed.value = 1.5;
+    await Future<void>.delayed(Duration.zero);
+    expect(audio.speed, 1.5);
   });
 
   // Songs had a gap between them: each was only loaded once the one
