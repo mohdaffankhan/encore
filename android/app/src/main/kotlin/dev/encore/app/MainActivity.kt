@@ -2,6 +2,7 @@ package dev.encore.app
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.os.Build
@@ -41,6 +42,18 @@ class MainActivity : AudioServiceActivity() {
                 } else {
                     result.notImplemented()
                 }
+            }
+        // Sharing a song or playlist: Android's share sheet.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.encore.app/share")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "share") return@setMethodCallHandler result.notImplemented()
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, call.argument<String>("text"))
+                    call.argument<String>("subject")?.let { putExtra(Intent.EXTRA_SUBJECT, it) }
+                }
+                startActivity(Intent.createChooser(send, null))
+                result.success(null)
             }
         // Downloads: their progress notification, and running on after
         // Encore is closed. The engine outlives this activity, so the

@@ -9,6 +9,7 @@ import '../theme.dart';
 import 'artwork.dart';
 import 'common.dart';
 import 'playlist_dialogs.dart';
+import 'share.dart';
 import 'sleep_timer_picker.dart';
 import 'speed_picker.dart';
 
@@ -170,6 +171,11 @@ List<MenuAction> _actions(
         downloads.download([track]);
         showToast(context, 'Downloading "${track.title}"');
       }),
+    MenuAction(
+      Icons.share_rounded,
+      'Share',
+      (context) => share(context, songShareText(track), subject: track.title),
+    ),
     if (track.artistId case final id?)
       MenuAction(Icons.person_rounded, 'Go to artist', (_) => openArtist(id)),
     if (track.albumId case final id?)

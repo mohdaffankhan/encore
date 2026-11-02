@@ -122,6 +122,7 @@ class _CollectionPageState extends State<CollectionPage> {
             snapshot.data!,
             isAlbum: widget.browseId!.startsWith('MPRE'),
             canSave: true,
+            link: collectionLink(widget.browseId!),
           );
         },
       );
@@ -185,10 +186,14 @@ class _CollectionView extends StatefulWidget {
     this.canSave = false,
     this.playlist,
     this.searchable = false,
+    this.link,
   });
 
   final Collection collection;
   final bool searchable;
+
+  /// On YouTube Music, to share.
+  final String? link;
   final IconData? icon;
   final bool isAlbum;
 
@@ -246,6 +251,7 @@ class _CollectionViewState extends State<_CollectionView> {
             isAlbum: isAlbum,
             canSave: widget.canSave,
             playlist: widget.playlist,
+            link: widget.link,
           ),
         ),
         if (_searchable && all.isNotEmpty)
@@ -445,6 +451,7 @@ class _Header extends StatelessWidget {
     required this.isAlbum,
     required this.canSave,
     this.playlist,
+    this.link,
   });
 
   final Collection collection;
@@ -452,6 +459,7 @@ class _Header extends StatelessWidget {
   final bool isAlbum;
   final bool canSave;
   final Playlist? playlist;
+  final String? link;
 
   @override
   Widget build(BuildContext context) {
@@ -570,6 +578,19 @@ class _Header extends StatelessWidget {
                         showToast(context, 'Saved to your playlists');
                       },
               ),
+            if (link case final link?)
+              Builder(
+                builder: (context) => IconButton(
+                  tooltip: 'Share',
+                  iconSize: 24,
+                  icon: const Icon(Icons.share_rounded),
+                  onPressed: () => share(
+                    context,
+                    '${collection.title}\n$link',
+                    subject: collection.title,
+                  ),
+                ),
+              ),
             if (playlist case final playlist?)
               Builder(
                 builder: (context) => IconButton(
@@ -636,6 +657,12 @@ List<MenuAction> _playlistActions(Playlist playlist) => [
       Icons.open_in_new_rounded,
       'Open in YouTube',
       (context) => openInYouTube(context, playlist),
+    ),
+    MenuAction(
+      Icons.share_rounded,
+      'Share',
+      (context) =>
+          share(context, playlistShareText(playlist), subject: playlist.name),
     ),
     MenuAction(
       Icons.copy_rounded,

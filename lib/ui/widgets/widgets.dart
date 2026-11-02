@@ -3,6 +3,7 @@ export 'common.dart';
 export 'logo.dart';
 export 'media_card.dart';
 export 'playlist_dialogs.dart';
+export 'share.dart';
 export 'shelves.dart';
 export 'sleep_timer_picker.dart';
 export 'speed_picker.dart';
