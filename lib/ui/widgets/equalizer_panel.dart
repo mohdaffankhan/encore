@@ -92,7 +92,7 @@ class EqualizerPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 220,
+              height: 236,
               child: Row(
                 children: [
                   for (final (i, hz) in Equalizer.bands.indexed)
@@ -149,13 +149,26 @@ class _Band extends StatelessWidget {
           Expanded(
             child: RotatedBox(
               quarterTurns: 3,
-              child: Slider(
-                value: gain,
-                min: -Equalizer.maxGain,
-                max: Equalizer.maxGain,
-                divisions: (Equalizer.maxGain * 2).round(),
-                label: '$db dB',
-                onChanged: (g) => onChanged(g.roundToDouble()),
+              // A plain track and the thumb: a gain is up or down from 0,
+              // not filled from the bottom like a volume.
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: EncoreColors.surfaceHighest,
+                  inactiveTrackColor: EncoreColors.surfaceHighest,
+                  trackHeight: 4,
+                  tickMarkShape: SliderTickMarkShape.noTickMark,
+                  thumbColor: enabled
+                      ? EncoreColors.accent
+                      : EncoreColors.textTertiary,
+                ),
+                child: Slider(
+                  value: gain,
+                  min: -Equalizer.maxGain,
+                  max: Equalizer.maxGain,
+                  divisions: (Equalizer.maxGain * 2).round(),
+                  label: '$db dB',
+                  onChanged: (g) => onChanged(g.roundToDouble()),
+                ),
               ),
             ),
           ),
@@ -166,6 +179,7 @@ class _Band extends StatelessWidget {
               color: EncoreColors.textSecondary,
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );

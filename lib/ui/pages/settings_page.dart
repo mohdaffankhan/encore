@@ -361,14 +361,15 @@ class _Swatch extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: choose,
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          // Six in a row on a phone.
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
