@@ -72,7 +72,10 @@ status=$?
 adb -s "$device" shell input keyevent KEYCODE_WAKEUP
 adb -s "$device" shell svc power stayon false
 adb -s "$device" uninstall dev.encore.app.test > /dev/null
-if [ "$real_app_before" != "$(real_app)" ]; then
+# An unplugged phone lists no packages: say so, not that the app is gone.
+if [ "$(adb -s "$device" get-state 2>/dev/null)" != device ]; then
+  echo "[host] FAIL: the phone disconnected during the check"; host_fail=1
+elif [ "$real_app_before" != "$(real_app)" ]; then
   echo "[host] FAIL: the real Encore app was removed from the phone"; host_fail=1
 fi
 grep -E '\[e2e\]|Expected:|Actual:|TestFailure|All tests|Some tests' "$log"
