@@ -18,8 +18,12 @@ class LocalCollection {
   final String title;
   final ValueListenable<List<Track>> tracks;
 
-  Widget page() =>
-      CollectionPage.local(title: title, icon: icon, tracks: tracks);
+  Widget page() => CollectionPage.local(
+    title: title,
+    icon: icon,
+    tracks: tracks,
+    searchable: true,
+  );
 }
 
 final libraryCollections = [

@@ -19,13 +19,15 @@ class CollectionPage extends StatefulWidget {
     : title = null,
       icon = null,
       tracks = null,
-      playlistId = null;
+      playlistId = null,
+      searchable = false;
 
   const CollectionPage.local({
     super.key,
     required String this.title,
     required IconData this.icon,
     required ValueListenable<List<Track>> this.tracks,
+    this.searchable = false,
   }) : browseId = null,
        playlistId = null;
 
@@ -33,13 +35,18 @@ class CollectionPage extends StatefulWidget {
     : browseId = null,
       title = null,
       icon = null,
-      tracks = null;
+      tracks = null,
+      searchable = true;
 
   final String? browseId;
   final String? playlistId;
   final String? title;
   final IconData? icon;
   final ValueListenable<List<Track>>? tracks;
+
+  /// The user's own list (liked songs, downloads, history, a playlist):
+  /// it can be searched and sorted.
+  final bool searchable;
 
   @override
   State<CollectionPage> createState() => _CollectionPageState();
@@ -79,6 +86,7 @@ class _CollectionPageState extends State<CollectionPage> {
               tracks: playlist.tracks,
             ),
             playlist: playlist,
+            searchable: true,
           );
         },
       );
@@ -93,6 +101,7 @@ class _CollectionPageState extends State<CollectionPage> {
             tracks: list,
           ),
           icon: widget.icon,
+          searchable: widget.searchable,
         ),
       );
     } else {
@@ -126,16 +135,60 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 }
 
-class _CollectionView extends StatelessWidget {
+/// How a list of the user's songs is ordered.
+enum SongOrder {
+  /// The list's own order: recently added, recently played, or as arranged.
+  own,
+  title('Title'),
+  artist('Artist'),
+  album('Album');
+
+  const SongOrder([this.label]);
+  final String? label;
+}
+
+/// [tracks] matching [query] (in the title, artist or album), in [order].
+@visibleForTesting
+List<Track> filterSongs(List<Track> tracks, String query, SongOrder order) {
+  final words = query.toLowerCase().split(' ').where((w) => w.isNotEmpty);
+  final found = [
+    for (final t in tracks)
+      if (words.every(
+        (w) =>
+            '${t.title} ${t.artist} ${t.album ?? ''}'.toLowerCase().contains(w),
+      ))
+        t,
+  ];
+  String key(Track t) => switch (order) {
+    SongOrder.own => '',
+    SongOrder.title => t.title,
+    SongOrder.artist => '${t.artist}\u0000${t.title}',
+    // Songs without an album last.
+    SongOrder.album => '${t.album ?? '￿'}\u0000${t.title}',
+  }.toLowerCase();
+  if (order != SongOrder.own) {
+    // Stable: equal keys keep the list's own order.
+    final at = {for (final (i, t) in found.indexed) t: i};
+    found.sort((a, b) {
+      final c = key(a).compareTo(key(b));
+      return c != 0 ? c : at[a]!.compareTo(at[b]!);
+    });
+  }
+  return found;
+}
+
+class _CollectionView extends StatefulWidget {
   const _CollectionView(
     this.collection, {
     this.icon,
     this.isAlbum = false,
     this.canSave = false,
     this.playlist,
+    this.searchable = false,
   });
 
   final Collection collection;
+  final bool searchable;
   final IconData? icon;
   final bool isAlbum;
 
@@ -146,9 +199,40 @@ class _CollectionView extends StatelessWidget {
   final Playlist? playlist;
 
   @override
+  State<_CollectionView> createState() => _CollectionViewState();
+}
+
+class _CollectionViewState extends State<_CollectionView> {
+  final _search = TextEditingController();
+  var _order = SongOrder.own;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  bool get _searchable => widget.searchable;
+
+  /// What [SongOrder.own] is called here.
+  String get _ownOrder => widget.playlist != null
+      ? 'Custom order'
+      : widget.collection.title == 'History'
+      ? 'Recently played'
+      : 'Recently added';
+
+  @override
   Widget build(BuildContext context) {
-    final tracks = collection.tracks;
-    final playlist = this.playlist;
+    final collection = widget.collection;
+    final icon = widget.icon;
+    final isAlbum = widget.isAlbum;
+    final all = collection.tracks;
+    final query = _search.text.trim();
+    final tracks = _searchable ? filterSongs(all, query, _order) : all;
+    // Songs are reordered by hand in the playlist's own order, all shown.
+    final playlist = query.isEmpty && _order == SongOrder.own
+        ? widget.playlist
+        : null;
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -156,20 +240,42 @@ class _CollectionView extends StatelessWidget {
             collection,
             icon:
                 icon ??
-                (playlist != null && tracks.isEmpty
+                (widget.playlist != null && all.isEmpty
                     ? Icons.queue_music_rounded
                     : null),
             isAlbum: isAlbum,
-            canSave: canSave,
-            playlist: playlist,
+            canSave: widget.canSave,
+            playlist: widget.playlist,
           ),
         ),
-        if (tracks.isEmpty)
+        if (_searchable && all.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _FilterBar(
+              search: _search,
+              hint: 'Search songs',
+              order: _order,
+              ownOrder: _ownOrder,
+              onChanged: () => setState(() {}),
+              onOrder: (o) => setState(() => _order = o),
+            ),
+          ),
+        if (all.isNotEmpty && tracks.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                'No songs match "$query"',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: EncoreColors.textSecondary),
+              ),
+            ),
+          ),
+        if (all.isEmpty)
           SliverFillRemaining(
             hasScrollBody: false,
             child: Message(
               icon: Icons.music_off_rounded,
-              text: playlist == null
+              text: widget.playlist == null
                   ? 'No songs here yet'
                   : 'No songs here yet.\nAdd some from a song\'s ⋯ menu.',
             ),
@@ -207,6 +313,7 @@ class _CollectionView extends StatelessWidget {
             itemCount: tracks.length,
             itemBuilder: (context, i) => TrackTile(
               track: tracks[i],
+              playlistId: widget.playlist?.id,
               showArt: !isAlbum,
               showAlbum: !isAlbum,
               leading: isAlbum
@@ -227,6 +334,106 @@ class _CollectionView extends StatelessWidget {
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
+    );
+  }
+}
+
+/// Search and sort for a list of the user's songs.
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({
+    required this.search,
+    required this.hint,
+    required this.order,
+    required this.ownOrder,
+    required this.onChanged,
+    required this.onOrder,
+  });
+
+  final TextEditingController search;
+  final String hint;
+  final SongOrder order;
+  final String ownOrder;
+  final VoidCallback onChanged;
+  final ValueChanged<SongOrder> onOrder;
+
+  String _label(SongOrder o) => o.label ?? ownOrder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(isWide(context) ? 24 : 16, 0, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                // The Search page's box, smaller.
+                child: SearchBar(
+                  controller: search,
+                  onChanged: (_) => onChanged(),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  constraints: const BoxConstraints(minHeight: 44),
+                  hintText: hint,
+                  leading: const Icon(
+                    Icons.search_rounded,
+                    size: 20,
+                    color: EncoreColors.textSecondary,
+                  ),
+                  trailing: [
+                    if (search.text.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () {
+                          search.clear();
+                          onChanged();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          PopupMenuButton<SongOrder>(
+            tooltip: 'Sort by',
+            initialValue: order,
+            onSelected: onOrder,
+            color: EncoreColors.surfaceRaised,
+            itemBuilder: (context) => [
+              for (final o in SongOrder.values)
+                CheckedPopupMenuItem(
+                  value: o,
+                  checked: o == order,
+                  child: Text(_label(o)),
+                ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.sort_rounded,
+                    size: 20,
+                    color: EncoreColors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _label(order),
+                    style: const TextStyle(
+                      color: EncoreColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
