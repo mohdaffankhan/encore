@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
@@ -17,7 +19,8 @@ class PlayPauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final box = circle ? size * 1.75 : size + 16;
+    // At least 48 px to tap (Android's minimum).
+    final box = circle ? size * 1.75 : max(48.0, size + 16);
     return SizedBox.square(
       dimension: box,
       child: ValueListenableBuilder(

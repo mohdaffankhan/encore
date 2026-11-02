@@ -57,10 +57,13 @@ class NowPlayingBar extends StatelessWidget {
             flex: 3,
             child: Row(
               children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => openFullPlayer(context),
-                  child: Artwork(track.artUrl, size: 56, radius: 8),
+                Tooltip(
+                  message: 'Open the player',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => openFullPlayer(context),
+                    child: Artwork(track.artUrl, size: 56, radius: 8),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Flexible(

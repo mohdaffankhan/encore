@@ -387,56 +387,72 @@ class _ViewTabs extends StatelessWidget {
       PlayerView.lyrics: 'Lyrics',
       PlayerView.queue: 'Up next',
     };
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final view in labels.keys)
-            if ((includeSong || view != PlayerView.song) &&
-                (includeLyrics || view != PlayerView.lyrics))
-              // A button to screen readers too (a bare gesture isn't).
-              Semantics(
-                button: true,
-                selected: view == selected,
-                onTap: () => onSelect(view),
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    excludeFromSemantics: true,
+    // Each tab is 48 px tall to tap; the dark track behind the pills is
+    // drawn smaller, as before.
+    return Stack(
+      children: [
+        Positioned.fill(
+          top: 3.5,
+          bottom: 3.5,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final view in labels.keys)
+                if ((includeSong || view != PlayerView.song) &&
+                    (includeLyrics || view != PlayerView.lyrics))
+                  // A button to screen readers too (a bare gesture isn't).
+                  Semantics(
+                    button: true,
+                    selected: view == selected,
                     onTap: () => onSelect(view),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: view == selected
-                            ? EncoreColors.text
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        labels[view]!,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: view == selected
-                              ? Colors.black
-                              : EncoreColors.textSecondary,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        excludeFromSemantics: true,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onSelect(view),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 7.5),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: view == selected
+                                  ? EncoreColors.text
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              labels[view]!,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: view == selected
+                                    ? Colors.black
+                                    : EncoreColors.textSecondary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -535,7 +551,7 @@ class _NowPlayingInfo extends StatelessWidget {
   const _NowPlayingInfo(this.track, {this.volume = false, this.inset = 28});
 
   /// About how tall it is, to fit the art above it.
-  static const height = 230.0;
+  static const height = 250.0;
 
   final Track track;
 
@@ -566,17 +582,24 @@ class _NowPlayingInfo extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: text.headlineSmall,
                     ),
-                    const SizedBox(height: 4),
                     InkWell(
                       onTap: track.artistId == null
                           ? null
                           : () => openArtist(track.artistId!),
-                      child: Text(
-                        track.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.bodyLarge?.copyWith(
-                          color: EncoreColors.text.withValues(alpha: 0.7),
+                      // 48 px tall to tap (Android's minimum).
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: 1,
+                          child: Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.bodyLarge?.copyWith(
+                              color: EncoreColors.text.withValues(alpha: 0.7),
+                            ),
+                          ),
                         ),
                       ),
                     ),

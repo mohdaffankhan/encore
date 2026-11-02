@@ -197,34 +197,38 @@ class _SearchPageState extends State<SearchPage> {
             const PageTitle('Search'),
             Padding(
               padding: EdgeInsets.fromLTRB(pad, 8, pad, 12),
-              // Full width of the page, like the results below it.
-              child: SearchBar(
-                controller: _controller,
-                focusNode: _focus,
-                // Clicking anywhere else leaves the box too (on desktop
-                // the text field would otherwise keep the keyboard).
-                onTapOutside: (_) => _focus.unfocus(),
-                // No 800 px cap (SearchBar's default): span the page.
-                constraints: const BoxConstraints(minHeight: 56),
-                hintText: 'Songs, artists or a YouTube link',
-                leading: const Icon(
-                  Icons.search_rounded,
-                  color: EncoreColors.textSecondary,
-                ),
-                trailing: [
-                  ListenableBuilder(
-                    listenable: _controller,
-                    builder: (context, _) => _controller.text.isEmpty
-                        ? const SizedBox.shrink()
-                        : IconButton(
-                            tooltip: 'Clear',
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: _clear,
-                          ),
+              // Full width of the page, like the results below it. Named
+              // for screen readers (a hint isn't a name).
+              child: Semantics(
+                label: 'Search',
+                child: SearchBar(
+                  controller: _controller,
+                  focusNode: _focus,
+                  // Clicking anywhere else leaves the box too (on desktop
+                  // the text field would otherwise keep the keyboard).
+                  onTapOutside: (_) => _focus.unfocus(),
+                  // No 800 px cap (SearchBar's default): span the page.
+                  constraints: const BoxConstraints(minHeight: 56),
+                  hintText: 'Songs, artists or a YouTube link',
+                  leading: const Icon(
+                    Icons.search_rounded,
+                    color: EncoreColors.textSecondary,
                   ),
-                ],
-                onChanged: _onChanged,
-                onSubmitted: _submit,
+                  trailing: [
+                    ListenableBuilder(
+                      listenable: _controller,
+                      builder: (context, _) => _controller.text.isEmpty
+                          ? const SizedBox.shrink()
+                          : IconButton(
+                              tooltip: 'Clear',
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: _clear,
+                            ),
+                    ),
+                  ],
+                  onChanged: _onChanged,
+                  onSubmitted: _submit,
+                ),
               ),
             ),
             if (_results != null && !_isLink)

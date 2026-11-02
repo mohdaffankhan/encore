@@ -113,8 +113,16 @@ class _CarouselState extends State<Carousel> {
             children: [
               ?widget.action,
               if (wide) ...[
-                _ArrowButton(Icons.chevron_left_rounded, () => _page(-1)),
-                _ArrowButton(Icons.chevron_right_rounded, () => _page(1)),
+                _ArrowButton(
+                  Icons.chevron_left_rounded,
+                  'Scroll left',
+                  () => _page(-1),
+                ),
+                _ArrowButton(
+                  Icons.chevron_right_rounded,
+                  'Scroll right',
+                  () => _page(1),
+                ),
               ],
             ],
           ),
@@ -139,9 +147,10 @@ class _CarouselState extends State<Carousel> {
 }
 
 class _ArrowButton extends StatelessWidget {
-  const _ArrowButton(this.icon, this.onPressed);
+  const _ArrowButton(this.icon, this.tooltip, this.onPressed);
 
   final IconData icon;
+  final String tooltip;
   final VoidCallback onPressed;
 
   @override
@@ -157,6 +166,7 @@ class _ArrowButton extends StatelessWidget {
           padding: EdgeInsets.zero,
         ),
         iconSize: 22,
+        tooltip: tooltip,
         icon: Icon(icon),
         onPressed: onPressed,
       ),
@@ -265,11 +275,15 @@ class PlayCircleButton extends StatelessWidget {
     required this.onPressed,
     this.size = 56,
     this.icon = Icons.play_arrow_rounded,
+    this.tooltip = 'Play',
   });
 
   final VoidCallback? onPressed;
   final double size;
   final IconData icon;
+
+  /// What a screen reader says (and the hover tip).
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -282,6 +296,7 @@ class PlayCircleButton extends StatelessWidget {
         minimumSize: Size.square(size),
       ),
       iconSize: size * 0.55,
+      tooltip: tooltip,
       icon: Icon(icon),
       onPressed: onPressed,
     );

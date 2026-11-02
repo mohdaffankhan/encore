@@ -375,29 +375,33 @@ class _FilterBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
-                // The Search page's box, smaller.
-                child: SearchBar(
-                  controller: search,
-                  onChanged: (_) => onChanged(),
-                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                  constraints: const BoxConstraints(minHeight: 44),
-                  hintText: hint,
-                  leading: const Icon(
-                    Icons.search_rounded,
-                    size: 20,
-                    color: EncoreColors.textSecondary,
+                // The Search page's box, smaller. Named for screen
+                // readers (a hint isn't a name).
+                child: Semantics(
+                  label: hint,
+                  child: SearchBar(
+                    controller: search,
+                    onChanged: (_) => onChanged(),
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    constraints: const BoxConstraints(minHeight: 48),
+                    hintText: hint,
+                    leading: const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: EncoreColors.textSecondary,
+                    ),
+                    trailing: [
+                      if (search.text.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Clear search',
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          onPressed: () {
+                            search.clear();
+                            onChanged();
+                          },
+                        ),
+                    ],
                   ),
-                  trailing: [
-                    if (search.text.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        onPressed: () {
-                          search.clear();
-                          onChanged();
-                        },
-                      ),
-                  ],
                 ),
               ),
             ),
@@ -417,7 +421,8 @@ class _FilterBar extends StatelessWidget {
                 ),
             ],
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              // 48 px tall to tap.
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -498,11 +503,13 @@ class _Header extends StatelessWidget {
               : isAlbum
               ? 'ALBUM'
               : 'PLAYLIST',
-          style: const TextStyle(
+          // Brighter than the usual grey: it sits on the coloured
+          // header, where grey is too faint to read.
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.4,
-            color: EncoreColors.textSecondary,
+            color: EncoreColors.text.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 8),
@@ -531,7 +538,7 @@ class _Header extends StatelessWidget {
             Text(
               collection.subtitle,
               style: text.bodyMedium?.copyWith(
-                color: EncoreColors.textSecondary,
+                color: EncoreColors.text.withValues(alpha: 0.8),
               ),
             ),
           ],

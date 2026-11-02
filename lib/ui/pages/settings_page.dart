@@ -233,7 +233,7 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final pad = pagePadding(context);
     final text = Theme.of(context).textTheme;
-    return Padding(
+    final row = Padding(
       padding: EdgeInsets.symmetric(horizontal: pad - 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -263,6 +263,9 @@ class _Row extends StatelessWidget {
         ),
       ),
     );
+    // A row that is one setting (a switch, or opening one) is one item to
+    // screen readers: the switch is read with the row's name.
+    return onTap == null ? row : MergeSemantics(child: row);
   }
 }
 
