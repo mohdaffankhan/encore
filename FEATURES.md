@@ -5,7 +5,9 @@ that cover it. Add a row with each change, and run the matching tests before
 calling it done. Releases also go through the owner's own testing.
 
 **Test kinds**
-- *unit / widget*: `flutter test test/unit test/widget` (offline, fast)
+- *unit / widget*: `flutter test test/unit test/widget` (offline, fast);
+  GitHub Actions runs them, and the analyzer, on every push to main and
+  every pull request (`.github/workflows/test.yml`)
 - *e2e*: the real app with real audio, the "listen journey" in
   `integration_test/app_test.dart`, step names shown in quotes:
   - Windows, with real key presses: `powershell -File tool/windows_keyboard_check.ps1`

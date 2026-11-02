@@ -1,0 +1,30 @@
+# Checks every push to main and every pull request: the analyzer and the
+# offline tests (unit and widget; no network, a few minutes). The builds,
+# and the live YouTube checks, are in build.yml (tags and manual runs). The
+# end-to-end tests play real music, which YouTube often refuses to CI
+# servers: they run on real devices (see CLAUDE.md).
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch replaces a run still going.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/unit test/widget
