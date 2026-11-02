@@ -42,6 +42,30 @@ class MainActivity : AudioServiceActivity() {
                     result.notImplemented()
                 }
             }
+        // Downloads: their progress notification, and running on after
+        // Encore is closed. The engine outlives this activity, so the
+        // handler holds only the app context.
+        val app = applicationContext
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.encore.app/downloads")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "progress" -> DownloadService.progress(
+                        app,
+                        call.argument<String>("title") ?: "",
+                        call.argument<Int>("number") ?: 1,
+                        call.argument<Int>("total") ?: 1,
+                        call.argument<Int>("percent") ?: 0,
+                    )
+                    "finished" -> DownloadService.finished(
+                        app,
+                        call.argument<Int>("done") ?: 0,
+                        call.argument<Int>("failed") ?: 0,
+                        call.argument<Boolean>("notify") ?: false,
+                    )
+                    else -> return@setMethodCallHandler result.notImplemented()
+                }
+                result.success(null)
+            }
     }
 
     private var askedForRate = false

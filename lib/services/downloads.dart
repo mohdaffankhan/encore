@@ -26,6 +26,12 @@ class Downloads {
 
   /// The song downloading now.
   Track? _current;
+  Track? get current => _current;
+
+  /// Songs saved and failed since the downloads last ran out (shown in
+  /// Android's notification: "2 of 5", "Downloaded 5 songs").
+  int done = 0;
+  int notDone = 0;
 
   /// Downloads a song's file; replaced in tests.
   @visibleForTesting
@@ -106,6 +112,7 @@ class Downloads {
   }
 
   void download(Iterable<Track> tracks) {
+    if (!_running) done = notDone = 0;
     for (final t in tracks) {
       if (isDownloaded(t) || progress.value.containsKey(t.id)) continue;
       _queue.add(t);
@@ -136,10 +143,13 @@ class Downloads {
     _running = true;
     while (_queue.isNotEmpty) {
       final track = _current = _queue.removeAt(0);
+      _setProgress(track.id, 0); // says which song is downloading
       try {
         await fetch(track);
         userLibrary.downloads.value = [track, ...userLibrary.downloads.value];
+        done++;
       } catch (e) {
+        notDone++;
         debugPrint('Download failed for ${track.id}: $e');
         error.value = 'Couldn\'t download "${track.title}"';
       }

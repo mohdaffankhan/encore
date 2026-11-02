@@ -9,6 +9,7 @@ import 'api/clients.dart';
 import 'app.dart';
 import 'self_test.dart';
 import 'services/desktop_window.dart';
+import 'services/download_notice.dart';
 import 'services/downloads.dart';
 import 'services/home_cache.dart';
 import 'services/library.dart';
@@ -41,6 +42,8 @@ Future<void> main([List<String> args = const []]) async {
         androidNotificationIcon: 'drawable/ic_stat_encore',
       ),
     );
+    // Downloads' progress, and finishing them after Encore is closed.
+    DownloadNotice(downloads).start();
   } else if (Platform.isLinux) {
     // MPRIS: the desktop's media controls, playerctl, headset buttons.
     try {
