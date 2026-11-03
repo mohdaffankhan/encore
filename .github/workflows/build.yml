@@ -237,11 +237,10 @@ jobs:
 
             ## Download
 
-            **Android**: [encore-android.apk](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-android.apk)
+            **Android**: [encore-android.apk](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-android.apk) · [How to install](https://github.com/mohdaffankhan/encore#android)
             <sub>Smaller, for your phone's chip: [arm64](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-android-x86_64.apk). Not sure? Take the one above.</sub>
 
-            **Windows**: [Installer](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-windows-setup.exe) · [Portable zip](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-windows-portable.zip)
+            **Windows**: [Installer](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-windows-setup.exe) · [Portable zip](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-windows-portable.zip) · [How to install](https://github.com/mohdaffankhan/encore#windows)
 
-            **Linux**: [AppImage](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/Encore-x86_64.AppImage) (just run it) · [tar.gz](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-linux-x64.tar.gz) (needs libmpv)
+            **Linux**: [AppImage](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/Encore-x86_64.AppImage) (just run it) · [tar.gz](https://github.com/mohdaffankhan/encore/releases/download/${{ github.ref_name }}/encore-linux-x64.tar.gz) (needs libmpv) · [How to install](https://github.com/mohdaffankhan/encore#linux)
 
-            Install steps are in the [README](https://github.com/mohdaffankhan/encore#install).

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/mohdaffankhan/encore/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/mohdaffankhan/encore?style=flat-square&color=ff8a4c"></a>
   <a href="https://github.com/mohdaffankhan/encore/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/mohdaffankhan/encore/total?style=flat-square&color=ff8a4c"></a>
-  <a href="https://github.com/mohdaffankhan/encore/actions/workflows/build.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/mohdaffankhan/encore/build.yml?style=flat-square"></a>
+  <a href="https://github.com/mohdaffankhan/encore/actions/workflows/test.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/mohdaffankhan/encore/test.yml?branch=main&label=tests&style=flat-square"></a>
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/github/license/mohdaffankhan/encore?style=flat-square"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Android%20%7C%20Windows%20%7C%20Linux-informational?style=flat-square">
 </p>
@@ -38,14 +38,17 @@
 
 ## Download
 
-| Platform | Get it |
-|---|---|
-| **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) (any phone) · smaller, per chip: [arm64-v8a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-x86_64.apk) |
-| **Windows** 10 / 11 | [`encore-windows-setup.exe`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) |
-| **Linux** x64 | [`Encore-x86_64.AppImage`](https://github.com/mohdaffankhan/encore/releases/latest/download/Encore-x86_64.AppImage) (nothing to install) · [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
+**Android** 7.0 or later<br>
+[**encore-android.apk**](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk), for any phone · [How to install](#android)<br>
+<sub>Smaller, for your phone's chip: [arm64-v8a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-x86_64.apk). Not sure? Take the one above.</sub>
 
-All downloads are on the [Releases](https://github.com/mohdaffankhan/encore/releases)
-page. Install steps for each are [below](#install).
+**Windows** 10 or 11<br>
+[**Installer**](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [Portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) · [How to install](#windows)
+
+**Linux** x64<br>
+[**AppImage**](https://github.com/mohdaffankhan/encore/releases/latest/download/Encore-x86_64.AppImage), just run it · [tar.gz](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz), needs libmpv · [How to install](#linux)
+
+Older versions and what changed in each: [Releases](https://github.com/mohdaffankhan/encore/releases).
 
 ## Features
 
@@ -53,24 +56,29 @@ page. Install steps for each are [below](#install).
 - Everything on YouTube Music: songs, albums, artists, playlists, and
   videos such as covers and lyric videos
 - Paste a YouTube or YouTube Music link into search to play that exact song
-- Song radio, up next, shuffle and repeat
+- Song radio, up next, shuffle and repeat; no gaps between songs
 - Synced lyrics that follow the song; tap a line to jump there
+- Equalizer with presets, and playback speed from 0.5× to 2×
 - Sleep timer (15 minutes to an hour, or the end of the song) that fades out
 - Swipe the player sideways for the next or previous song; on phones, swipe
   up for lyrics and down to close
 
 **Your library, on your device**
-- Likes, history and your own playlists (add, reorder, rename)
+- Likes, history and your own playlists (add, reorder, rename), each one
+  searchable and sortable
 - Import public playlists from **YouTube Music**, **YouTube** or **Spotify**
   by pasting their link
-- Take a playlist with you: open it in YouTube, or copy its song list for
-  other apps
-- Downloads for offline listening
+- Save the queue as a playlist; share songs, albums and playlists
+- Downloads for offline listening (on Android they carry on after you close
+  Encore)
 
 **Everywhere**
-- Android: plays in the background, with controls in the notification panel
-  and on the lock screen
-- Desktop: keyboard shortcuts and media keys
+- Six themes: Ember, Ocean, Forest, Orchid, Rose and Graphite
+- Android: plays in the background, with controls (and a ♡) in the
+  notification panel and on the lock screen
+- Windows and Linux: your system's media controls and media keys, the song
+  in the window title; on Windows, keeps playing from the tray
+- Works with screen readers (TalkBack, Narrator, Orca)
 
 ## Install
 
@@ -136,13 +144,18 @@ updates by itself) and an AUR package are on the way.
 | Key | Action |
 |---|---|
 | Space or K | Play / pause |
-| ← / → | Seek 10 seconds |
-| Ctrl + ← / → | Previous / next song |
+| Ctrl + → / ← | Next / previous song |
+| → / ← | Forward / back 10 seconds |
 | Ctrl + ↑ / ↓ | Volume |
-| L | Like the current song |
-| Esc | Leave the search box (keys type there while it is active) |
+| M | Mute |
+| Ctrl + S / Ctrl + R | Shuffle / repeat |
+| L | Like the song |
+| Ctrl + K or / | Search |
+| Alt + ← | Back |
+| Ctrl + , | Settings |
+| Esc | Close the player |
 
-Media keys on your keyboard work too.
+Press **?** in Encore to see them all. Media keys work too.
 
 ## FAQ
 
