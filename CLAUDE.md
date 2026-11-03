@@ -14,9 +14,11 @@ notification icons were stripped). Verify fixes on a release build.
 
 Linux packages (tar.gz, Flatpak, AUR `encore-music-bin`) are built by CI
 from `linux/packaging/`; `release_check.sh` tests them in Docker (Docker
-Desktop must be running). Tags release the tar.gz, the AppImage (made from
-it, with libmpv inside; checked by `tool/linux_appimage_check.sh`) and the
-Flatpak bundle. The AUR package is checked by CI but on hold: AUR
+Desktop must be running). Tags release the tar.gz and the AppImage (made
+from it, with libmpv inside; checked by `tool/linux_appimage_check.sh`).
+The Flatpak is published only through Flathub (so it updates itself), not
+as a file on the release: CI and the release check build and play it. The
+AUR package is checked by CI but on hold: AUR
 registrations are closed, so the owner has no account yet. Flathub is a separate submission (linux/packaging/flathub/).
 Before tagging, the version in `pubspec.yaml`,
 `pkgver` in `linux/packaging/aur/PKGBUILD` and a `<release>` in the

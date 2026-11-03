@@ -51,6 +51,9 @@ else
 fi
 
 log "--- Linux: tar.gz, AUR package and Flatpak in clean containers"
+# The Flatpak isn't on the release (Flathub publishes it): it is built here
+# from the draft's tar.gz, as Flathub will build it, and played.
+sh tool/flatpak_build.sh "$dir" || fail=1
 sh tool/linux_release_check.sh "$dir" "tar aur flatpak" || fail=1
 log "--- Linux: AppImage on another Linux, nothing installed"
 sh tool/linux_appimage_check.sh "$dir" || fail=1

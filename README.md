@@ -42,7 +42,7 @@
 |---|---|
 | **Android** 7.0+ | [`encore-android.apk`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android.apk) (any phone) · smaller, per chip: [arm64-v8a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-arm64-v8a.apk) (most phones) · [armeabi-v7a](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-armeabi-v7a.apk) (older phones) · [x86_64](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-android-x86_64.apk) |
 | **Windows** 10 / 11 | [`encore-windows-setup.exe`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-setup.exe) · [portable zip](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-windows-portable.zip) |
-| **Linux** x64 | [`Encore-x86_64.AppImage`](https://github.com/mohdaffankhan/encore/releases/latest/download/Encore-x86_64.AppImage) (nothing to install) · [`encore-linux-x64.flatpak`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.flatpak) · [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
+| **Linux** x64 | [`Encore-x86_64.AppImage`](https://github.com/mohdaffankhan/encore/releases/latest/download/Encore-x86_64.AppImage) (nothing to install) · [`encore-linux-x64.tar.gz`](https://github.com/mohdaffankhan/encore/releases/latest/download/encore-linux-x64.tar.gz) |
 
 All downloads are on the [Releases](https://github.com/mohdaffankhan/encore/releases)
 page. Install steps for each are [below](#install).
@@ -128,17 +128,8 @@ mkdir encore && tar -xzf encore-linux-x64.tar.gz -C encore
 
 To update, do the same with the new download.
 
-**Flatpak**: download `encore-linux-x64.flatpak` and install it (its GNOME
-runtime comes from Flathub, so Flathub has to be set up, as it is on most
-desktops that have Flatpak):
-
-```sh
-flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user encore-linux-x64.flatpak
-```
-
-Encore on Flathub itself (so GNOME Software and KDE Discover list it) and
-an AUR package are on the way.
+Encore on Flathub (so GNOME Software and KDE Discover list it, and it
+updates by itself) and an AUR package are on the way.
 
 ## Keyboard shortcuts
 

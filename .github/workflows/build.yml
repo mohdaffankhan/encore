@@ -149,7 +149,9 @@ jobs:
           name: linux
           path: dist/*
 
-  # The Flatpak, made from the tarball plus libmpv, in Flathub's builder.
+  # The Flatpak, made from the tarball plus libmpv, in Flathub's builder:
+  # a check that Flathub's build of this release works (Flathub publishes
+  # it; the release doesn't carry the bundle).
   flatpak:
     needs: linux
     runs-on: ubuntu-latest
@@ -212,8 +214,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Not the Flatpak: it is published through Flathub (which updates
+      # it), not as a file that never updates. Its job still has to pass.
       - uses: actions/download-artifact@v4
         with:
+          pattern: '{android,windows,linux}'
           path: dist
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
@@ -225,6 +230,6 @@ jobs:
             |---|---|
             | Android | `encore-android.apk` (any phone), or the smaller one for its chip: `encore-android-arm64-v8a.apk` (most phones), `-armeabi-v7a` (older phones), `-x86_64` (emulators, Chromebooks) |
             | Windows | `encore-windows-setup.exe` (or the portable zip) |
-            | Linux | `Encore-x86_64.AppImage` (nothing to install), `encore-linux-x64.flatpak`, or `encore-linux-x64.tar.gz` (needs `libmpv2`) |
+            | Linux | `Encore-x86_64.AppImage` (nothing to install), or `encore-linux-x64.tar.gz` (needs `libmpv2`) |
 
             Install steps are in the README.
