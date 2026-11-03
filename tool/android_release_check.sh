@@ -41,18 +41,51 @@ session() { a shell dumpsys media_session | grep -A12 "package=$pkg"; }
 alive() { [ -n "$(a shell pidof $pkg)" ]; }
 crashed() { a logcat -b crash -d | grep -q "Process: $pkg"; }
 
-# A song tile on the home feed: "Title&#10;Artist", not a playlist card.
+# Taps the middle of a node from ui()/nodes() (its bounds="[x1,y1][x2,y2]").
+tap() {
+  set -- $(echo "$1" | sed 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]".*/\1 \2 \3 \4/')
+  a shell input tap $((($1 + $3) / 2)) $((($2 + $4) / 2))
+}
+# Every node with its class, text and label (for the search box).
+nodes() {
+  a shell uiautomator dump /sdcard/encore_ui.xml > /dev/null 2>&1
+  a shell cat /sdcard/encore_ui.xml | grep -oE '<node [^>]*>'
+  a shell rm -f /sdcard/encore_ui.xml
+}
+
+# A song from a search, the same every time: the home feed changes (and
+# its first row can be the mini player, which Encore restores paused).
+tab=""
+for _ in $(seq 30); do
+  tab=$(ui | grep 'Search&#10;Tab' | head -1)
+  [ -n "$tab" ] && break
+  sleep 1
+done
+check "app starts" '[ -n "$tab" ]'
+[ -n "$tab" ] || exit 1
+tap "$tab"
+sleep 2
+box=$(nodes | grep 'class="android.widget.EditText"' | head -1)
+check "search box shown" '[ -n "$box" ]'
+[ -n "$box" ] || exit 1
+tap "$box"
+sleep 1
+a shell input text "daft%spunk%sget%slucky"
+a shell input keyevent KEYCODE_ENTER
+# The topmost "Get Lucky" row (the mini player, if it shows that song too,
+# is at the bottom).
 tile=""
 for _ in $(seq 30); do
-  tile=$(ui | grep '&#10;' | grep -v -e 'views' -e 'Tab [0-9]' | head -1)
+  tile=$(ui | grep -i 'content-desc="Get Lucky[^"]*&#10;' |
+    sed 's/\(.*bounds="\[[0-9]*,\([0-9]*\)\].*\)/\2 \1/' | sort -n | head -1 | cut -d' ' -f2-)
   [ -n "$tile" ] && break
   sleep 1
 done
-check "home feed loads" '[ -n "$tile" ]'
+check "search finds the song" '[ -n "$tile" ]'
 [ -n "$tile" ] || exit 1
 log "playing: $(echo "$tile" | sed 's/content-desc="\([^&]*\).*/\1/')"
-set -- $(echo "$tile" | sed 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]"/\1 \2 \3 \4/')
-a shell input tap $((($1 + $3) / 2)) $((($2 + $4) / 2))
+# The topmost row is above the keyboard (Back would leave the search).
+tap "$tile"
 
 for _ in $(seq 40); do
   session | grep -q "state=PLAYING" && break
@@ -60,6 +93,9 @@ for _ in $(seq 40); do
   sleep 1
 done
 check "playback starts" 'session | grep -q "state=PLAYING"'
+# Why not, from the app's own log (cleared at the start of this check).
+session | grep -q "state=PLAYING" ||
+  a logcat -d -v time | grep -E "flutter|$pkg|AndroidRuntime" | tail -25
 sleep 10
 check "app still running after 10 s" 'alive && ! crashed'
 

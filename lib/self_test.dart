@@ -39,14 +39,17 @@ Future<void> runSelfTest({bool mediaKeys = false}) async {
     final track = results.whereType<Track>().first;
     log('search: ${track.title} - ${track.artist}');
 
-    await player.playRadio(track);
+    // Player calls start the action and are not waited on: one that
+    // stalls (mpv's seek, while a link is renewed) would hang the test with
+    // nothing said. Each step waits (up to 60 s) for what is heard instead.
+    unawaited(player.playRadio(track));
     await _until(
       () => player.audio.playing && player.audio.position.inSeconds >= 3,
     );
     log('plays: ${player.audio.position.inSeconds} s');
 
     await _until(() => player.upNext.isNotEmpty);
-    await player.next();
+    unawaited(player.next());
     await _until(
       () =>
           player.current != track &&
@@ -63,7 +66,7 @@ Future<void> runSelfTest({bool mediaKeys = false}) async {
       queryParameters: {...stream.url.queryParameters, 'expire': '1'},
     );
     final middle = player.audio.duration! ~/ 2;
-    await player.seek(middle);
+    unawaited(player.seek(middle));
     await _until(
       () =>
           player.audio.playing &&
@@ -80,7 +83,7 @@ Future<void> runSelfTest({bool mediaKeys = false}) async {
     var loaded = false;
     void watch() => loaded |= player.loading.value;
     player.loading.addListener(watch);
-    await player.seek(player.audio.duration! - const Duration(seconds: 4));
+    unawaited(player.seek(player.audio.duration! - const Duration(seconds: 4)));
     await _until(
       () =>
           player.current != ending &&
