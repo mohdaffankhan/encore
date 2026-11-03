@@ -1,2 +1,6 @@
 * text=auto
 *.sh text eol=lf
+# Read by Linux tools (in containers and CI), also when checked out on
+# Windows: a Windows line ending there breaks makepkg's depends, YAML
+# edits and the like.
+linux/packaging/** text eol=lf

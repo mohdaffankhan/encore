@@ -20,6 +20,12 @@ docker run --rm --privileged \
 set -e
 mkdir -p /build/work && cd /build/work
 cp /manifest/*.yml . && cp /pkg/encore-linux-x64.tar.gz .
+# The tar.gz by its checksum: flatpak-builder caches a module by its
+# sources, and a local file by name alone would reuse an older build.
+sum=$(sha256sum encore-linux-x64.tar.gz | cut -d" " -f1)
+sed -i "s|^        path: encore-linux-x64.tar.gz\$|&\n        sha256: $sum|" io.github.mohdaffankhan.Encore.yml
+grep -q "sha256: $sum" io.github.mohdaffankhan.Encore.yml ||
+  { echo "[flatpak] FAIL: could not add the tar.gz checksum to the manifest"; exit 1; }
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse \
   --repo=repo --force-clean build io.github.mohdaffankhan.Encore.yml > /build/log 2>&1 ||
