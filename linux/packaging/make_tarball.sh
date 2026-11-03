@@ -20,6 +20,12 @@ for lib in "$bundle"/lib/*.so; do
   fi
 done
 
+# package:jni's library (pulled in by Android plugins) is only used on
+# Android; built where Java is installed (CI), it needs Java's libjvm.so,
+# which people's systems don't have (and the AppImage can't bundle). Encore
+# never loads it on Linux.
+rm -f "$bundle/lib/libdartjni.so"
+
 mkdir -p "$bundle/share/applications" "$bundle/share/metainfo"
 cp "$here/$id.desktop" "$bundle/share/applications/"
 cp "$here/$id.metainfo.xml" "$bundle/share/metainfo/"
