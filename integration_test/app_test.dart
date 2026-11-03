@@ -66,17 +66,19 @@ void main() {
       of: find.byType(HomePage),
       matching: find.byType(TrackTile),
     );
-    await tester.scrollUntilVisible(
-      homeSongs.at(1),
-      300,
-      scrollable: find
-          .descendant(
-            of: find.byType(HomePage),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-      maxScrolls: 60,
-    );
+    // Scrolled by hand: scrollUntilVisible fails outright on `.at(1)` while
+    // no song row is built yet (a feed with none near the top).
+    final homeList = find
+        .descendant(
+          of: find.byType(HomePage),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    for (var i = 0; i < 60 && homeSongs.evaluate().length < 2; i++) {
+      await tester.drag(homeList, const Offset(0, -300));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(homeSongs, findsAtLeast(2), reason: 'a section of songs on home');
     final sectionSong = homeSongs.at(1);
     // All of it on screen: scrolling stops once it shows, which can leave
     // it under the player bar.
