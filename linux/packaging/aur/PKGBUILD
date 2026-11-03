@@ -3,7 +3,7 @@
 # Encore from its GitHub release (the Linux tarball). Updated for each
 # release by tool/aur_update.sh, which also writes .SRCINFO.
 pkgname=encore-music-bin
-pkgver=0.1.5
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Ad-free music player for YouTube Music'
 arch=('x86_64')

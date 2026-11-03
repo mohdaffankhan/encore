@@ -50,10 +50,8 @@ else
   sleep 3
 fi
 
-# The Flatpak and AUR package aren't released yet: add "aur flatpak" here
-# once they are.
-log "--- Linux: tar.gz in a clean container"
-sh tool/linux_release_check.sh "$dir" tar || fail=1
+log "--- Linux: tar.gz, AUR package and Flatpak in clean containers"
+sh tool/linux_release_check.sh "$dir" "tar aur flatpak" || fail=1
 log "--- Linux: AppImage on another Linux, nothing installed"
 sh tool/linux_appimage_check.sh "$dir" || fail=1
 

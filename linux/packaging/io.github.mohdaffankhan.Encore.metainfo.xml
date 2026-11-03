@@ -73,6 +73,22 @@
   </recommends>
 
   <releases>
+    <release version="0.2.0" date="2026-11-03">
+      <description>
+        <p>Themes, an equalizer, playback speed, and songs that follow each other without a gap.</p>
+        <ul>
+          <li>Six themes: Ember, Ocean, Forest, Orchid, Rose and Graphite</li>
+          <li>A five-band equalizer with presets</li>
+          <li>Playback speed from 0.5× to 2×</li>
+          <li>Search and sort in liked songs, history, downloads and playlists</li>
+          <li>Save the queue as a playlist, or clear it</li>
+          <li>Share songs, albums and playlists</li>
+          <li>Media controls and keys through the desktop (MPRIS)</li>
+          <li>The song in the window title, and the window reopens where it was</li>
+          <li>Works with screen readers on every screen</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.5" date="2026-10-27">
       <description>
         <p>Your own playlists, playlist import from YouTube Music, YouTube and Spotify, a Videos search filter, and opening YouTube links.</p>

@@ -150,13 +150,11 @@ jobs:
           path: dist/*
 
   # The Flatpak, made from the tarball plus libmpv, in Flathub's builder.
-  # Not released yet: built only when the workflow is run by hand.
   flatpak:
-    if: github.event_name == 'workflow_dispatch'
     needs: linux
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
     steps:
       - uses: actions/checkout@v4
@@ -180,10 +178,9 @@ jobs:
           name: flatpak
           path: dist/*
 
-  # The AUR package: builds and installs on Arch from this build's tarball.
-  # Not released yet: built only when the workflow is run by hand.
+  # The AUR package: builds and installs on Arch from this build's tarball
+  # (published to the AUR after the release, by tool/aur_update.sh).
   aur:
-    if: github.event_name == 'workflow_dispatch'
     needs: linux
     runs-on: ubuntu-latest
     container: archlinux:latest
@@ -210,7 +207,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [android, windows, linux]
+    needs: [android, windows, linux, flatpak, aur]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -228,6 +225,6 @@ jobs:
             |---|---|
             | Android | `encore-android.apk` (any phone), or the smaller one for its chip: `encore-android-arm64-v8a.apk` (most phones), `-armeabi-v7a` (older phones), `-x86_64` (emulators, Chromebooks) |
             | Windows | `encore-windows-setup.exe` (or the portable zip) |
-            | Linux | `Encore-x86_64.AppImage` (nothing to install), or `encore-linux-x64.tar.gz` (needs `libmpv2`) |
+            | Linux | `Encore-x86_64.AppImage` (nothing to install), `encore-linux-x64.flatpak`, the AUR package `encore-music-bin`, or `encore-linux-x64.tar.gz` (needs `libmpv2`) |
 
             Install steps are in the README.

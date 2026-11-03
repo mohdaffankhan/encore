@@ -71,18 +71,21 @@ fi
 
 if wanted flatpak; then
 log "--- Flatpak"
+# As people have it: a desktop Linux (Fedora) with Flatpak, the bundle
+# installed from the file (its runtime from Flathub).
 docker run --rm --privileged -v "$(host "$dir"):/pkg:ro" \
   -v encore-flatpak-runtime:/root/.local/share/flatpak \
-  ghcr.io/flathub-infra/flatpak-github-actions:gnome-50 sh -c "
+  fedora:41 sh -c "
 set -e
-dnf install -y -q xorg-x11-server-Xvfb xorg-x11-xauth pulseaudio > /dev/null 2>&1 ||
-  (apt-get update -qq && apt-get install -y -qq xvfb xauth pulseaudio > /dev/null)
+dnf install -y -q flatpak xorg-x11-server-Xvfb xorg-x11-xauth pulseaudio dbus-daemon > /dev/null
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+# The runtime is kept between checks (a Docker volume); Encore is not.
+flatpak uninstall --user -y --noninteractive io.github.mohdaffankhan.Encore > /dev/null 2>&1 || true
 flatpak install --user -y --noninteractive /pkg/encore-linux-x64.flatpak > /dev/null
 flatpak info --user io.github.mohdaffankhan.Encore | grep -E 'Version|Runtime'
 export XDG_RUNTIME_DIR=/tmp/runtime && mkdir -p -m 700 \$XDG_RUNTIME_DIR
 $play dbus-run-session flatpak run --user io.github.mohdaffankhan.Encore --self-test \
-  > /tmp/out 2>&1 || { cat /tmp/out; exit 1; }
+  > /tmp/out 2>&1 || { code=\$?; tail -20 /tmp/out; echo \"exit code \$code\"; exit 1; }
 grep self-test /tmp/out
 "
 check "Flatpak installs and plays" $?
