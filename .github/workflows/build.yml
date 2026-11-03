@@ -13,9 +13,12 @@ on:
 env:
   FLUTTER_VERSION: '3.47.7'
 
+# Ubuntu 24.04, not ubuntu-latest: Linux builds need the C library of the
+# Ubuntu they are built on (or newer), so a newer one would leave out most
+# people's systems (glibc 2.39: Ubuntu 24.04, Fedora 40, Debian 13 on).
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -39,7 +42,7 @@ jobs:
 
   android:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -111,7 +114,7 @@ jobs:
 
   linux:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: |
@@ -154,7 +157,7 @@ jobs:
   # it; the release doesn't carry the bundle).
   flatpak:
     needs: linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
@@ -184,7 +187,7 @@ jobs:
   # Not published yet (AUR registrations are closed); kept working for then.
   aur:
     needs: linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: archlinux:latest
     steps:
       - uses: actions/checkout@v4
@@ -210,7 +213,7 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [android, windows, linux, flatpak, aur]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:

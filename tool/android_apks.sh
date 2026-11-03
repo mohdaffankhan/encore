@@ -10,7 +10,7 @@
 set -u
 out=$1
 shift
-mkdir -p "$out"
+mkdir -p "$out" build # build/: its logs (not there on a fresh checkout)
 fail=0
 log() { echo "[apks] $*"; }
 aapt2=$(command -v aapt2 || ls "${ANDROID_HOME:-$LOCALAPPDATA/Android/Sdk}"/build-tools/*/aapt2* 2>/dev/null | tail -1)
@@ -20,7 +20,7 @@ build() { # <name> [--target-platform ...]
   name=$1
   shift
   flutter build apk --release "$@" > "build/apk_$name.log" 2>&1 ||
-    { log "FAIL: $name build (see build/apk_$name.log)"; exit 1; }
+    { log "FAIL: $name build:"; tail -30 "build/apk_$name.log"; exit 1; }
   cp "$built" "$out/encore-android$name.apk"
 }
 build "" "$@"
