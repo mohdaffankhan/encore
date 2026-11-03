@@ -16,13 +16,13 @@ Linux packages (tar.gz, Flatpak, AUR `encore-music-bin`) are built by CI
 from `linux/packaging/`; `release_check.sh` tests them in Docker (Docker
 Desktop must be running). Tags release the tar.gz, the AppImage (made from
 it, with libmpv inside; checked by `tool/linux_appimage_check.sh`) and the
-Flatpak bundle; the AUR package is checked by CI and published after the
-release (below). Flathub is a separate submission (linux/packaging/flathub/).
+Flatpak bundle. The AUR package is checked by CI but on hold: AUR
+registrations are closed, so the owner has no account yet. Flathub is a separate submission (linux/packaging/flathub/).
 Before tagging, the version in `pubspec.yaml`,
 `pkgver` in `linux/packaging/aur/PKGBUILD` and a `<release>` in the
-metainfo.xml must agree (CI fails otherwise). After publishing, the AUR
-update (`tool/aur_update.sh <version> --push`) is the owner's to run or
-approve: it publishes to their AUR account.
+metainfo.xml must agree (CI fails otherwise). Once the owner has an AUR
+account, the AUR update after publishing (`tool/aur_update.sh <version>
+--push`) is the owner's to run or approve: it publishes to their account.
 
 Commits: short one-line messages, no AI co-author trailer.
 
