@@ -17,13 +17,16 @@ mkdir -p "$dir"
 gh release download "$tag" -D "$dir" || { log "FAIL: no draft release $tag"; exit 1; }
 ls "$dir"
 
+# First the phone's own chip APK, quickly (it plays): no screen off, so the
+# phone can't lock itself before the next check. Then the universal one,
+# fully (background with the screen off, notification, swipe away),
+# installed over it: the two install over each other (same version code
+# and key).
+abi=$(adb -s "$device" shell getprop ro.product.cpu.abi | tr -d '\r')
+log "--- Android: $dir/encore-android-$abi.apk on $device (quick)"
+sh tool/android_release_check.sh "$dir/encore-android-$abi.apk" "$device" quick || fail=1
 log "--- Android: $dir/encore-android.apk on $device"
 sh tool/android_release_check.sh "$dir/encore-android.apk" "$device" || fail=1
-# The phone's own chip APK installs over the universal one (same version
-# code and key) and plays too.
-abi=$(adb -s "$device" shell getprop ro.product.cpu.abi | tr -d '')
-log "--- Android: $dir/encore-android-$abi.apk on $device"
-sh tool/android_release_check.sh "$dir/encore-android-$abi.apk" "$device" || fail=1
 
 log "--- Windows: portable zip"
 unzip -q "$dir/encore-windows-portable.zip" -d "$dir/portable" || fail=1

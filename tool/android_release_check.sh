@@ -2,12 +2,15 @@
 # Checks a real release APK on an Android device: the exact file people
 # install, not a debug build. Release builds shrink code and resources, which
 # debug builds don't, so only this catches what the shrinker breaks.
-# Usage: tool/android_release_check.sh <apk> <device-id>
-# Plays the first song on the home feed, so it adds one entry to history.
+# Usage: tool/android_release_check.sh <apk> <device-id> [quick]
+# Plays a song from a search, so it adds one entry to history. "quick"
+# stops once it plays (no screen off: a phone may lock then, and a check
+# after this one would find it locked).
 set -u
 export MSYS_NO_PATHCONV=1
 apk=$1
 device=$2
+quick=${3:-}
 pkg=dev.encore.app
 fail=0
 log() { echo "[release] $*"; }
@@ -98,6 +101,11 @@ session | grep -q "state=PLAYING" ||
   a logcat -d -v time | grep -E "flutter|$pkg|AndroidRuntime" | tail -25
 sleep 10
 check "app still running after 10 s" 'alive && ! crashed'
+if [ "$quick" = quick ]; then
+  a shell input keyevent KEYCODE_MEDIA_PAUSE
+  [ "$fail" = 0 ] && log "PASSED" || log "FAILED"
+  exit $fail
+fi
 
 # Background with the screen off: playback continues.
 a shell input keyevent KEYCODE_HOME
