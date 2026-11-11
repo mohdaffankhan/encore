@@ -28,8 +28,10 @@ void openArtist(String browseId) => openPage(ArtistPage(browseId));
 void openCollection(String browseId) =>
     openPage(CollectionPage.remote(browseId));
 
-/// Settings, in the current tab (Ctrl+, on desktop).
-void openSettings() => openPage(const SettingsPage());
+/// Settings (Ctrl+, on desktop). Desktop: a place of its own in the
+/// sidebar, left by picking anything else there; phones: a page in the
+/// current tab.
+void openSettings() => shellKey.currentState?._openSettings();
 
 /// Ctrl+K: the cursor in the search box, from anywhere (closing the full
 /// player).
@@ -57,6 +59,11 @@ class Shell extends StatefulWidget {
 
 class ShellState extends State<Shell> {
   var _tab = AppTab.home;
+
+  /// Desktop: Settings shows instead of the tabs. It used to open on top of
+  /// the current tab, which then kept showing it: Home or Library seemed
+  /// stuck on Settings.
+  var _settings = false;
   final _navigators = {
     for (final t in AppTab.values) t: GlobalKey<NavigatorState>(),
   };
@@ -106,14 +113,33 @@ class ShellState extends State<Shell> {
 
   void _open(Widget page, AppTab? tab) {
     Navigator.of(context).popUntil((route) => route.isFirst);
-    if (tab != null && tab != _tab) setState(() => _tab = tab);
+    if ((tab != null && tab != _tab) || _settings) {
+      setState(() {
+        _settings = false;
+        _tab = tab ?? _tab;
+      });
+    }
     _navigators[tab ?? _tab]!.currentState?.push(
       MaterialPageRoute(builder: (_) => page),
     );
   }
 
+  void _openSettings() {
+    if (!isWide(context)) {
+      _open(const SettingsPage(), null);
+      return;
+    }
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    setState(() => _settings = true);
+  }
+
   void _select(AppTab tab) {
-    if (tab == _tab) {
+    if (_settings) {
+      setState(() {
+        _settings = false;
+        _tab = tab;
+      });
+    } else if (tab == _tab) {
       // Selecting the current tab again returns to its first page.
       _navigators[tab]!.currentState?.popUntil((route) => route.isFirst);
     } else {
@@ -126,7 +152,10 @@ class ShellState extends State<Shell> {
     _navigators[AppTab.search]!.currentState?.popUntil(
       (route) => route.isFirst,
     );
-    setState(() => _tab = AppTab.search);
+    setState(() {
+      _settings = false;
+      _tab = AppTab.search;
+    });
     // Once the search tab shows.
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => searchField.requestFocus(),
@@ -138,6 +167,8 @@ class ShellState extends State<Shell> {
     final nav = _navigators[_tab]!.currentState!;
     if (root.canPop()) {
       root.maybePop();
+    } else if (_settings) {
+      setState(() => _settings = false);
     } else if (nav.canPop()) {
       nav.pop();
     } else if (_tab != AppTab.home) {
@@ -147,7 +178,9 @@ class ShellState extends State<Shell> {
 
   void _back() {
     final nav = _navigators[_tab]!.currentState!;
-    if (nav.canPop()) {
+    if (_settings) {
+      setState(() => _settings = false);
+    } else if (nav.canPop()) {
       nav.pop();
     } else if (_tab != AppTab.home) {
       setState(() => _tab = AppTab.home);
@@ -164,7 +197,7 @@ class ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     final pages = IndexedStack(
-      index: _tab.index,
+      index: _settings ? AppTab.values.length : _tab.index,
       children: [
         _tabNavigator(
           AppTab.home,
@@ -172,6 +205,8 @@ class ShellState extends State<Shell> {
         ),
         _tabNavigator(AppTab.search, const SearchPage()),
         _tabNavigator(AppTab.library, const LibraryPage()),
+        // Built when shown, so it measures storage each time it opens.
+        if (_settings) const SettingsPage() else const SizedBox.shrink(),
       ],
     );
     return PopScope(
@@ -191,7 +226,8 @@ class ShellState extends State<Shell> {
             child: Row(
               children: [
                 _Sidebar(
-                  selected: _tab,
+                  selected: _settings ? null : _tab,
+                  settings: _settings,
                   destinations: _destinations,
                   onSelect: _select,
                 ),
@@ -245,11 +281,14 @@ class ShellState extends State<Shell> {
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.selected,
+    required this.settings,
     required this.destinations,
     required this.onSelect,
   });
 
-  final AppTab selected;
+  /// Null while Settings shows.
+  final AppTab? selected;
+  final bool settings;
   final Map<AppTab, (IconData, IconData, String)> destinations;
   final ValueChanged<AppTab> onSelect;
 
@@ -282,7 +321,7 @@ class _Sidebar extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
-                  color: EncoreColors.textTertiary,
+                  color: EncoreColors.textSecondary,
                 ),
               ),
             ),
@@ -304,7 +343,7 @@ class _Sidebar extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
-                        color: EncoreColors.textTertiary,
+                        color: EncoreColors.textSecondary,
                       ),
                     ),
                   ),
@@ -340,10 +379,10 @@ class _Sidebar extends StatelessWidget {
                 ),
               ),
             ),
-            const _SidebarItem(
-              icon: Icons.settings_outlined,
+            _SidebarItem(
+              icon: settings ? Icons.settings_rounded : Icons.settings_outlined,
               label: 'Settings',
-              selected: false,
+              selected: settings,
               onTap: openSettings,
             ),
           ],

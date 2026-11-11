@@ -2,6 +2,7 @@ import 'package:encore/app.dart';
 import 'package:encore/models.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
+import 'package:encore/ui/pages/settings_page.dart';
 import 'package:encore/ui/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,5 +90,34 @@ void main() {
     await tester.tap(find.text('Search').first);
     await tester.pumpAndSettle();
     expect(find.text('Find songs, albums and artists'), findsOneWidget);
+  });
+  // Settings opened on top of whichever tab was showing, so that tab kept
+  // showing it: Home and Library seemed stuck on Settings.
+  testWidgets('desktop: Settings is a place of its own in the sidebar', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(1400, 900));
+    Future<void> click(String label) async {
+      await tester.tap(find.text(label).first);
+      await tester.pumpAndSettle();
+    }
+
+    await click('Settings');
+    expect(find.byType(SettingsPage), findsOneWidget);
+    await click('Library');
+    expect(find.byType(SettingsPage), findsNothing);
+    expect(find.text('New playlist'), findsWidgets);
+    await click('Settings');
+    await click('Home');
+    expect(find.byType(SettingsPage), findsNothing);
+    await click('Library');
+    expect(find.byType(SettingsPage), findsNothing);
+    await click('Home');
+    expect(find.byType(SettingsPage), findsNothing);
+    // A sidebar playlist or collection leaves Settings too.
+    await click('Settings');
+    await click('Liked songs');
+    expect(find.byType(SettingsPage), findsNothing);
+    expect(find.text('No songs here yet'), findsOneWidget);
   });
 }
