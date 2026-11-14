@@ -272,7 +272,12 @@ Future<Artist> artist(String browseId) async {
       _findAll(json, 'musicImmersiveHeaderRenderer').firstOrNull ??
       _findAll(json, 'musicVisualHeaderRenderer').firstOrNull;
   final topSongs = _findAll(json, 'musicShelfRenderer').firstOrNull;
+  final subscribe = _findAll(json, 'subscribeButtonRenderer').firstOrNull;
   return Artist(
+    channelId: subscribe?['channelId'] as String?,
+    subscribed: signedInReply(json) == true && subscribe?['subscribed'] is bool
+        ? subscribe['subscribed'] as bool
+        : null,
     name: _text(header?['title']),
     subtitle: _text(header?['monthlyListenerCount']),
     artUrl: _art(header?['thumbnail'], resize: false),
@@ -284,9 +289,28 @@ Future<Artist> artist(String browseId) async {
   );
 }
 
-/// An album (`MPRE…`) or playlist (`VL…`) with all its songs.
-Future<Collection> collection(String browseId) async {
+/// An album (`MPRE…`) or playlist (`VL…`) with all its songs (up to
+/// [maxPages] pages of 100).
+Future<Collection> collection(String browseId, {int maxPages = 10}) async {
   var json = await browse(browseId);
+  final signedIn = signedInReply(json) == true;
+  final owned =
+      signedIn &&
+      _findAll(json, 'musicEditablePlaylistDetailHeaderRenderer').isNotEmpty;
+  // The bookmark (save to library) button, and the playlist it saves.
+  final bookmark = _findAll(json, 'toggleButtonRenderer')
+      .whereType<Map>()
+      .where((b) => b['defaultIcon']?['iconType'] == 'BOOKMARK_BORDER')
+      .firstOrNull;
+  final canonical = _findAll(json, 'urlCanonical').firstOrNull as String?;
+  final playlistId =
+      _findAll(bookmark?['defaultServiceEndpoint'], 'playlistId').firstOrNull
+          as String? ??
+      (canonical == null
+          ? null
+          : Uri.tryParse(canonical)?.queryParameters['list']) ??
+      (browseId.startsWith('VL') ? browseId.substring(2) : null);
+  final entryIds = <String, List<String>>{};
   final header =
       _findAll(json, 'musicResponsiveHeaderRenderer').firstOrNull ??
       _findAll(json, 'musicDetailHeaderRenderer').firstOrNull;
@@ -307,9 +331,15 @@ Future<Collection> collection(String browseId) async {
 
   final tracks = <Track>[];
   // Playlists arrive in pages of 100; stop at 1000 songs.
-  for (var page = 0; page < 10; page++) {
+  for (var page = 0; page < maxPages; page++) {
     for (final item in _findAll(json, 'musicResponsiveListItemRenderer')) {
-      if (_listItem(item, defaults) case final Track t) tracks.add(t);
+      if (_listItem(item, defaults) case final Track t) {
+        tracks.add(t);
+        if (item['playlistItemData']?['playlistSetVideoId']
+            case final String entry) {
+          (entryIds[t.id] ??= []).add(entry);
+        }
+      }
     }
     final next = _continuation(json);
     if (next == null) break;
@@ -325,6 +355,10 @@ Future<Collection> collection(String browseId) async {
     tracks: tracks,
     artist: artistName.isEmpty ? null : artistName,
     artistId: artistId,
+    playlistId: playlistId,
+    saved: signedIn && bookmark != null ? bookmark['isToggled'] == true : null,
+    owned: owned,
+    entryIds: entryIds,
   );
 }
 
@@ -586,8 +620,16 @@ Future<AccountInfo?> accountInfo() async {
 /// brand channels it manages (each with its page id).
 Future<List<AccountChannel>> accountChannels() async {
   final json = await _post('account/accounts_list', {});
+  // One section per Google account signed in on the page; the one in use
+  // holds the selected item (its own channel, and its brand channels).
+  final sections = _findAll(json, 'accountSectionListRenderer').toList();
+  final mine =
+      sections
+          .where((s) => _findAll(s, 'isSelected').contains(true))
+          .firstOrNull ??
+      sections.firstOrNull;
   return [
-    for (final item in _findAll(json, 'accountItem'))
+    for (final item in _findAll(mine, 'accountItem'))
       if (item is Map && _text(item['accountName']).isNotEmpty)
         AccountChannel(
           name: _text(item['accountName']),
@@ -597,11 +639,8 @@ Future<List<AccountChannel>> accountChannels() async {
           photoUrl: _smallest(item['accountPhoto']),
           pageId: _findAll(item, 'pageId').whereType<String>().firstOrNull,
           selected: item['isSelected'] == true,
-          // Accounts not signed in here (other Google accounts) are listed
-          // with a sign-in link instead: those can't be switched to.
-          usable: _findAll(item, 'accountSigninToken').isEmpty,
         ),
-  ].where((c) => c.usable).toList();
+  ];
 }
 
 String _smallest(dynamic node) {
@@ -680,3 +719,149 @@ Future<void> reportPlayback(Uri stats, {Random? random}) async {
 /// Tests send play reports to their fake server instead.
 @visibleForTesting
 Uri Function(Uri)? statsBase;
+
+/// A playlist in the signed-in account's library (its own, or saved).
+class LibraryPlaylist {
+  const LibraryPlaylist(this.id, this.title, this.subtitle, this.artUrl);
+
+  /// Without the `VL` of its page's id.
+  final String id;
+  final String title;
+  final String subtitle;
+  final String artUrl;
+}
+
+/// The account's playlists, its own and saved ones (not Liked Music or
+/// Episodes for Later, which aren't playlists people make).
+Future<List<LibraryPlaylist>> libraryPlaylists() async {
+  final items = await _libraryItems('FEmusic_liked_playlists');
+  return [
+    for (final r in items)
+      if (r['navigationEndpoint']?['browseEndpoint']?['browseId']
+          case final String id
+          when id.startsWith('VL') &&
+              id != 'VLLM' &&
+              id != 'VLSE' &&
+              _pageType(r['navigationEndpoint']) == 'MUSIC_PAGE_TYPE_PLAYLIST')
+        LibraryPlaylist(
+          id.substring(2),
+          _text(r['title']),
+          _text(r['subtitle']),
+          _art(r['thumbnailRenderer']),
+        ),
+  ];
+}
+
+/// Albums saved in the account's library.
+Future<List<MediaRef>> savedAlbums() async => [
+  for (final r in await _libraryItems('FEmusic_liked_albums'))
+    if (_card(r) case final MediaRef ref when ref.kind == MediaKind.album) ref,
+];
+
+/// Artists the account follows (subscribed to), by channel id.
+Future<List<MediaRef>> followedArtists() async {
+  var json = await browse('FEmusic_library_corpus_artists');
+  final artists = <MediaRef>[];
+  for (var page = 0; page < 20; page++) {
+    for (final item in _findAll(json, 'musicResponsiveListItemRenderer')) {
+      if (_listItem(item) case final MediaRef ref
+          when ref.kind == MediaKind.artist) {
+        artists.add(ref.withId(channelOf(ref.id)));
+      }
+    }
+    final next = _continuation(json);
+    if (next == null) break;
+    json = await next();
+  }
+  return artists;
+}
+
+/// Library pages name artists `MPLA` + their channel id.
+String channelOf(String id) => id.startsWith('MPLA') ? id.substring(4) : id;
+
+/// The grid items of a library page, all its pages.
+Future<List<Map<String, dynamic>>> _libraryItems(String browseId) async {
+  var json = await browse(browseId);
+  final items = <Map<String, dynamic>>[];
+  for (var page = 0; page < 20; page++) {
+    items.addAll(
+      _findAll(
+        json,
+        'musicTwoRowItemRenderer',
+      ).whereType<Map<String, dynamic>>(),
+    );
+    final next = _continuation(json);
+    if (next == null) break;
+    json = await next();
+  }
+  return items;
+}
+
+/// Makes a private playlist on the account; its id.
+Future<String> createPlaylist(String title, List<String> videoIds) async {
+  final json = await _post('playlist/create', {
+    'title': title,
+    'description': '',
+    'privacyStatus': 'PRIVATE',
+    if (videoIds.isNotEmpty) 'videoIds': videoIds,
+  });
+  final id = json['playlistId'];
+  if (id is! String || id.isEmpty) throw YouTubeError('playlist/create', 200);
+  return id;
+}
+
+Future<void> deletePlaylist(String playlistId) =>
+    _post('playlist/delete', {'playlistId': playlistId});
+
+/// Changes a playlist of the account: [actions] as the website sends them
+/// (see [addAction], [removeAction], [renameAction], [moveAction]).
+Future<void> editPlaylist(
+  String playlistId,
+  List<Map<String, Object>> actions,
+) async {
+  if (actions.isEmpty) return;
+  final json = await _post('browse/edit_playlist', {
+    'playlistId': playlistId,
+    'actions': actions,
+  });
+  if (json['status'] case final String status
+      when status != 'STATUS_SUCCEEDED') {
+    throw YouTubeError('browse/edit_playlist ($status)', 400);
+  }
+}
+
+Map<String, Object> addAction(String videoId) => {
+  'action': 'ACTION_ADD_VIDEO',
+  'addedVideoId': videoId,
+  'dedupeOption': 'DEDUPE_OPTION_SKIP',
+};
+
+Map<String, Object> removeAction(String videoId, String entryId) => {
+  'action': 'ACTION_REMOVE_VIDEO',
+  'removedVideoId': videoId,
+  'setVideoId': entryId,
+};
+
+Map<String, Object> renameAction(String name) => {
+  'action': 'ACTION_SET_PLAYLIST_NAME',
+  'playlistName': name,
+};
+
+/// Moves the entry [entryId] before [beforeEntryId] (to the end if null).
+Map<String, Object> moveAction(String entryId, String? beforeEntryId) => {
+  'action': 'ACTION_MOVE_VIDEO_BEFORE',
+  'setVideoId': entryId,
+  'movedSetVideoIdSuccessor': ?beforeEntryId,
+};
+
+/// Saves a playlist or album (by its playlist id, `OLAK…` for albums) to
+/// the account's library, or removes it.
+Future<void> savePlaylist(String playlistId, bool save) =>
+    _post(save ? 'like/like' : 'like/removelike', {
+      'target': {'playlistId': playlistId},
+    });
+
+Future<void> followArtist(String channelId, bool follow) =>
+    _post(follow ? 'subscription/subscribe' : 'subscription/unsubscribe', {
+      'channelIds': [channelId],
+    });

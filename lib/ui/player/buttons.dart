@@ -7,6 +7,7 @@ import '../../services/library.dart';
 import '../../services/player.dart';
 import '../../services/sleep_timer.dart';
 import '../theme.dart';
+import '../widgets/playlist_dialogs.dart';
 import '../widgets/sleep_timer_picker.dart';
 
 /// Play/pause, with a spinner while a song loads. [circle] draws it as the
@@ -82,6 +83,36 @@ class LikeButton extends StatelessWidget {
           ),
           color: liked ? EncoreColors.accent : EncoreColors.textSecondary,
           onPressed: () => userLibrary.toggleLike(track),
+        );
+      },
+    );
+  }
+}
+
+/// Adds the song to one of the user's playlists (or a new one), as the ⋯
+/// menu does, one tap away. Filled in once the song is in a playlist.
+class AddToPlaylistButton extends StatelessWidget {
+  const AddToPlaylistButton(this.track, {super.key, this.size = 22});
+
+  final Track track;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: userLibrary.playlists,
+      builder: (context, playlists, _) {
+        final saved = playlists.any((p) => p.tracks.contains(track));
+        return IconButton(
+          tooltip: 'Add to playlist',
+          iconSize: size,
+          icon: Icon(
+            saved
+                ? Icons.playlist_add_check_rounded
+                : Icons.playlist_add_rounded,
+          ),
+          color: saved ? EncoreColors.accent : EncoreColors.textSecondary,
+          onPressed: () => showAddToPlaylist(context, [track]),
         );
       },
     );

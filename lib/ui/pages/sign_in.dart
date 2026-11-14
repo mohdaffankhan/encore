@@ -20,7 +20,9 @@ final signInUrl = Uri.parse(
 @visibleForTesting
 bool reachedMusic(String? url) {
   final uri = Uri.tryParse(url ?? '');
-  return uri != null && uri.scheme == 'https' && uri.host == 'music.youtube.com';
+  return uri != null &&
+      uri.scheme == 'https' &&
+      uri.host == 'music.youtube.com';
 }
 
 const _cookies = MethodChannel('dev.encore.app/cookies');

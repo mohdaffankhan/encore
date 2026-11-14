@@ -8,6 +8,7 @@ import '../../models.dart';
 import '../../services/account.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
+import 'library_page.dart' show SyncStatus;
 import 'sign_in.dart';
 
 /// How sign-in pages open (tests use their own).
@@ -278,6 +279,11 @@ class _AccountSettingsState extends State<AccountSettings> {
                   ?busy,
                 ],
               ),
+              if (!ended)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: SyncStatus(inset: false),
+                ),
             ],
           ),
         );

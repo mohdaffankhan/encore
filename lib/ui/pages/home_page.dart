@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../api/innertube.dart' as yt;
@@ -5,6 +7,7 @@ import '../../models.dart';
 import '../../services/account.dart';
 import '../../services/home_cache.dart';
 import '../../services/library.dart';
+import '../../services/player.dart';
 import '../shell.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
@@ -102,6 +105,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               SliverToBoxAdapter(
+                child: FutureBuilder(
+                  future: _shelves,
+                  builder: (context, snapshot) => PlaySomething(
+                    feed: snapshot.data ?? lastHome ?? const [],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
                 child: ValueListenableBuilder(
                   valueListenable: userLibrary.history,
                   builder: (context, history, _) => history.isEmpty
@@ -178,6 +189,53 @@ class _Stale extends StatelessWidget {
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
+    );
+  }
+}
+
+/// Starts something to listen to in one tap: a radio (made for the user
+/// when signed in) from a song they like, played lately, or that their
+/// home feed suggests, picked at random.
+class PlaySomething extends StatelessWidget {
+  const PlaySomething({super.key, required this.feed, this.random});
+
+  final List<Shelf> feed;
+  final Random? random;
+
+  /// Where the radio may start from: the user's own songs first (they're
+  /// in twice, so more likely), then the feed's.
+  @visibleForTesting
+  static List<Track> seeds(List<Shelf> feed) => [
+    ...userLibrary.liked.value.take(100),
+    ...userLibrary.history.value.take(50),
+    ...userLibrary.liked.value.take(100),
+    ...userLibrary.history.value.take(50),
+    for (final shelf in feed) ...shelf.tracks,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = pagePadding(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([userLibrary.liked, userLibrary.history]),
+      builder: (context, _) {
+        final from = seeds(feed);
+        if (from.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: () {
+                final seed = from[(random ?? Random()).nextInt(from.length)];
+                player.playRadio(seed);
+              },
+              icon: const Icon(Icons.shuffle_rounded),
+              label: const Text('Play something'),
+            ),
+          ),
+        );
+      },
     );
   }
 }

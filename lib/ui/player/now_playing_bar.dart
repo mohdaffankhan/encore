@@ -94,6 +94,7 @@ class NowPlayingBar extends StatelessWidget {
                     ],
                   ),
                 ),
+                AddToPlaylistButton(track),
                 LikeButton(track),
                 TrackMenu(track, inPlayer: true),
               ],

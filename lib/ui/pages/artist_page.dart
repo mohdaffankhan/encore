@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/innertube.dart' as yt;
 import '../../models.dart';
 import '../../services/art_cache.dart';
+import '../../services/library.dart';
 import '../../services/player.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
@@ -44,7 +45,7 @@ class _ArtistPageState extends State<ArtistPage> {
           return ListView(
             padding: EdgeInsets.zero,
             children: [
-              _Hero(artist),
+              _Hero(artist, browseId: widget.browseId),
               if (top.isNotEmpty) ...[
                 const SectionHeader('Popular'),
                 for (var i = 0; i < top.length; i++)
@@ -64,9 +65,10 @@ class _ArtistPageState extends State<ArtistPage> {
 }
 
 class _Hero extends StatelessWidget {
-  const _Hero(this.artist);
+  const _Hero(this.artist, {required this.browseId});
 
   final Artist artist;
+  final String browseId;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +146,16 @@ class _Hero extends StatelessWidget {
                       icon: const Icon(Icons.radio_rounded, size: 18),
                       label: const Text('Radio'),
                     ),
+                    const SizedBox(width: 12),
+                    FollowButton(
+                      MediaRef(
+                        kind: MediaKind.artist,
+                        id: browseId,
+                        title: artist.name,
+                        subtitle: artist.subtitle,
+                        artUrl: artist.artUrl,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -153,4 +165,28 @@ class _Hero extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Follows the artist (kept in Library; signed in, also on the account).
+class FollowButton extends StatelessWidget {
+  const FollowButton(this.artist, {super.key});
+
+  final MediaRef artist;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: userLibrary.artists,
+    builder: (context, _, _) {
+      final following = userLibrary.isFollowed(artist.id);
+      return following
+          ? FilledButton.tonal(
+              onPressed: () => userLibrary.toggleFollow(artist),
+              child: const Text('Following'),
+            )
+          : OutlinedButton(
+              onPressed: () => userLibrary.toggleFollow(artist),
+              child: const Text('Follow'),
+            );
+    },
+  );
 }

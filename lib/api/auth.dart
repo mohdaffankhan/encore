@@ -18,8 +18,7 @@ class YouTubeCookies {
   Map<String, String> get all => Map.unmodifiable(_cookies);
 
   /// The cookie the Authorization header is made from.
-  String? get sapisid =>
-      _cookies['SAPISID'] ?? _cookies['__Secure-3PAPISID'];
+  String? get sapisid => _cookies['SAPISID'] ?? _cookies['__Secure-3PAPISID'];
 
   /// Whether these can sign a request in: the hash's cookie and a session.
   bool get usable =>
@@ -28,9 +27,9 @@ class YouTubeCookies {
           _cookies.containsKey('__Secure-3PSID') ||
           _cookies.containsKey('__Secure-1PSID'));
 
-  String get header => [
-    for (final MapEntry(:key, :value) in _cookies.entries) '$key=$value',
-  ].join('; ');
+  String get header =>
+      [for (final MapEntry(:key, :value) in _cookies.entries) '$key=$value']
+          .join('; ');
 
   /// Applies a reply's Set-Cookie headers; true if anything changed.
   bool update(Iterable<Cookie> cookies, {DateTime? now}) {
@@ -85,7 +84,10 @@ class YouTubeCookies {
       }
     } else {
       var header = text.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
-      header = header.replaceFirst(RegExp(r'^cookie\s*:\s*', caseSensitive: false), '');
+      header = header.replaceFirst(
+        RegExp(r'^cookie\s*:\s*', caseSensitive: false),
+        '',
+      );
       for (final part in header.split(';')) {
         final eq = part.indexOf('=');
         if (eq <= 0) continue;
@@ -105,12 +107,24 @@ class YouTubeCookies {
       _name.hasMatch(name) &&
       value.isNotEmpty &&
       value.length < 4096 &&
-      !value.codeUnits.any((c) => c < 0x21 || c == 0x7f || c == 0x3b || c == 0x2c || c == 0x22 || c == 0x5c);
+      !value.codeUnits.any(
+        (c) =>
+            c < 0x21 ||
+            c == 0x7f ||
+            c == 0x3b ||
+            c == 0x2c ||
+            c == 0x22 ||
+            c == 0x5c,
+      );
 }
 
 /// The Authorization header for a signed-in request: the time, and a hash
 /// of the time, the SAPISID cookie and the page's origin.
-String sapisidHash(String sapisid, {DateTime? now, String origin = musicOrigin}) {
+String sapisidHash(
+  String sapisid, {
+  DateTime? now,
+  String origin = musicOrigin,
+}) {
   final ts = (now ?? DateTime.now()).millisecondsSinceEpoch ~/ 1000;
   final hash = sha1.convert(utf8.encode('$ts $sapisid $origin'));
   return 'SAPISIDHASH ${ts}_$hash';

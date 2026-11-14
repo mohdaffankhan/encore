@@ -173,7 +173,12 @@ void main() {
       expect(signedInReply(reply('1')), isTrue);
       expect(signedInReply(reply('0')), isFalse);
       expect(signedInReply({}), isNull);
-      expect(signedInReply({'responseContext': {'serviceTrackingParams': 3}}), isNull);
+      expect(
+        signedInReply({
+          'responseContext': {'serviceTrackingParams': 3},
+        }),
+        isNull,
+      );
     });
   });
 
@@ -204,23 +209,26 @@ void main() {
       await dir.delete(recursive: true);
     });
 
-    test('signing in checks with YouTube, then signs every request in', () async {
-      final gen = a.generation.value;
-      expect(await a.signInWith(goodCookies()), isNull);
-      expect(a.status.value, AccountStatus.signedIn);
-      expect(a.info.value!.name, 'Test Listener');
-      expect(a.info.value!.handle, '@testlistener');
-      expect(a.generation.value, greaterThan(gen));
-      await a.saved;
-      expect(store.json!['cookies']['SID'], 'sid-1');
-      expect(store.json!['info']['name'], 'Test Listener');
+    test(
+      'signing in checks with YouTube, then signs every request in',
+      () async {
+        final gen = a.generation.value;
+        expect(await a.signInWith(goodCookies()), isNull);
+        expect(a.status.value, AccountStatus.signedIn);
+        expect(a.info.value!.name, 'Test Listener');
+        expect(a.info.value!.handle, '@testlistener');
+        expect(a.generation.value, greaterThan(gen));
+        await a.saved;
+        expect(store.json!['cookies']['SID'], 'sid-1');
+        expect(store.json!['info']['name'], 'Test Listener');
 
-      final home = await yt.home();
-      expect(home.single.title, 'Made for you');
-      final r = youtube.to('browse').last;
-      expect(youtube.signedIn(r), isTrue);
-      expect(r.header('x-goog-authuser'), '0');
-    });
+        final home = await yt.home();
+        expect(home.single.title, 'Made for you');
+        final r = youtube.to('browse').last;
+        expect(youtube.signedIn(r), isTrue);
+        expect(r.header('x-goog-authuser'), '0');
+      },
+    );
 
     test('signed out, requests carry no sign-in at all', () async {
       final home = await yt.home();
@@ -282,25 +290,27 @@ void main() {
       expect(youtube.to('browse').last.cookies['NEW'], '1');
     });
 
-    test('a sign-in that ended is noticed; Encore carries on signed out',
-        () async {
-      await a.signInWith(goodCookies());
-      final gen = a.generation.value;
-      youtube.sessionEnded = true;
-      await yt.home();
-      await settle();
-      expect(a.status.value, AccountStatus.ended);
-      expect(a.notice.value, contains('ended'));
-      expect(a.info.value!.name, 'Test Listener', reason: 'says whose');
-      expect(a.generation.value, greaterThan(gen));
-      expect(cleared, 1);
-      await a.saved;
-      expect(store.json!['ended'], isTrue);
-      expect(store.json!.containsKey('cookies'), isFalse);
-      youtube.requests.clear();
-      await yt.home();
-      expect(youtube.to('browse').last.header('authorization'), isNull);
-    });
+    test(
+      'a sign-in that ended is noticed; Encore carries on signed out',
+      () async {
+        await a.signInWith(goodCookies());
+        final gen = a.generation.value;
+        youtube.sessionEnded = true;
+        await yt.home();
+        await settle();
+        expect(a.status.value, AccountStatus.ended);
+        expect(a.notice.value, contains('ended'));
+        expect(a.info.value!.name, 'Test Listener', reason: 'says whose');
+        expect(a.generation.value, greaterThan(gen));
+        expect(cleared, 1);
+        await a.saved;
+        expect(store.json!['ended'], isTrue);
+        expect(store.json!.containsKey('cookies'), isFalse);
+        youtube.requests.clear();
+        await yt.home();
+        expect(youtube.to('browse').last.header('authorization'), isNull);
+      },
+    );
 
     test('one signed-out reply alone does not end the sign-in', () async {
       await a.signInWith(goodCookies());
@@ -313,8 +323,7 @@ void main() {
       expect(a.status.value, AccountStatus.signedIn);
     });
 
-    test('server errors and lost connections do not end the sign-in',
-        () async {
+    test('server errors and lost connections do not end the sign-in', () async {
       await a.signInWith(goodCookies());
       youtube.failWith = 500;
       await expectLater(yt.home(), throwsA(isA<HttpException>()));
@@ -335,8 +344,11 @@ void main() {
       youtube.hold = null;
       await Future.wait(pending);
       await settle();
-      expect(youtube.to('account/account_menu').length, 2,
-          reason: 'one at sign-in, one check');
+      expect(
+        youtube.to('account/account_menu').length,
+        2,
+        reason: 'one at sign-in, one check',
+      );
       expect(a.status.value, AccountStatus.ended);
     });
 
@@ -401,16 +413,18 @@ void main() {
       expect(home.single.title, 'Made for you');
     });
 
-    test('a sign-in that ended while closed is noticed after a restart',
-        () async {
-      await a.signInWith(goodCookies());
-      await a.saved;
-      youtube.sessionEnded = true;
-      final again = Account(store: store);
-      await again.load();
-      await settle();
-      expect(again.status.value, AccountStatus.ended);
-    });
+    test(
+      'a sign-in that ended while closed is noticed after a restart',
+      () async {
+        await a.signInWith(goodCookies());
+        await a.saved;
+        youtube.sessionEnded = true;
+        final again = Account(store: store);
+        await again.load();
+        await settle();
+        expect(again.status.value, AccountStatus.ended);
+      },
+    );
 
     test('an ended sign-in stays ended after a restart', () async {
       store.value = jsonEncode({
@@ -459,27 +473,29 @@ void main() {
       expect(a.status.value, AccountStatus.ended);
     });
 
-    test('a brand channel: requests use its page id, kept on restart',
-        () async {
-      await a.signInWith(goodCookies());
-      await a.useChannel(
-        const AccountChannel(name: 'Brand', handle: '@brand', pageId: 'p-9'),
-      );
-      expect(a.info.value!.name, 'Brand');
-      await yt.home();
-      expect(youtube.to('browse').last.header('x-goog-pageid'), 'p-9');
-      expect(
-        youtube.to('browse').last.body['context']['user']['onBehalfOfUser'],
-        'p-9',
-      );
-      await settle();
-      expect(a.info.value!.name, 'Brand', reason: 'not the account name');
-      await a.saved;
-      final again = Account(store: store);
-      await again.load();
-      expect(again.pageId, 'p-9');
-      expect(again.headers()!['X-Goog-PageId'], 'p-9');
-    });
+    test(
+      'a brand channel: requests use its page id, kept on restart',
+      () async {
+        await a.signInWith(goodCookies());
+        await a.useChannel(
+          const AccountChannel(name: 'Brand', handle: '@brand', pageId: 'p-9'),
+        );
+        expect(a.info.value!.name, 'Brand');
+        await yt.home();
+        expect(youtube.to('browse').last.header('x-goog-pageid'), 'p-9');
+        expect(
+          youtube.to('browse').last.body['context']['user']['onBehalfOfUser'],
+          'p-9',
+        );
+        await settle();
+        expect(a.info.value!.name, 'Brand', reason: 'not the account name');
+        await a.saved;
+        final again = Account(store: store);
+        await again.load();
+        expect(again.pageId, 'p-9');
+        expect(again.headers()!['X-Goog-PageId'], 'p-9');
+      },
+    );
 
     test('channels: own and brand, not other Google accounts', () async {
       await a.signInWith(goodCookies());
@@ -498,29 +514,49 @@ void main() {
           ...extra,
         },
       };
+      // As YouTube sends it: every item has a sign-in token; each Google
+      // account signed in on the page is a section of its own.
+      Map<String, Object> section(List<Map<String, Object>> items) => {
+        'accountSectionListRenderer': {
+          'contents': [
+            {
+              'accountItemSectionRenderer': {'contents': items},
+            },
+          ],
+        },
+      };
+      Map<String, Object> tokens([String? pageId]) => {
+        'serviceEndpoint': {
+          'selectActiveIdentityEndpoint': {
+            'supportedTokens': [
+              {
+                'accountSigninToken': {'signinUrl': '/signin?x'},
+              },
+              if (pageId != null)
+                {
+                  'pageIdToken': {'pageId': pageId},
+                },
+            ],
+          },
+        },
+      };
       youtube.handlers['account/accounts_list'] = (r, signed) => {
-        'contents': [
-          item('Me', {'isSelected': true}),
-          item('Brand', {
-            'serviceEndpoint': {
-              'selectActiveIdentityEndpoint': {
-                'supportedTokens': [
-                  {
-                    'pageIdToken': {'pageId': 'p-9'},
-                  },
-                ],
+        'actions': [
+          {
+            'getMultiPageMenuAction': {
+              'menu': {
+                'multiPageMenuRenderer': {
+                  'sections': [
+                    section([
+                      item('Me', {'isSelected': true, ...tokens()}),
+                      item('Brand', tokens('p-9')),
+                    ]),
+                    section([item('Other Google account', tokens())]),
+                  ],
+                },
               },
             },
-          }),
-          item('Other Google account', {
-            'serviceEndpoint': {
-              'selectActiveIdentityEndpoint': {
-                'supportedTokens': [
-                  {'accountSigninToken': {'signinUrl': '/x'}},
-                ],
-              },
-            },
-          }),
+          },
         ],
       };
       final channels = await yt.accountChannels();
@@ -534,7 +570,10 @@ void main() {
     test('a non-JSON reply is an error, not a crash', () async {
       youtube.handlers['browse'] = (r, signed) => null;
       youtube.failWith = 200;
-      await expectLater(yt.browse('FEmusic_home'), throwsA(isA<HttpException>()));
+      await expectLater(
+        yt.browse('FEmusic_home'),
+        throwsA(isA<HttpException>()),
+      );
     });
   });
 }
@@ -566,25 +605,31 @@ void secretStoreTests() {
       expect(dir.listSync(), isEmpty);
     });
 
-    test('Windows: encrypted for this Windows user, not readable as text',
-        () async {
-      await store.write('{"cookies":{"SID":"very-secret-value"}}');
-      final text = file().readAsStringSync();
-      expect(text, startsWith('dpapi:'));
-      expect(text, isNot(contains('very-secret')));
-    }, skip: !Platform.isWindows);
+    test(
+      'Windows: encrypted for this Windows user, not readable as text',
+      () async {
+        await store.write('{"cookies":{"SID":"very-secret-value"}}');
+        final text = file().readAsStringSync();
+        expect(text, startsWith('dpapi:'));
+        expect(text, isNot(contains('very-secret')));
+      },
+      skip: !Platform.isWindows,
+    );
 
-    test('Windows: a file changed or not written by Encore is not used',
-        () async {
-      file().writeAsStringSync('{"cookies":{"SID":"x","SAPISID":"y"}}');
-      expect(await store.read(), isNull);
-      file().writeAsStringSync('dpapi:${base64.encode([1, 2, 3, 4])}');
-      await expectLater(store.read(), throwsA(anything));
-      // The account then starts signed out (load catches it).
-      final a = Account(store: store);
-      await a.load();
-      expect(a.status.value, AccountStatus.signedOut);
-    }, skip: !Platform.isWindows);
+    test(
+      'Windows: a file changed or not written by Encore is not used',
+      () async {
+        file().writeAsStringSync('{"cookies":{"SID":"x","SAPISID":"y"}}');
+        expect(await store.read(), isNull);
+        file().writeAsStringSync('dpapi:${base64.encode([1, 2, 3, 4])}');
+        await expectLater(store.read(), throwsA(anything));
+        // The account then starts signed out (load catches it).
+        final a = Account(store: store);
+        await a.load();
+        expect(a.status.value, AccountStatus.signedOut);
+      },
+      skip: !Platform.isWindows,
+    );
 
     test('Linux and Android: only this user can read the file', () async {
       await store.write('{}');

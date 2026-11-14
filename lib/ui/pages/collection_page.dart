@@ -119,11 +119,24 @@ class _CollectionPageState extends State<CollectionPage> {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
+          final c = snapshot.data!;
+          final id = widget.browseId!;
+          final album = id.startsWith('MPRE');
           return _CollectionView(
-            snapshot.data!,
-            isAlbum: widget.browseId!.startsWith('MPRE'),
+            c,
+            isAlbum: album,
             canSave: true,
-            link: collectionLink(widget.browseId!),
+            link: collectionLink(id),
+            // The account's own playlists are in Encore's playlists.
+            libraryRef: c.owned
+                ? null
+                : MediaRef(
+                    kind: album ? MediaKind.album : MediaKind.playlist,
+                    id: id,
+                    title: c.title,
+                    subtitle: c.artist ?? c.subtitle,
+                    artUrl: c.artUrl,
+                  ),
           );
         },
       );
@@ -188,10 +201,12 @@ class _CollectionView extends StatefulWidget {
     this.playlist,
     this.searchable = false,
     this.link,
+    this.libraryRef,
   });
 
   final Collection collection;
   final bool searchable;
+  final MediaRef? libraryRef;
 
   /// On YouTube Music, to share.
   final String? link;
@@ -253,6 +268,7 @@ class _CollectionViewState extends State<_CollectionView> {
             canSave: widget.canSave,
             playlist: widget.playlist,
             link: widget.link,
+            libraryRef: widget.libraryRef,
           ),
         ),
         if (_searchable && all.isNotEmpty)
@@ -458,12 +474,16 @@ class _Header extends StatelessWidget {
     required this.canSave,
     this.playlist,
     this.link,
+    this.libraryRef,
   });
 
   final Collection collection;
   final IconData? icon;
   final bool isAlbum;
   final bool canSave;
+
+  /// An album or someone's playlist: what saving it to the library keeps.
+  final MediaRef? libraryRef;
   final Playlist? playlist;
   final String? link;
 
@@ -570,9 +590,10 @@ class _Header extends StatelessWidget {
                   ? null
                   : () => downloads.download(tracks),
             ),
+            if (libraryRef case final ref?) SaveToLibraryButton(ref),
             if (canSave)
               IconButton(
-                tooltip: 'Save to your playlists',
+                tooltip: 'Copy to your playlists',
                 iconSize: 26,
                 icon: const Icon(Icons.library_add_rounded),
                 onPressed: tracks.isEmpty
@@ -583,7 +604,7 @@ class _Header extends StatelessWidget {
                           tracks: tracks,
                           source: 'YouTube Music',
                         );
-                        showToast(context, 'Saved to your playlists');
+                        showToast(context, 'Copied to your playlists');
                       },
               ),
             if (link case final link?)
@@ -684,3 +705,33 @@ List<MenuAction> _playlistActions(Playlist playlist) => [
     userLibrary.deletePlaylist(playlist.id);
   }),
 ];
+
+/// Saves an album or someone's playlist to the library (signed in, also to
+/// the account's), or removes it.
+class SaveToLibraryButton extends StatelessWidget {
+  const SaveToLibraryButton(this.ref, {super.key});
+
+  final MediaRef ref;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: userLibrary.savedMedia,
+    builder: (context, _, _) {
+      final saved = userLibrary.isSaved(ref.id);
+      return IconButton(
+        tooltip: saved ? 'Remove from library' : 'Save to library',
+        iconSize: 26,
+        isSelected: saved,
+        icon: const Icon(Icons.bookmark_border_rounded),
+        selectedIcon: Icon(Icons.bookmark_rounded, color: EncoreColors.accent),
+        onPressed: () {
+          userLibrary.toggleSaved(ref);
+          showToast(
+            context,
+            saved ? 'Removed from library' : 'Saved to library',
+          );
+        },
+      );
+    },
+  );
+}

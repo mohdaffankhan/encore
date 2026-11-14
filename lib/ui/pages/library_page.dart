@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../services/account.dart';
 import '../../services/downloads.dart';
 import '../../services/library.dart';
+import '../../services/youtube_sync.dart';
 import '../shell.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
@@ -49,6 +51,7 @@ class LibraryPage extends StatelessWidget {
         child: ListView(
           children: [
             const PageTitle('Library'),
+            const SyncStatus(),
             const SizedBox(height: 8),
             for (final c in libraryCollections)
               Padding(
@@ -97,10 +100,188 @@ class LibraryPage extends StatelessWidget {
                 ],
               ),
             ),
+            _RefSection(
+              title: 'Albums and playlists',
+              refs: userLibrary.savedMedia,
+            ),
+            _RefSection(title: 'Artists', refs: userLibrary.artists),
             const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Saved albums and playlists, or followed artists: shown once there are
+/// any.
+class _RefSection extends StatelessWidget {
+  const _RefSection({required this.title, required this.refs});
+
+  final String title;
+  final ValueListenable<List<MediaRef>> refs;
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = pagePadding(context);
+    final text = Theme.of(context).textTheme;
+    return ValueListenableBuilder(
+      valueListenable: refs,
+      builder: (context, list, _) => list.isEmpty
+          ? const SizedBox.shrink()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionHeader(title),
+                for (final r in list)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: pad - 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => openItem(r),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            Artwork(
+                              r.artUrl,
+                              size: 64,
+                              circle: r.kind == MediaKind.artist,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.titleMedium,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    [
+                                      switch (r.kind) {
+                                        MediaKind.album => 'Album',
+                                        MediaKind.playlist => 'Playlist',
+                                        MediaKind.artist => 'Artist',
+                                      },
+                                      if (r.kind != MediaKind.artist &&
+                                          r.subtitle.isNotEmpty)
+                                        r.subtitle,
+                                    ].join(' • '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.bodySmall?.copyWith(
+                                      color: EncoreColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: EncoreColors.textTertiary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+/// Signed in: whether the library is in sync with YouTube Music, and a way
+/// to sync now.
+class SyncStatus extends StatelessWidget {
+  const SyncStatus({super.key, this.inset = true});
+
+  /// Padded as a page row (false: inside a row that is already).
+  final bool inset;
+
+  static String describe(SyncState state, DateTime? last, int waiting) {
+    if (state == SyncState.syncing) return 'Syncing with YouTube Music…';
+    if (state == SyncState.failed) {
+      return waiting > 0
+          ? "Couldn't sync: $waiting ${waiting == 1 ? 'change waits' : 'changes wait'} to be sent"
+          : "Couldn't sync with YouTube Music";
+    }
+    if (waiting > 0) {
+      return '$waiting ${waiting == 1 ? 'change' : 'changes'} to send to '
+          'YouTube Music';
+    }
+    if (last == null) return 'Not synced with YouTube Music yet';
+    final ago = DateTime.now().difference(last);
+    final when = ago.inMinutes < 1
+        ? 'just now'
+        : ago.inHours < 1
+        ? '${ago.inMinutes} min ago'
+        : ago.inDays < 1
+        ? '${ago.inHours} h ago'
+        : '${ago.inDays} d ago';
+    return 'Synced with YouTube Music $when';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = pagePadding(context);
+    final text = Theme.of(context).textTheme;
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        account.status,
+        youtubeSync.state,
+        youtubeSync.lastSynced,
+        youtubeSync.pending,
+      ]),
+      builder: (context, _) {
+        if (!account.signedIn) return const SizedBox.shrink();
+        final state = youtubeSync.state.value;
+        final failed = state == SyncState.failed;
+        return Padding(
+          padding: inset
+              ? EdgeInsets.fromLTRB(pad, 0, pad - 8, 0)
+              : EdgeInsets.zero,
+          child: Row(
+            children: [
+              Icon(
+                failed ? Icons.sync_problem_rounded : Icons.sync_rounded,
+                size: 18,
+                color: failed
+                    ? Theme.of(context).colorScheme.error
+                    : EncoreColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  describe(
+                    state,
+                    youtubeSync.lastSynced.value,
+                    youtubeSync.pending.value.length,
+                  ),
+                  style: text.bodySmall?.copyWith(
+                    color: EncoreColors.textSecondary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: state == SyncState.syncing
+                    ? null
+                    : () async {
+                        final problem = await youtubeSync.sync();
+                        if (problem != null && context.mounted) {
+                          showToast(context, problem);
+                        }
+                      },
+                child: const Text('Sync now'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

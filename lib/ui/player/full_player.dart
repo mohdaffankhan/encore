@@ -607,6 +607,7 @@ class _NowPlayingInfo extends StatelessWidget {
                 ),
               ),
               if (volume) const VolumeButton(),
+              AddToPlaylistButton(track, size: 26),
               LikeButton(track, size: 26),
             ],
           ),

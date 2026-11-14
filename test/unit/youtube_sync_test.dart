@@ -12,8 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 import '../fake_youtube.dart';
 import 'account_test.dart' show MemoryStore, goodCookies, settle;
 
-Track song(String id, {Duration? duration}) =>
-    Track(id: id, title: 'Song $id', artist: 'A', artUrl: '', duration: duration);
+Track song(String id, {Duration? duration}) => Track(
+  id: id,
+  title: 'Song $id',
+  artist: 'A',
+  artUrl: '',
+  duration: duration,
+);
 
 void main() {
   late FakeYouTube youtube;
@@ -29,6 +34,8 @@ void main() {
       dir: dir,
       spacing: spacing,
       retryAfter: const Duration(milliseconds: 100),
+      readSpacing: Duration.zero,
+      firstSync: null,
     );
     await s.start();
     return s;
@@ -153,17 +160,19 @@ void main() {
       await again.saved;
     });
 
-    test('after a failure it tries again by itself, waiting longer each time',
-        () async {
-      youtube.failWith = 500;
-      lib.toggleLike(song('a'));
-      await sync.idle;
-      youtube.failWith = null;
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      await sync.idle;
-      expect(rated().last, 'like/like a');
-      expect(sync.pending.value, isEmpty);
-    });
+    test(
+      'after a failure it tries again by itself, waiting longer each time',
+      () async {
+        youtube.failWith = 500;
+        lib.toggleLike(song('a'));
+        await sync.idle;
+        youtube.failWith = null;
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await sync.idle;
+        expect(rated().last, 'like/like a');
+        expect(sync.pending.value, isEmpty);
+      },
+    );
 
     test('liked then unliked while offline: only the last word goes', () async {
       youtube.failWith = 503;
@@ -181,8 +190,8 @@ void main() {
     });
 
     test('a song YouTube refuses is dropped; the rest still go', () async {
-      youtube.handlers['like/like'] =
-          (r, s) => r.body['target']['videoId'] == 'bad' ? 400 : {};
+      youtube.handlers['like/like'] = (r, s) =>
+          r.body['target']['videoId'] == 'bad' ? 400 : {};
       lib.toggleLike(song('bad'));
       lib.toggleLike(song('good'));
       await sync.idle;
@@ -200,20 +209,22 @@ void main() {
       expect(rated(), ['like/removelike x']);
     });
 
-    test('signing out drops what was waiting (it was for that account)',
-        () async {
-      youtube.failWith = 503;
-      lib.toggleLike(song('a'));
-      await sync.idle;
-      expect(sync.pending.value, isNotEmpty);
-      await acc.signOut();
-      expect(sync.pending.value, isEmpty);
-      await sync.saved;
-      sync.stop();
-      final again = await startSync();
-      expect(again.pending.value, isEmpty, reason: 'not on disk either');
-      again.stop();
-    });
+    test(
+      'signing out drops what was waiting (it was for that account)',
+      () async {
+        youtube.failWith = 503;
+        lib.toggleLike(song('a'));
+        await sync.idle;
+        expect(sync.pending.value, isNotEmpty);
+        await acc.signOut();
+        expect(sync.pending.value, isEmpty);
+        await sync.saved;
+        sync.stop();
+        final again = await startSync();
+        expect(again.pending.value, isEmpty, reason: 'not on disk either');
+        again.stop();
+      },
+    );
 
     test('signing out while sending stops it', () async {
       sync.stop();
@@ -378,10 +389,9 @@ void main() {
       expect(stats!.host, 's.youtube.com');
       expect(youtube.signedIn(youtube.to('player').single), isTrue);
 
-      yt.statsBase = (u) => Uri.parse(yt.musicApiBase).replace(
-        path: u.path,
-        queryParameters: u.queryParameters,
-      );
+      yt.statsBase = (u) =>
+          Uri.parse(yt.musicApiBase)
+              .replace(path: u.path, queryParameters: u.queryParameters);
       await yt.reportPlayback(stats);
       final r = youtube.requests.last;
       expect(r.endpoint, '/api/stats/playback');
@@ -393,29 +403,33 @@ void main() {
       expect(youtube.signedIn(r), isTrue);
     });
 
-    test("an address that isn't YouTube's never gets the account's cookies",
-        () async {
-      for (final url in [
-        'https://evil.example/api/stats/playback',
-        'http://s.youtube.com/api/stats/playback',
-        'https://youtube.com.evil.example/x',
-        'not a url',
-      ]) {
-        youtube.handlers['player'] = (r, s) => {
-          'playbackTracking': {
-            'videostatsPlaybackUrl': {'baseUrl': url},
-          },
-        };
-        expect(await yt.playbackStatsUrl('a'), isNull, reason: url);
-      }
-      youtube.handlers['player'] = (r, s) => {};
-      expect(await yt.playbackStatsUrl('a'), isNull);
-    });
+    test(
+      "an address that isn't YouTube's never gets the account's cookies",
+      () async {
+        for (final url in [
+          'https://evil.example/api/stats/playback',
+          'http://s.youtube.com/api/stats/playback',
+          'https://youtube.com.evil.example/x',
+          'not a url',
+        ]) {
+          youtube.handlers['player'] = (r, s) => {
+            'playbackTracking': {
+              'videostatsPlaybackUrl': {'baseUrl': url},
+            },
+          };
+          expect(await yt.playbackStatsUrl('a'), isNull, reason: url);
+        }
+        youtube.handlers['player'] = (r, s) => {};
+        expect(await yt.playbackStatsUrl('a'), isNull);
+      },
+    );
 
     test('signed out, no report is sent', () async {
       await acc.signOut();
       youtube.requests.clear();
-      await yt.reportPlayback(Uri.parse('https://s.youtube.com/api/stats/playback'));
+      await yt.reportPlayback(
+        Uri.parse('https://s.youtube.com/api/stats/playback'),
+      );
       expect(youtube.requests, isEmpty);
     });
   });

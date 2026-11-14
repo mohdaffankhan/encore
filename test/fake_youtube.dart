@@ -76,14 +76,18 @@ class FakeYouTube {
     final cookies = r.cookies;
     if (session.entries.any((e) => cookies[e.key] != e.value)) return false;
     final auth = r.header('authorization') ?? '';
-    final match = RegExp(r'^SAPISIDHASH (\d+)_([0-9a-f]{40})$').firstMatch(auth);
+    final match = RegExp(r'^SAPISIDHASH (\d+)_([0-9a-f]{40})$')
+        .firstMatch(auth);
     if (match == null) return false;
     final expected = sha1
         .convert(
-          utf8.encode('${match[1]} ${session['SAPISID']} https://music.youtube.com'),
+          utf8.encode(
+            '${match[1]} ${session['SAPISID']} https://music.youtube.com',
+          ),
         )
         .toString();
-    final age = DateTime.now().millisecondsSinceEpoch ~/ 1000 - int.parse(match[1]!);
+    final age =
+        DateTime.now().millisecondsSinceEpoch ~/ 1000 - int.parse(match[1]!);
     return match[2] == expected &&
         age.abs() < 300 &&
         r.header('x-origin') == 'https://music.youtube.com';

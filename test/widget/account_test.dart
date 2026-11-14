@@ -156,7 +156,10 @@ void main() {
     await tester.tap(find.text('Sign in'));
     await tester.pump();
     await tester.tap(find.text('Sign in'), warnIfMissed: false);
-    await tester.tap(find.text('Sign in with your browser'), warnIfMissed: false);
+    await tester.tap(
+      find.text('Sign in with your browser'),
+      warnIfMissed: false,
+    );
     await tester.pump();
     expect(opened, 1);
     expect(find.byType(CircularProgressIndicator), findsWidgets);
@@ -202,8 +205,10 @@ void main() {
     account.replied(account.headers()!, const [], 401, null);
     await tester.pumpAndSettle();
     expect(account.status.value, AccountStatus.ended);
-    expect(find.textContaining('sign-in has ended. Sign in again in Settings'),
-        findsOneWidget);
+    expect(
+      find.textContaining('sign-in has ended. Sign in again in Settings'),
+      findsOneWidget,
+    );
     expect(account.notice.value, isNull, reason: 'shown once');
     expect(find.text('Test Listener'), findsOneWidget);
     expect(find.textContaining('Your sign-in has ended'), findsOneWidget);
@@ -262,8 +267,11 @@ void main() {
       expect(find.text('Paste the cookies first.'), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'hello');
       await tester.pump();
-      expect(find.text('Paste the cookies first.'), findsNothing,
-          reason: 'cleared on typing');
+      expect(
+        find.text('Paste the cookies first.'),
+        findsNothing,
+        reason: 'cleared on typing',
+      );
       await tester.tap(dialogSignIn);
       await tester.pump();
       expect(find.textContaining("aren't signed-in"), findsOneWidget);

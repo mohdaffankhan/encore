@@ -40,6 +40,30 @@ final _screens = <String, Future<void> Function(WidgetTester)>{
   'home': (tester) async {},
   'search': (tester) => tester.tap(find.text('Search').first),
   'library': (tester) => tester.tap(find.text('Library').first),
+  'library, signed in, with saved albums and artists': (tester) async {
+    account.reset(store: MemoryStore());
+    account.whoIs = () async => const AccountInfo(name: 'Test Listener');
+    await account.signInWith(goodCookies());
+    userLibrary.savedMedia.value = const [
+      MediaRef(
+        kind: MediaKind.album,
+        id: 'MPREa',
+        title: 'An album',
+        subtitle: 'An artist',
+        artUrl: '',
+      ),
+    ];
+    userLibrary.artists.value = const [
+      MediaRef(
+        kind: MediaKind.artist,
+        id: 'UCa',
+        title: 'An artist',
+        subtitle: '',
+        artUrl: '',
+      ),
+    ];
+    await tester.tap(find.text('Library').first);
+  },
   'settings': (tester) async => openSettings(),
   'settings, signed in': (tester) async {
     account.reset(store: MemoryStore());
@@ -115,6 +139,8 @@ void main() {
 
   tearDown(() {
     account.reset(store: MemoryStore());
+    userLibrary.savedMedia.value = [];
+    userLibrary.artists.value = [];
     lastHome = null;
     userLibrary.liked.value = [];
     userLibrary.history.value = [];

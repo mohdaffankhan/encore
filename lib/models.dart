@@ -57,6 +57,7 @@ class Playlist {
     required this.name,
     this.tracks = const [],
     this.source,
+    this.remoteId,
   });
 
   final String id;
@@ -66,11 +67,20 @@ class Playlist {
   /// Where it was imported from, e.g. "Spotify".
   final String? source;
 
-  Playlist copyWith({String? name, List<Track>? tracks}) => Playlist(
+  /// Signed in: the account's playlist it is kept in sync with.
+  final String? remoteId;
+
+  Playlist copyWith({
+    String? name,
+    List<Track>? tracks,
+    String? remoteId,
+    bool unlink = false,
+  }) => Playlist(
     id: id,
     name: name ?? this.name,
     tracks: tracks ?? this.tracks,
     source: source,
+    remoteId: unlink ? null : remoteId ?? this.remoteId,
   );
 
   factory Playlist.fromJson(Map<String, dynamic> json) => Playlist(
@@ -78,6 +88,7 @@ class Playlist {
     name: json['name'],
     tracks: [for (final t in json['tracks'] as List? ?? []) Track.fromJson(t)],
     source: json['source'],
+    remoteId: json['remoteId'] is String ? json['remoteId'] : null,
   );
 
   Map<String, dynamic> toJson() => {
@@ -85,6 +96,7 @@ class Playlist {
     'name': name,
     'tracks': tracks,
     'source': source,
+    'remoteId': ?remoteId,
   };
 }
 
@@ -107,6 +119,14 @@ class MediaRef {
   final String title;
   final String subtitle;
   final String artUrl;
+
+  MediaRef withId(String id) => MediaRef(
+    kind: kind,
+    id: id,
+    title: title,
+    subtitle: subtitle,
+    artUrl: artUrl,
+  );
 
   factory MediaRef.fromJson(Map<String, dynamic> json) => MediaRef(
     kind: MediaKind.values.byName(json['kind']),
@@ -160,6 +180,10 @@ class Collection {
     required this.tracks,
     this.artist,
     this.artistId,
+    this.playlistId,
+    this.saved,
+    this.owned = false,
+    this.entryIds = const {},
   });
 
   final String title;
@@ -168,6 +192,21 @@ class Collection {
   final List<Track> tracks;
   final String? artist;
   final String? artistId;
+
+  /// The playlist behind it on YouTube (an album's is `OLAK…`), which is
+  /// what saving it to the library saves.
+  final String? playlistId;
+
+  /// Signed in: whether it is saved in the account's library (null when
+  /// not signed in, or the page doesn't say).
+  final bool? saved;
+
+  /// Signed in: a playlist the account made (it can be edited).
+  final bool owned;
+
+  /// Each song's entry in the playlist (its `setVideoId`), by video id:
+  /// what YouTube needs to remove or move it.
+  final Map<String, List<String>> entryIds;
 }
 
 class Artist {
@@ -177,6 +216,8 @@ class Artist {
     required this.artUrl,
     required this.topSongs,
     required this.shelves,
+    this.channelId,
+    this.subscribed,
   });
 
   final String name;
@@ -184,6 +225,12 @@ class Artist {
   final String artUrl;
   final List<Track> topSongs;
   final List<Shelf> shelves;
+
+  /// The channel following subscribes to (not always the page's id).
+  final String? channelId;
+
+  /// Signed in: whether the account follows the artist.
+  final bool? subscribed;
 }
 
 /// How good songs sound, against how much data they use.
@@ -247,7 +294,6 @@ class AccountChannel {
     this.photoUrl = '',
     this.pageId,
     this.selected = false,
-    this.usable = true,
   });
 
   final String name;
@@ -258,5 +304,4 @@ class AccountChannel {
   /// own channel.
   final String? pageId;
   final bool selected;
-  final bool usable;
 }

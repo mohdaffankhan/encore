@@ -18,6 +18,13 @@ class UserLibrary {
   /// Newest first.
   final playlists = ValueNotifier<List<Playlist>>([]);
 
+  /// Albums and other people's playlists saved to the library, newest
+  /// first.
+  final savedMedia = ValueNotifier<List<MediaRef>>([]);
+
+  /// Artists followed, newest first.
+  final artists = ValueNotifier<List<MediaRef>>([]);
+
   File? _file;
   Future<void> _lastWrite = Future.value();
 
@@ -49,6 +56,13 @@ class UserLibrary {
       playlists.value = [
         for (final p in json['playlists'] as List? ?? []) Playlist.fromJson(p),
       ];
+      // One broken entry here mustn't cost the whole library.
+      List<MediaRef> refs(String key) => [
+        for (final r in json[key] is List ? json[key] as List : const [])
+          ?_ref(r),
+      ];
+      savedMedia.value = refs('saved');
+      artists.value = refs('artists');
     } on PathNotFoundException {
       // First run: start empty.
     } catch (e) {
@@ -77,6 +91,14 @@ class UserLibrary {
     }
   }
 
+  static MediaRef? _ref(Object? json) {
+    try {
+      return MediaRef.fromJson(json! as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// What is saved, by name in the file.
   late final _parts = <String, ValueListenable<Object>>{
     'history': history,
@@ -84,6 +106,8 @@ class UserLibrary {
     'searches': searches,
     'downloads': downloads,
     'playlists': playlists,
+    'saved': savedMedia,
+    'artists': artists,
   };
 
   /// Each part's JSON as last saved, so a change encodes only its own part.
@@ -101,6 +125,19 @@ class UserLibrary {
   ].take(200).toList();
 
   bool isLiked(Track track) => liked.value.contains(track);
+
+  bool isSaved(String id) => savedMedia.value.any((r) => r.id == id);
+
+  /// Saves an album or playlist to the library, or removes it.
+  void toggleSaved(MediaRef ref) => savedMedia.value = isSaved(ref.id)
+      ? savedMedia.value.where((r) => r.id != ref.id).toList()
+      : [ref, ...savedMedia.value];
+
+  bool isFollowed(String id) => artists.value.any((r) => r.id == id);
+
+  void toggleFollow(MediaRef artist) => artists.value = isFollowed(artist.id)
+      ? artists.value.where((r) => r.id != artist.id).toList()
+      : [artist, ...artists.value];
 
   void toggleLike(Track track) => liked.value = isLiked(track)
       ? liked.value.where((t) => t != track).toList()
