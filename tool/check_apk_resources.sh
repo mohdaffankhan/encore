@@ -17,6 +17,14 @@ for name in ic_stat_encore ic_favorite ic_favorite_border audio_service_play_arr
   fi
 done
 [ "$missing" = 0 ] && echo "[apk] ok: notification icons present"
+# Updates are handed to Android's installer through this (without it,
+# Update fails).
+if ! echo "$resources" | grep -q "xml/update_paths\$"; then
+  echo "[apk] FAIL: missing xml/update_paths (updates couldn't install)"
+  missing=1
+else
+  echo "[apk] ok: updates can be handed to the installer"
+fi
 # The desktop player (mpv) isn't used on Android: ~19 MB for nothing.
 if unzip -l "$apk" | grep -q 'libmpv\.so'; then
   echo "[apk] FAIL: libmpv.so is in the APK"

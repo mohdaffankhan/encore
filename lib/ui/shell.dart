@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/downloads.dart';
 import '../services/library.dart';
 import '../services/player.dart';
+import '../services/updates.dart';
 import 'pages/artist_page.dart';
 import 'pages/collection_page.dart';
 import 'pages/home_page.dart';
@@ -12,6 +13,7 @@ import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
 import 'player/player_ui.dart';
 import 'theme.dart';
+import 'widgets/update_dialog.dart';
 import 'widgets/widgets.dart';
 
 final shellKey = GlobalKey<ShellState>();
@@ -88,6 +90,19 @@ class ShellState extends State<Shell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showErrors();
     });
+    _offerUpdate();
+  }
+
+  /// A new version out: said a few seconds after starting (once Encore is
+  /// up), and not often (see UpdatePolicy).
+  Future<void> _offerUpdate() async {
+    if (updates.way() == UpdateWay.none) return;
+    await Future<void>.delayed(const Duration(seconds: 4));
+    final release = await updates.check();
+    if (release == null || !mounted) return;
+    final current = await updates.currentVersion();
+    if (!mounted) return;
+    await offerUpdate(context, release, current: current);
   }
 
   @override

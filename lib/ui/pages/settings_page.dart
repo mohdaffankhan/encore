@@ -10,8 +10,10 @@ import '../../services/art_cache.dart';
 import '../../services/downloads.dart';
 import '../../services/library.dart';
 import '../../services/settings.dart';
+import '../../services/updates.dart';
 import '../shortcuts.dart';
 import '../theme.dart';
+import '../widgets/update_dialog.dart';
 import '../widgets/widgets.dart';
 
 /// Sound quality, data, storage and about: only what is worth choosing.
@@ -153,6 +155,25 @@ class _SettingsPageState extends State<SettingsPage> {
                             '(${snapshot.data!.buildNumber})',
                 ),
               ),
+              if (updates.way() != UpdateWay.none) ...[
+                _Row(
+                  title: 'Check for updates',
+                  subtitle: 'See if a new version is out',
+                  onTap: () => _checkNow(context),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: settings.updateReminders,
+                  builder: (context, on, _) => _Row(
+                    title: 'Tell me about new versions',
+                    subtitle: 'At startup, at most every few days',
+                    trailing: Switch(
+                      value: on,
+                      onChanged: (v) => settings.updateReminders.value = v,
+                    ),
+                    onTap: () => settings.updateReminders.value = !on,
+                  ),
+                ),
+              ],
               _Row(
                 title: 'Source code',
                 subtitle: 'github.com/mohdaffankhan/encore',
@@ -216,6 +237,26 @@ String _size(int? bytes) {
 }
 
 /// A setting: what it is, what it's set to, and a control on the right.
+/// Settings' "Check for updates": asks GitHub now.
+Future<void> _checkNow(BuildContext context) async {
+  showToast(context, 'Checking for updates…');
+  try {
+    final release = await updates.checkNow();
+    if (!context.mounted) return;
+    if (release == null) {
+      showToast(context, 'You have the newest version');
+      return;
+    }
+    final current = await updates.currentVersion();
+    if (!context.mounted) return;
+    await offerUpdate(context, release, current: current);
+  } on UpdateFailed {
+    if (context.mounted) {
+      showToast(context, "Couldn't check: no connection to GitHub");
+    }
+  }
+}
+
 class _Row extends StatelessWidget {
   const _Row({
     required this.title,

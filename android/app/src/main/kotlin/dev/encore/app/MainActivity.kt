@@ -12,6 +12,10 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.net.Uri
+import android.provider.Settings
+import androidx.core.content.FileProvider
+import java.io.File
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -54,6 +58,41 @@ class MainActivity : AudioServiceActivity() {
                 }
                 startActivity(Intent.createChooser(send, null))
                 result.success(null)
+            }
+        // Updates: which APK suits this phone, and Android's installer for
+        // the one Encore downloaded (in its cache, shared through
+        // Encore's file provider).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.encore.app/update")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "abi" -> result.success(Build.SUPPORTED_ABIS.firstOrNull())
+                    "install" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                            !packageManager.canRequestPackageInstalls()
+                        ) {
+                            // Once: the user allows Encore to install apps.
+                            startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                    Uri.parse("package:$packageName")
+                                )
+                            )
+                            return@setMethodCallHandler result.success(false)
+                        }
+                        val apk = File(call.argument<String>("path")!!)
+                        val uri = FileProvider.getUriForFile(this, "$packageName.updates", apk)
+                        startActivity(
+                            Intent(Intent.ACTION_VIEW)
+                                .setDataAndType(uri, "application/vnd.android.package-archive")
+                                .addFlags(
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                        Intent.FLAG_ACTIVITY_NEW_TASK
+                                )
+                        )
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
             }
         // Downloads: their progress notification, and running on after
         // Encore is closed. The engine outlives this activity, so the
