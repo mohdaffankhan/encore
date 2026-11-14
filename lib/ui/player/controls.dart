@@ -280,7 +280,7 @@ class _VolumeSlider extends StatelessWidget {
     return Slider(
       padding: EdgeInsets.zero,
       value: volume,
-      onChanged: player.audio.setVolume,
+      onChanged: player.setVolume,
       onChangeStart: onChangeStart,
       onChangeEnd: onChangeEnd,
     );

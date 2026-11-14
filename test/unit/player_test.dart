@@ -39,6 +39,30 @@ void main() {
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
 
+  group('volume', () {
+    tearDown(() => settings.volume.value = 1);
+
+    test('the volume set is kept for next time', () {
+      player.setVolume(0.4);
+      expect(audio.volume, 0.4);
+      expect(settings.volume.value, 0.4);
+      player.changeVolume(0.1);
+      expect(settings.volume.value, closeTo(0.5, 1e-9));
+    });
+
+    test('muted is not kept (Encore never starts muted); unmuting goes back',
+        () {
+      player.setVolume(0.6);
+      player.toggleMute();
+      expect(audio.volume, 0);
+      expect(settings.volume.value, 0.6);
+      player.toggleMute();
+      expect(audio.volume, 0.6);
+      player.setVolume(0);
+      expect(settings.volume.value, 0.6);
+    });
+  });
+
   test('a song that breaks off is loaded again from there, playing', () async {
     audio.breakOff();
     await settle();

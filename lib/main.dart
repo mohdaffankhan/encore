@@ -77,6 +77,8 @@ Future<void> main([List<String> args = const []]) async {
   // Which YouTube clients to ask for songs (an online file, kept current).
   await loadClients();
   await settings.load();
+  // At the volume it was left at.
+  unawaited(player.audio.setVolume(settings.volume.value));
   equalizer.start();
   await playbackSession.restore();
   await loadLastHome();

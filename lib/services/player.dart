@@ -367,7 +367,15 @@ class Player {
   }
 
   void changeVolume(double delta) =>
-      audio.setVolume((audio.volume + delta).clamp(0, 1));
+      setVolume((audio.volume + delta).clamp(0, 1));
+
+  /// The volume the user picked: kept for next time (when above zero:
+  /// Encore never starts muted). The sleep timer's fade isn't, as it sets
+  /// [audio]'s own volume.
+  void setVolume(double volume) {
+    audio.setVolume(volume);
+    if (volume > 0) settings.volume.value = volume;
+  }
 
   /// The level to go back to when unmuting.
   double _beforeMute = 1;
@@ -375,7 +383,7 @@ class Player {
   void toggleMute() {
     final volume = audio.volume;
     if (volume > 0) _beforeMute = volume;
-    audio.setVolume(volume > 0 ? 0 : _beforeMute);
+    setVolume(volume > 0 ? 0 : _beforeMute);
   }
 
   void toggleLikeCurrent() {

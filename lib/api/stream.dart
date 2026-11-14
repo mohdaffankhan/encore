@@ -248,5 +248,16 @@ Future<Map<String, dynamic>> _playerRequest(
     }),
   );
   final res = await req.close();
-  return jsonDecode(await utf8.decodeStream(res));
+  final text = await utf8.decodeStream(res);
+  // An error page (busy, blocked) is a refusal like any other: the next
+  // client is asked. It used to throw a FormatException, which skipped them.
+  if (res.statusCode != HttpStatus.ok) {
+    throw HttpException('YouTube player: HTTP ${res.statusCode}');
+  }
+  try {
+    if (jsonDecode(text) case final Map<String, dynamic> json) return json;
+  } on FormatException {
+    // Below.
+  }
+  throw const HttpException('YouTube player: not an answer');
 }

@@ -33,6 +33,10 @@ class Settings {
   final equalizerOn = ValueNotifier(false);
   final equalizerGains = ValueNotifier<List<double>>(const [0, 0, 0, 0, 0]);
 
+  /// The player's volume (0 to 1) as the user last set it, above zero:
+  /// Encore starts at it (never muted).
+  final volume = ValueNotifier(1.0);
+
   /// The speeds offered.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -45,6 +49,7 @@ class Settings {
     'theme': theme,
     'equalizerOn': equalizerOn,
     'equalizerGains': equalizerGains,
+    'volume': volume,
   };
 
   File? _file;
@@ -75,6 +80,9 @@ class Settings {
         equalizerGains.value = [
           for (final g in gains) (g as num).toDouble().clamp(-12.0, 12.0),
         ];
+      }
+      if (json['volume'] case final num v when v > 0 && v <= 1) {
+        volume.value = v.toDouble();
       }
       if (json['speed'] case final num s when speeds.contains(s.toDouble())) {
         speed.value = s.toDouble();
