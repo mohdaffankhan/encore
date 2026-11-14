@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -203,17 +205,26 @@ class SyncStatus extends StatelessWidget {
   /// Padded as a page row (false: inside a row that is already).
   final bool inset;
 
-  static String describe(SyncState state, DateTime? last, int waiting) {
-    if (state == SyncState.syncing) return 'Syncing with YouTube Music…';
+  static String describe(
+    SyncState state,
+    DateTime? last,
+    int waiting, {
+    int total = 0,
+    bool offline = false,
+  }) {
+    if (waiting > 0 && offline) {
+      return 'Waiting for a connection: $waiting to send to YouTube Music';
+    }
     if (state == SyncState.failed) {
       return waiting > 0
           ? "Couldn't sync: $waiting ${waiting == 1 ? 'change waits' : 'changes wait'} to be sent"
           : "Couldn't sync with YouTube Music";
     }
     if (waiting > 0) {
-      return '$waiting ${waiting == 1 ? 'change' : 'changes'} to send to '
-          'YouTube Music';
+      final all = total < waiting ? waiting : total;
+      return 'Sending to YouTube Music: ${all - waiting} of $all';
     }
+    if (state == SyncState.syncing) return 'Syncing with YouTube Music…';
     if (last == null) return 'Not synced with YouTube Music yet';
     final ago = DateTime.now().difference(last);
     final when = ago.inMinutes < 1
@@ -236,48 +247,89 @@ class SyncStatus extends StatelessWidget {
         youtubeSync.state,
         youtubeSync.lastSynced,
         youtubeSync.pending,
+        youtubeSync.total,
+        youtubeSync.waiting,
       ]),
       builder: (context, _) {
         if (!account.signedIn) return const SizedBox.shrink();
         final state = youtubeSync.state.value;
         final failed = state == SyncState.failed;
+        final left = youtubeSync.pending.value.length;
+        final total = max(youtubeSync.total.value, left);
+        final offline = youtubeSync.waiting.value;
+        final sending = left > 0 && !failed;
+        final secondary = text.bodySmall?.copyWith(
+          color: EncoreColors.textSecondary,
+        );
         return Padding(
           padding: inset
               ? EdgeInsets.fromLTRB(pad, 0, pad - 8, 0)
               : EdgeInsets.zero,
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                failed ? Icons.sync_problem_rounded : Icons.sync_rounded,
-                size: 18,
-                color: failed
-                    ? Theme.of(context).colorScheme.error
-                    : EncoreColors.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  describe(
-                    state,
-                    youtubeSync.lastSynced.value,
-                    youtubeSync.pending.value.length,
+              Row(
+                children: [
+                  Icon(
+                    failed || offline
+                        ? Icons.sync_problem_rounded
+                        : Icons.sync_rounded,
+                    size: 18,
+                    color: failed
+                        ? Theme.of(context).colorScheme.error
+                        : EncoreColors.textSecondary,
                   ),
-                  style: text.bodySmall?.copyWith(
-                    color: EncoreColors.textSecondary,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      describe(
+                        state,
+                        youtubeSync.lastSynced.value,
+                        left,
+                        total: total,
+                        offline: offline,
+                      ),
+                      style: secondary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: state == SyncState.syncing
+                        ? null
+                        : offline
+                        ? youtubeSync.retryNow
+                        : () async {
+                            final problem = await youtubeSync.sync();
+                            if (problem != null && context.mounted) {
+                              showToast(context, problem);
+                            }
+                          },
+                    child: Text(offline ? 'Try now' : 'Sync now'),
+                  ),
+                ],
+              ),
+              if (sending) ...[
+                Padding(
+                  padding: EdgeInsets.only(right: inset ? 8 : 0, top: 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: total == 0 ? null : (total - left) / total,
+                      minHeight: 4,
+                      semanticsLabel: 'Sending to YouTube Music',
+                    ),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: state == SyncState.syncing
-                    ? null
-                    : () async {
-                        final problem = await youtubeSync.sync();
-                        if (problem != null && context.mounted) {
-                          showToast(context, problem);
-                        }
-                      },
-                child: const Text('Sync now'),
-              ),
+                // Long runs: it carries on next time if Encore is closed.
+                if (total >= 10)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Encore stays usable meanwhile. If it is closed, '
+                      'sending carries on next time.',
+                      style: secondary,
+                    ),
+                  ),
+              ],
             ],
           ),
         );

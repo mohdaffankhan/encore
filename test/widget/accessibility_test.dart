@@ -1,5 +1,6 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/account.dart';
+import 'package:encore/services/youtube_sync.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
@@ -82,6 +83,25 @@ final _screens = <String, Future<void> Function(WidgetTester)>{
     await tester.pumpAndSettle();
     ScaffoldMessenger.of(tester.element(find.byType(Shell))).clearSnackBars();
   },
+  'first sync question': (tester) async {
+    youtubeSync.question.value = const SyncPlan(
+      likes: 450,
+      playlists: 3,
+      playlistSongs: 1240,
+      requests: 500,
+      newLikes: 712,
+    );
+  },
+  'library, sending to YouTube Music': (tester) async {
+    account.reset(store: MemoryStore());
+    account.whoIs = () async => const AccountInfo(name: 'Test Listener');
+    await account.signInWith(goodCookies());
+    youtubeSync.pending.value = [
+      for (var i = 0; i < 30; i++) SyncOp('like', 's$i'),
+    ];
+    youtubeSync.total.value = 40;
+    await tester.tap(find.text('Library').first);
+  },
   'sign in with a browser': (tester) async {
     openSettings();
     await tester.pumpAndSettle();
@@ -139,6 +159,9 @@ void main() {
 
   tearDown(() {
     account.reset(store: MemoryStore());
+    youtubeSync.question.value = null;
+    youtubeSync.pending.value = const [];
+    youtubeSync.total.value = 0;
     userLibrary.savedMedia.value = [];
     userLibrary.artists.value = [];
     lastHome = null;

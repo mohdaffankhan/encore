@@ -92,6 +92,10 @@ void main() {
     late UserLibrary lib;
     late YouTubeSync sync;
 
+    /// What the user answers the first sync's question (null: nothing yet).
+    bool? answer = true;
+    final asked = <SyncPlan>[];
+
     Future<YouTubeSync> startSync() async {
       final s = YouTubeSync(
         account: acc,
@@ -102,6 +106,12 @@ void main() {
         retryAfter: const Duration(milliseconds: 50),
         firstSync: null,
       );
+      s.question.addListener(() {
+        final plan = s.question.value;
+        if (plan == null) return;
+        asked.add(plan);
+        if (answer case final a?) s.answer(a);
+      });
       await s.start();
       return s;
     }
@@ -122,6 +132,8 @@ void main() {
       yt.signIn = acc;
       lib = UserLibrary();
       expect(await acc.signInWith(goodCookies()), isNull);
+      answer = true;
+      asked.clear();
       sync = await startSync();
     });
 
@@ -174,6 +186,153 @@ void main() {
       expect(remote.followed, containsAll(['UCl', 'UCr']));
       expect(remote.writes.where((w) => w.startsWith('unlike')), isEmpty);
       expect(sync.lastSynced.value, isNotNull);
+    });
+
+    group('the first sync asks first', () {
+      setUp(() {
+        remote.liked.addAll(['r1', 'r2']);
+        remote.playlists['PLr'] = FakePlaylist('PLr', 'Theirs', ['x']);
+        sync.applyingRemote(() {
+          lib.liked.value = [song('l1'), song('l2'), song('r1')];
+          lib.createPlaylist(
+            'Mine',
+            tracks: [for (var i = 0; i < 120; i++) song('m$i')],
+          );
+          lib.savedMedia.value = [album('MPREa')];
+          lib.artists.value = [artistRef('UCa')];
+        });
+      });
+
+      test('what goes, what comes, and how many requests', () async {
+        await syncNow();
+        final plan = asked.single;
+        expect(plan.likes, 2);
+        expect(plan.playlists, 1);
+        expect(plan.playlistSongs, 120);
+        expect(plan.saved, 1);
+        expect(plan.artists, 1);
+        // 2 likes, the playlist (made, then 2 x 50 songs), the album
+        // (looked up, saved), the artist (looked up, followed).
+        expect(plan.requests, 2 + 3 + 2 + 2);
+        expect(plan.newLikes, 1);
+        expect(plan.newPlaylists, 1);
+        expect(plan.estimate(const Duration(seconds: 1)),
+            const Duration(milliseconds: 1400) * 9);
+      });
+
+      test('nothing is sent or changed until the user agrees', () async {
+        answer = null;
+        final result = sync.sync();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(sync.question.value, isNotNull);
+        expect(remote.writes, isEmpty);
+        expect(ids(lib.liked.value), ['l1', 'l2', 'r1']);
+        sync.answer(true);
+        expect(await result, isNull);
+        await sync.idle;
+        expect(remote.liked.toSet(), {'r1', 'r2', 'l1', 'l2'});
+        expect(sync.question.value, isNull);
+      });
+
+      test('"Sign out instead": signed out, nothing sent or changed', () async {
+        answer = false;
+        expect(await sync.sync(), contains('Nothing was sent'));
+        expect(acc.status.value, AccountStatus.signedOut);
+        expect(remote.writes, isEmpty);
+        expect(ids(lib.liked.value), ['l1', 'l2', 'r1']);
+        expect(lib.playlists.value.single.remoteId, isNull);
+      });
+
+      test('signed out while it asks: the question goes, nothing is sent',
+          () async {
+        answer = null;
+        final result = sync.sync();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await acc.signOut();
+        expect(sync.question.value, isNull);
+        expect(await result, isNotNull);
+        expect(remote.writes, isEmpty);
+      });
+
+      test('closed before answering: asked again next time', () async {
+        answer = null;
+        unawaited(sync.sync());
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        sync.stop();
+        sync = await startSync();
+        answer = true;
+        expect(await syncNow(), isNull);
+        expect(asked, hasLength(2));
+      });
+
+      test('asked once: later syncs just sync', () async {
+        await syncNow();
+        lib.toggleLike(song('new'));
+        await sync.idle;
+        await syncNow();
+        expect(asked, hasLength(1));
+      });
+    });
+
+    test('nothing in Encore to send: not asked', () async {
+      remote.liked.add('r');
+      await syncNow();
+      expect(asked, isEmpty);
+      expect(ids(lib.liked.value), ['r']);
+    });
+
+    group('progress', () {
+      test('how far sending has got, then nothing once done', () async {
+        await syncNow();
+        youtube.failWith = 503;
+        for (var i = 0; i < 5; i++) {
+          lib.toggleLike(song('p$i'));
+        }
+        await sync.idle;
+        expect(sync.pending.value, hasLength(5));
+        expect(sync.total.value, 5);
+        expect(sync.waiting.value, isTrue, reason: 'offline');
+        // Two go, then it fails again.
+        var sent = 0;
+        youtube.failWith = null;
+        final like = youtube.handlers['like/like']!;
+        youtube.handlers['like/like'] = (r, s) => ++sent > 2 ? 503 : like(r, s);
+        sync.retryNow();
+        await sync.idle;
+        expect(sync.pending.value, hasLength(3));
+        expect(sync.total.value, 5, reason: '2 of 5 done');
+        youtube.handlers['like/like'] = like;
+        sync.retryNow();
+        await sync.idle;
+        expect(sync.pending.value, isEmpty);
+        expect(sync.total.value, 0);
+        expect(sync.waiting.value, isFalse);
+      });
+
+      test('a change replacing one waiting does not count twice', () async {
+        await syncNow();
+        youtube.failWith = 503;
+        lib.toggleLike(song('a'));
+        await sync.idle;
+        lib.toggleLike(song('a'));
+        expect(sync.pending.value, hasLength(1));
+        expect(sync.total.value, 1);
+      });
+
+      test('after a restart with changes waiting: says it carries on',
+          () async {
+        await syncNow();
+        youtube.failWith = 503;
+        lib.toggleLike(song('a'));
+        lib.toggleLike(song('b'));
+        await sync.idle;
+        await sync.saved;
+        sync.stop();
+        sync = await startSync();
+        expect(sync.notice.value, contains('Sending 2 changes'));
+        expect(sync.notice.value, contains('where it left off'));
+        expect(sync.total.value, 2);
+      });
     });
 
     test('a second sync brings removals across, both ways', () async {

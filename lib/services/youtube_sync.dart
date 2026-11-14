@@ -142,6 +142,49 @@ class _Remote {
 
 enum SyncState { idle, syncing, failed }
 
+/// What the first sync after signing in will do, for the user to agree to
+/// first: what goes to the account, what comes into Encore, and about how
+/// long sending takes.
+@immutable
+class SyncPlan {
+  const SyncPlan({
+    this.likes = 0,
+    this.playlists = 0,
+    this.playlistSongs = 0,
+    this.saved = 0,
+    this.artists = 0,
+    this.requests = 0,
+    this.newLikes = 0,
+    this.newPlaylists = 0,
+    this.newSaved = 0,
+    this.newArtists = 0,
+  });
+
+  // To the account.
+  final int likes;
+  final int playlists;
+
+  /// Songs added to the account's playlists (new ones and existing ones).
+  final int playlistSongs;
+  final int saved;
+  final int artists;
+
+  /// Requests sending it takes.
+  final int requests;
+
+  // Into Encore.
+  final int newLikes;
+  final int newPlaylists;
+  final int newSaved;
+  final int newArtists;
+
+  bool get sends => requests > 0;
+
+  /// About how long sending takes ([spacing] apart, plus the reply).
+  Duration estimate(Duration spacing) =>
+      (spacing + const Duration(milliseconds: 400)) * requests;
+}
+
 /// Three-way merge of a set: what is in [local] and [remote] now, against
 /// [base], what they last agreed on (null: never; then nothing is taken
 /// away, both are combined). Something added on either side is kept;
@@ -289,6 +332,31 @@ class YouTubeSync {
 
   final state = ValueNotifier(SyncState.idle);
 
+  /// How many changes the current run of sending has had (done ones
+  /// included): with [pending], how far it has got. 0 when nothing is
+  /// waiting.
+  final total = ValueNotifier(0);
+
+  /// Sending failed (offline): it is waiting to try again.
+  final waiting = ValueNotifier(false);
+
+  /// The first sync after signing in, waiting for the user to agree to
+  /// [SyncPlan] ([answer]).
+  final question = ValueNotifier<SyncPlan?>(null);
+  Completer<bool>? _answer;
+
+  /// Something to tell the user (shown once, then cleared).
+  final notice = ValueNotifier<String?>(null);
+
+  /// The user's answer to [question]: true to sync, false to sign out
+  /// (nothing has been sent).
+  void answer(bool sync) {
+    question.value = null;
+    final answer = _answer;
+    _answer = null;
+    if (answer != null && !answer.isCompleted) answer.complete(sync);
+  }
+
   /// When the last sync finished (null: not since signing in).
   final lastSynced = ValueNotifier<DateTime?>(null);
 
@@ -325,6 +393,13 @@ class YouTubeSync {
     }
     _acc.generation.addListener(_accountChanged);
     _acc.status.addListener(_kick);
+    if (_acc.signedIn && pending.value.isNotEmpty) {
+      final n = pending.value.length;
+      total.value = n;
+      notice.value =
+          'Sending $n ${n == 1 ? 'change' : 'changes'} to YouTube Music, '
+          'from where it left off.';
+    }
     _periodic = Timer.periodic(every, (_) => unawaited(sync()));
     if (firstSync case final wait? when _acc.signedIn) {
       _first = Timer(wait, () => unawaited(sync()));
@@ -460,11 +535,14 @@ class YouTubeSync {
   void _add(SyncOp op) {
     _changes++;
     final key = op.key;
+    final before = pending.value.length;
     pending.value = [
       for (final p in pending.value)
         if (key == null || p.key != key) p,
       op,
     ];
+    if (before == 0) total.value = 0;
+    total.value += pending.value.length - before;
     _save();
     _kick();
   }
@@ -472,7 +550,9 @@ class YouTubeSync {
   void _drop(bool Function(SyncOp) which) {
     final kept = pending.value.where((op) => !which(op)).toList();
     if (kept.length == pending.value.length) return;
+    total.value -= pending.value.length - kept.length;
     pending.value = kept;
+    if (kept.isEmpty) total.value = 0;
     _save();
   }
 
@@ -486,6 +566,10 @@ class YouTubeSync {
     _retry = null;
     _failures = 0;
     pending.value = const [];
+    total.value = 0;
+    waiting.value = false;
+    // Signed out while the first sync was asking: no answer needed.
+    answer(false);
     _likedBase = null;
     _playlistBase = null;
     _savedBase = null;
@@ -542,6 +626,7 @@ class YouTubeSync {
       }
       if (_acc.generation.value != gen) return;
       _failures = 0;
+      waiting.value = false;
       _agreed(op);
       _remove(op);
     }
@@ -700,11 +785,13 @@ class YouTubeSync {
     final i = list.indexWhere((p) => identical(p, op));
     if (i < 0) return;
     pending.value = [...list]..removeAt(i);
+    if (pending.value.isEmpty) total.value = 0;
     _save();
   }
 
   void _failed(SyncOp op, Object e) {
     debugPrint('Sending $op failed, trying later: $e');
+    waiting.value = true;
     final wait = retryAfter * pow(2, min(_failures, 5)).toInt();
     _failures++;
     _retry = Timer(wait, () {
@@ -756,6 +843,28 @@ class YouTubeSync {
         state.value = SyncState.idle;
         return 'Your library changed while syncing. Sync again in a moment.';
       }
+      if (_likedBase == null) {
+        // The first sync for this account: say what it will do first.
+        final plan = _plan(remote);
+        if (plan.sends) {
+          final answer = _answer = Completer<bool>();
+          question.value = plan;
+          final go = await answer.future;
+          if (_acc.generation.value != gen || !_acc.signedIn) {
+            return 'Signed out while syncing.';
+          }
+          if (!go) {
+            state.value = SyncState.idle;
+            await _acc.signOut();
+            return 'Signed out. Nothing was sent to YouTube Music.';
+          }
+          if (pending.value.isNotEmpty || _changes != changes) {
+            state.value = SyncState.idle;
+            return 'Your library changed while syncing. Sync again in a '
+                'moment.';
+          }
+        }
+      }
       _merge(remote);
       lastSynced.value = DateTime.now();
       state.value = SyncState.idle;
@@ -802,6 +911,61 @@ class YouTubeSync {
       playlists: own,
       saved: [...albums, ...savedPlaylists],
       artists: artists,
+    );
+  }
+
+  /// What merging [remote] into a library never synced before (nothing is
+  /// removed then) will send and bring.
+  SyncPlan _plan(_Remote remote) {
+    final remoteLiked = {for (final t in remote.liked) t.id};
+    final localLiked = {for (final t in _lib.liked.value) t.id};
+    final likes = localLiked.difference(remoteLiked).length;
+    var playlists = 0, songs = 0, requests = likes;
+    final linked = <String>{};
+    for (final p in _lib.playlists.value) {
+      final ids = {for (final t in p.tracks) t.id};
+      final there = remote.playlists[p.remoteId];
+      if (there == null) {
+        // Made on the account: with 50 songs, then 50 at a time.
+        playlists++;
+        songs += ids.length;
+        requests += 1 + (max(0, ids.length - 50) + 49) ~/ 50;
+      } else {
+        linked.add(p.remoteId!);
+        final added = ids.difference({for (final t in there.tracks) t.id});
+        songs += added.length;
+        requests += (added.length + 49) ~/ 50;
+      }
+    }
+    final remoteSaved = {for (final r in remote.saved) r.id};
+    final saved = [
+      for (final r in _lib.savedMedia.value)
+        if (!remoteSaved.contains(r.id)) r,
+    ];
+    // Albums are looked up first (what saving one saves).
+    for (final r in saved) {
+      requests += r.id.startsWith('VL') ? 1 : 2;
+    }
+    final remoteArtists = {for (final r in remote.artists) r.id};
+    final artists = _lib.artists.value
+        .where((r) => !remoteArtists.contains(r.id))
+        .length;
+    requests += artists * 2;
+    final localSaved = {for (final r in _lib.savedMedia.value) r.id};
+    final localArtists = {for (final r in _lib.artists.value) r.id};
+    return SyncPlan(
+      likes: likes,
+      playlists: playlists,
+      playlistSongs: songs,
+      saved: saved.length,
+      artists: artists,
+      requests: requests,
+      newLikes: remoteLiked.difference(localLiked).length,
+      newPlaylists: remote.playlists.keys
+          .where((id) => !linked.contains(id))
+          .length,
+      newSaved: remoteSaved.difference(localSaved).length,
+      newArtists: remoteArtists.difference(localArtists).length,
     );
   }
 

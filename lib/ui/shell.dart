@@ -5,12 +5,14 @@ import '../services/account.dart';
 import '../services/downloads.dart';
 import '../services/library.dart';
 import '../services/player.dart';
+import '../services/youtube_sync.dart';
 import 'pages/artist_page.dart';
 import 'pages/collection_page.dart';
 import 'pages/home_page.dart';
 import 'pages/library_page.dart';
 import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/sync_question.dart';
 import 'player/player_ui.dart';
 import 'theme.dart';
 import 'widgets/widgets.dart';
@@ -23,6 +25,13 @@ enum AppTab { home, search, library }
 /// if it is open.
 void openPage(Widget page, {AppTab? tab}) =>
     shellKey.currentState?._open(page, tab);
+
+/// Opens [page] as a place of its own in [tab] (the sidebar's Liked songs,
+/// Downloads, History, playlists): over the tab's first page only, so
+/// going from one to another doesn't pile them up (back goes to the tab).
+/// [name] tells places apart: the one showing already isn't opened again.
+void openPlace(Widget page, {required AppTab tab, required String name}) =>
+    shellKey.currentState?._open(page, tab, place: name);
 
 void openArtist(String browseId) => openPage(ArtistPage(browseId));
 
@@ -85,10 +94,30 @@ class ShellState extends State<Shell> {
     for (final errors in _errors) {
       errors.addListener(_showErrors);
     }
+    youtubeSync.question.addListener(_ask);
     // Some come before the app shows (the library loads first).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showErrors();
+      if (mounted) {
+        _showErrors();
+        _ask();
+      }
     });
+  }
+
+  var _asking = false;
+
+  /// The first sync after signing in asks before sending anything.
+  Future<void> _ask() async {
+    final plan = youtubeSync.question.value;
+    if (plan == null || _asking || !mounted) return;
+    _asking = true;
+    final go = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => SyncQuestion(plan),
+    );
+    _asking = false;
+    if (youtubeSync.question.value == plan) youtubeSync.answer(go ?? false);
   }
 
   @override
@@ -96,6 +125,7 @@ class ShellState extends State<Shell> {
     for (final errors in _errors) {
       errors.removeListener(_showErrors);
     }
+    youtubeSync.question.removeListener(_ask);
     super.dispose();
   }
 
@@ -105,6 +135,7 @@ class ShellState extends State<Shell> {
     downloads.error,
     userLibrary.error,
     account.notice,
+    youtubeSync.notice,
   ];
 
   void _showErrors() {
@@ -117,7 +148,7 @@ class ShellState extends State<Shell> {
     }
   }
 
-  void _open(Widget page, AppTab? tab) {
+  void _open(Widget page, AppTab? tab, {String? place}) {
     Navigator.of(context).popUntil((route) => route.isFirst);
     if ((tab != null && tab != _tab) || _settings) {
       setState(() {
@@ -125,9 +156,24 @@ class ShellState extends State<Shell> {
         _tab = tab ?? _tab;
       });
     }
-    _navigators[tab ?? _tab]!.currentState?.push(
-      MaterialPageRoute(builder: (_) => page),
+    final navigator = _navigators[tab ?? _tab]!.currentState;
+    if (navigator == null) return;
+    final route = MaterialPageRoute<void>(
+      builder: (_) => page,
+      settings: RouteSettings(name: place),
     );
+    if (place == null) {
+      navigator.push(route);
+      return;
+    }
+    // The page on top (popUntil stops at once: nothing is closed).
+    String? top;
+    navigator.popUntil((r) {
+      top = r.settings.name;
+      return true;
+    });
+    if (top == place) return;
+    navigator.pushAndRemoveUntil(route, (r) => r.isFirst);
   }
 
   void _openSettings() {
@@ -336,7 +382,11 @@ class _Sidebar extends StatelessWidget {
                 icon: c.icon,
                 label: c.title,
                 selected: false,
-                onTap: () => openPage(c.page(), tab: AppTab.library),
+                onTap: () => openPlace(
+                  c.page(),
+                  tab: AppTab.library,
+                  name: 'collection:${c.title}',
+                ),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 24, 0, 4),
@@ -376,9 +426,10 @@ class _Sidebar extends StatelessWidget {
                         icon: Icons.queue_music_rounded,
                         label: p.name,
                         selected: false,
-                        onTap: () => openPage(
+                        onTap: () => openPlace(
                           CollectionPage.playlist(p.id),
                           tab: AppTab.library,
+                          name: 'playlist:${p.id}',
                         ),
                       ),
                   ],

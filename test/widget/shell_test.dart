@@ -2,7 +2,9 @@ import 'package:encore/app.dart';
 import 'package:encore/models.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
+import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/settings_page.dart';
+import 'package:encore/ui/shell.dart';
 import 'package:encore/ui/widgets/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -120,4 +122,42 @@ void main() {
     expect(find.byType(SettingsPage), findsNothing);
     expect(find.text('No songs here yet'), findsOneWidget);
   });
+
+  testWidgets('desktop: sidebar places replace each other instead of piling '
+      'up; back goes to Library', (tester) async {
+    userLibrary.createPlaylist('Road trip');
+    addTearDown(() => userLibrary.playlists.value = []);
+    await pumpApp(tester, const Size(1400, 900));
+    final sidebar = find.byType(Shell);
+    Future<void> click(String label) async {
+      await tester.tap(
+        find.descendant(of: sidebar, matching: find.text(label)).first,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    String showing() => tester
+        .widgetList<CollectionPage>(find.byType(CollectionPage))
+        .map((p) => p.title ?? p.playlistId ?? '')
+        .join(',');
+
+    for (final place in [
+      'Liked songs',
+      'Downloads',
+      'History',
+      'Liked songs',
+      'Road trip',
+      'Downloads',
+      'Downloads', // again: not opened twice
+    ]) {
+      await click(place);
+    }
+    expect(find.byType(CollectionPage), findsOneWidget, reason: showing());
+    expect(showing(), 'Downloads');
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CollectionPage), findsNothing);
+    expect(find.text('New playlist'), findsWidgets, reason: 'Library');
+  });
 }
+

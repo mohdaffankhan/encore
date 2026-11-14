@@ -83,32 +83,31 @@ class _HomePageState extends State<HomePage> {
               SliverToBoxAdapter(
                 child: PageTitle(
                   _greeting,
-                  // Phones: search and settings up here (desktop has the
-                  // sidebar).
-                  trailing: wide
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Search',
-                              onPressed: widget.onSearch,
-                              icon: const Icon(Icons.search_rounded),
-                            ),
-                            const IconButton(
-                              tooltip: 'Settings',
-                              onPressed: openSettings,
-                              icon: Icon(Icons.settings_outlined),
-                            ),
-                          ],
+                  // Play something by the greeting; phones also have search
+                  // and settings up here (desktop has the sidebar).
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FutureBuilder(
+                        future: _shelves,
+                        builder: (context, snapshot) => PlaySomething(
+                          feed: snapshot.data ?? lastHome ?? const [],
+                          compact: !wide,
                         ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: FutureBuilder(
-                  future: _shelves,
-                  builder: (context, snapshot) => PlaySomething(
-                    feed: snapshot.data ?? lastHome ?? const [],
+                      ),
+                      if (!wide) ...[
+                        IconButton(
+                          tooltip: 'Search',
+                          onPressed: widget.onSearch,
+                          icon: const Icon(Icons.search_rounded),
+                        ),
+                        const IconButton(
+                          tooltip: 'Settings',
+                          onPressed: openSettings,
+                          icon: Icon(Icons.settings_outlined),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -197,10 +196,19 @@ class _Stale extends StatelessWidget {
 /// when signed in) from a song they like, played lately, or that their
 /// home feed suggests, picked at random.
 class PlaySomething extends StatelessWidget {
-  const PlaySomething({super.key, required this.feed, this.random});
+  const PlaySomething({
+    super.key,
+    required this.feed,
+    this.random,
+    this.compact = false,
+  });
 
   final List<Shelf> feed;
   final Random? random;
+
+  /// Phones: an icon beside search and settings (a button by the greeting
+  /// on desktop).
+  final bool compact;
 
   /// Where the radio may start from: the user's own songs first (they're
   /// in twice, so more likely), then the feed's.
@@ -215,24 +223,26 @@ class PlaySomething extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pad = pagePadding(context);
     return ListenableBuilder(
       listenable: Listenable.merge([userLibrary.liked, userLibrary.history]),
       builder: (context, _) {
         final from = seeds(feed);
         if (from.isEmpty) return const SizedBox.shrink();
+        void play() =>
+            player.playRadio(from[(random ?? Random()).nextInt(from.length)]);
+        if (compact) {
+          return IconButton(
+            tooltip: 'Play something',
+            onPressed: play,
+            icon: const Icon(Icons.shuffle_rounded),
+          );
+        }
         return Padding(
-          padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: () {
-                final seed = from[(random ?? Random()).nextInt(from.length)];
-                player.playRadio(seed);
-              },
-              icon: const Icon(Icons.shuffle_rounded),
-              label: const Text('Play something'),
-            ),
+          padding: const EdgeInsets.only(right: 8),
+          child: FilledButton.tonalIcon(
+            onPressed: play,
+            icon: const Icon(Icons.shuffle_rounded, size: 20),
+            label: const Text('Play something'),
           ),
         );
       },
