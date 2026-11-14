@@ -38,11 +38,18 @@ class PlaybackSession {
     );
     try {
       final json = jsonDecode(await file.readAsString());
+      final queue = [for (final t in json['queue'] as List) Track.fromJson(t)];
+      // The original order of a shuffled queue, by song id.
+      final byId = {for (final t in queue) t.id: t};
+      final ordered = json['ordered'] is List
+          ? [for (final id in json['ordered'] as List) ?byId[id]]
+          : null;
       player.restore(
-        [for (final t in json['queue'] as List) Track.fromJson(t)],
+        queue,
         json['index'] as int,
         Duration(milliseconds: json['position'] as int? ?? 0),
         shuffled: json['shuffle'] == true,
+        ordered: ordered,
         repeat: Repeat.values.asNameMap()[json['repeat']] ?? Repeat.off,
       );
     } on PathNotFoundException {
@@ -71,11 +78,17 @@ class PlaybackSession {
   void save() {
     final file = _file;
     if (file == null) return;
+    // Shuffled: the original order, by song id.
+    final original = player.ordered;
+    final ordered = original == null
+        ? ''
+        : '"ordered":${jsonEncode([for (final t in original) t.id])},';
     final json =
         '{"queue":${_queue ??= jsonEncode(player.queue.value)},'
         '"index":${player.index.value},'
         '"position":${player.position.inMilliseconds},'
         '"shuffle":${player.shuffle.value},'
+        '$ordered'
         '"repeat":"${player.repeat.value.name}"}';
     // As for the library: in order, and swapped in whole.
     _lastWrite = _lastWrite.then((_) async {

@@ -124,6 +124,10 @@ class Player {
   /// While shuffled: the queue in its original order, to go back to when
   /// shuffle is turned off.
   List<Track>? _ordered;
+
+  /// While shuffled, the original order (kept with the session, so shuffle
+  /// can still be turned off after a restart).
+  List<Track>? get ordered => _ordered;
   final error = ValueNotifier<String?>(null);
 
   /// Bumped whenever the queue is replaced, so late radio results for an
@@ -310,6 +314,7 @@ class Player {
     int at,
     Duration position, {
     bool shuffled = false,
+    List<Track>? ordered,
     Repeat repeat = Repeat.off,
   }) {
     if (current != null || at < 0 || at >= tracks.length) return;
@@ -317,6 +322,9 @@ class Player {
     index.value = at;
     _resumeAt = position;
     shuffle.value = shuffled;
+    // Without it (sessions saved before), turning shuffle off keeps the
+    // shuffled order.
+    _ordered = shuffled ? ordered : null;
     this.repeat.value = repeat;
   }
 
