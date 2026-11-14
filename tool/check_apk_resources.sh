@@ -17,6 +17,15 @@ for name in ic_stat_encore ic_favorite ic_favorite_border audio_service_play_arr
   fi
 done
 [ "$missing" = 0 ] && echo "[apk] ok: notification icons present"
+# The YouTube Music sign-in must stay out of backups (whoever restores one
+# would be signed in): the manifest's backup rules.
+for name in backup_rules data_extraction_rules; do
+  if ! echo "$resources" | grep -q "xml/$name\$"; then
+    echo "[apk] FAIL: missing xml/$name (the sign-in would be backed up)"
+    missing=1
+  fi
+done
+[ "$missing" = 0 ] && echo "[apk] ok: the sign-in is left out of backups"
 # The desktop player (mpv) isn't used on Android: ~19 MB for nothing.
 if unzip -l "$apk" | grep -q 'libmpv\.so'; then
   echo "[apk] FAIL: libmpv.so is in the APK"
