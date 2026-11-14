@@ -20,7 +20,9 @@ from `linux/packaging/`; `release_check.sh` tests them in Docker (Docker
 Desktop must be running). Tags release the tar.gz and the AppImage (made
 from it, with libmpv inside; checked by `tool/linux_appimage_check.sh`).
 The Flatpak is published only through Flathub (so it updates itself), not
-as a file on the release: CI and the release check build and play it. The
+as a file on the release: CI builds it; the release check leaves it out
+while Flathub is on hold (the owner's call, 2026-11-14; check it by hand
+with `tool/flatpak_build.sh` before a Flathub submission). The
 AUR package is checked by CI but on hold: AUR
 registrations are closed, so the owner has no account yet. Flathub is a separate submission (linux/packaging/flathub/).
 Before tagging, the version in `pubspec.yaml`,

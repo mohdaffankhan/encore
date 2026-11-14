@@ -73,6 +73,20 @@
   </recommends>
 
   <releases>
+    <release version="0.2.1" date="2026-11-14">
+      <description>
+        <p>Update notifications, artist radio, faster downloads, and many fixes.</p>
+        <ul>
+          <li>Encore tells you when a new version is out (Flatpak updates itself)</li>
+          <li>An artist's Radio plays their own mix</li>
+          <li>Three songs download at once, and failures are reported together</li>
+          <li>The volume is remembered</li>
+          <li>History lists only songs you listened to</li>
+          <li>Shuffle can be turned off after a restart, with the original order back</li>
+          <li>Settings no longer stays on screen when you go to Home or Library</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-11-03">
       <description>
         <p>Themes, an equalizer, playback speed, and songs that follow each other without a gap.</p>
