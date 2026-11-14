@@ -161,6 +161,22 @@ Future<List<Track>> radio(String videoId) async {
   ];
 }
 
+/// The songs of an artist's own radio ([Artist.radio]).
+Future<List<Track>> artistRadio(
+  ({String videoId, String playlistId, String? params}) radio,
+) async {
+  final json = await _post('next', {
+    'videoId': radio.videoId,
+    'playlistId': radio.playlistId,
+    'params': ?radio.params,
+    'isAudioOnly': true,
+  });
+  return [
+    for (final item in _findAll(json, 'playlistPanelVideoRenderer'))
+      ?_panelTrack(item),
+  ];
+}
+
 Future<List<Shelf>> home() async {
   final hadVisitor = _visitorData != null;
   var json = await browse('FEmusic_home');
@@ -187,7 +203,16 @@ Future<Artist> artist(String browseId) async {
       _findAll(json, 'musicImmersiveHeaderRenderer').firstOrNull ??
       _findAll(json, 'musicVisualHeaderRenderer').firstOrNull;
   final topSongs = _findAll(json, 'musicShelfRenderer').firstOrNull;
+  final mix = _findAll(header?['startRadioButton'], 'watchEndpoint').firstOrNull;
   return Artist(
+    radio: switch (mix) {
+      {'videoId': final String video, 'playlistId': final String list} => (
+        videoId: video,
+        playlistId: list,
+        params: mix['params'] as String?,
+      ),
+      _ => null,
+    },
     name: _text(header?['title']),
     subtitle: _text(header?['monthlyListenerCount']),
     artUrl: _art(header?['thumbnail'], resize: false),

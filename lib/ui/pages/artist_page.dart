@@ -137,9 +137,9 @@ class _Hero extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     OutlinedButton.icon(
-                      onPressed: top.isEmpty
+                      onPressed: top.isEmpty && artist.radio == null
                           ? null
-                          : () => player.playRadio(top.first),
+                          : () => playArtistRadio(artist),
                       icon: const Icon(Icons.radio_rounded, size: 18),
                       label: const Text('Radio'),
                     ),
@@ -153,3 +153,23 @@ class _Hero extends StatelessWidget {
     );
   }
 }
+
+/// How an artist's radio is fetched (tests answer themselves).
+@visibleForTesting
+var fetchArtistRadio = yt.artistRadio;
+
+/// The artist's own radio (YouTube Music's Mix); their top song's radio
+/// when the page has none, or it can't load (it played the top song's
+/// radio always: not the artist's).
+Future<void> playArtistRadio(Artist artist) async {
+  if (artist.radio case final radio?) {
+    try {
+      final tracks = await fetchArtistRadio(radio);
+      if (tracks.isNotEmpty) return await player.playList(tracks, 0);
+    } catch (e) {
+      debugPrint("Artist radio couldn't load: $e");
+    }
+  }
+  if (artist.topSongs.firstOrNull case final top?) await player.playRadio(top);
+}
+

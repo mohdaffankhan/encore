@@ -177,6 +177,7 @@ class Artist {
     required this.artUrl,
     required this.topSongs,
     required this.shelves,
+    this.radio,
   });
 
   final String name;
@@ -184,6 +185,10 @@ class Artist {
   final String artUrl;
   final List<Track> topSongs;
   final List<Shelf> shelves;
+
+  /// The artist's own radio (YouTube Music's "Mix", `RDEM…`): where it
+  /// starts, the playlist and its parameters for `next`.
+  final ({String videoId, String playlistId, String? params})? radio;
 }
 
 /// How good songs sound, against how much data they use.
