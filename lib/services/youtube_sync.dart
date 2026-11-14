@@ -458,6 +458,7 @@ class YouTubeSync {
   /// Queues [op]; it replaces anything pending with the same key (only the
   /// last word counts).
   void _add(SyncOp op) {
+    _changes++;
     final key = op.key;
     pending.value = [
       for (final p in pending.value)
@@ -612,6 +613,7 @@ class YouTubeSync {
   /// in Encore and later unliked on YouTube Music would look new in Encore
   /// at the next sync, and come back.
   void _agreed(SyncOp op) {
+    _changes++;
     void set(Set<String>? base, bool add) {
       if (base == null) return;
       add ? base.add(op.id) : base.remove(op.id);
@@ -718,6 +720,10 @@ class YouTubeSync {
 
   Future<String?>? _syncing;
 
+  /// Goes up with every change queued or sent: a sync whose fetch saw it
+  /// change merges nothing (its copy of the account may be from before).
+  var _changes = 0;
+
   /// Brings Encore and the account together. Returns why not, or null
   /// once done. Changes still waiting to be sent go first: a sync with
   /// them unsent would take them for things removed on the account.
@@ -725,7 +731,7 @@ class YouTubeSync {
       _syncing ??= _sync().whenComplete(() => _syncing = null);
 
   Future<String?> _sync() async {
-    if (!_acc.signedIn) return 'Not signed in';
+    if (!_acc.signedIn) return 'Sign in to sync with YouTube Music.';
     final gen = _acc.generation.value;
     state.value = SyncState.syncing;
     try {
@@ -736,12 +742,15 @@ class YouTubeSync {
       if (pending.value.isNotEmpty) {
         throw const SocketException('Changes are still waiting to be sent');
       }
+      final changes = _changes;
       final remote = await _fetch();
-      if (_acc.generation.value != gen || !_acc.signedIn) return 'Signed out';
+      if (_acc.generation.value != gen || !_acc.signedIn) {
+        return 'Signed out while syncing.';
+      }
       // Changed meanwhile (sent, or still to send): next time.
-      if (pending.value.isNotEmpty || _running != null) {
+      if (pending.value.isNotEmpty || _running != null || _changes != changes) {
         state.value = SyncState.idle;
-        return 'Changed while syncing';
+        return 'Your library changed while syncing. Sync again in a moment.';
       }
       _merge(remote);
       lastSynced.value = DateTime.now();

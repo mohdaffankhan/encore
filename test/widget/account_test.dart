@@ -42,6 +42,7 @@ void main() {
     account.reset(store: MemoryStore());
     openSignIn = openSignInPage;
     pasteSignIn = askForPastedCookies;
+    hasSignInWindow = true;
   });
 
   testWidgets('signed out: Settings offers signing in, and says it is '
@@ -235,6 +236,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(account.status.value, AccountStatus.signedOut);
     expect(find.text('Sign in'), findsOneWidget);
+  });
+
+  testWidgets('Linux (no sign-in window): signing in is with the browser, '
+      'and never opens a window', (tester) async {
+    hasSignInWindow = false;
+    var windows = 0;
+    openSignIn = (context) async {
+      windows++;
+      return goodCookies();
+    };
+    pasteSignIn = (context) async => goodCookies();
+    await openSettingsPage(tester);
+    expect(find.text('Sign in'), findsNothing);
+    expect(
+      find.widgetWithText(FilledButton, 'Sign in with your browser'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Sign in with your browser'));
+    await tester.pumpAndSettle();
+    expect(account.status.value, AccountStatus.signedIn);
+    expect(windows, 0);
+
+    // Ended: signing in again is with the browser too.
+    account.whoIs = () async => null;
+    account.replied(account.headers()!, const [], 401, null);
+    await tester.pumpAndSettle();
+    expect(find.text('Sign in again'), findsNothing);
+    expect(
+      find.widgetWithText(FilledButton, 'Sign in with your browser'),
+      findsOneWidget,
+    );
   });
 
   group('signing in with a browser (paste)', () {

@@ -456,6 +456,23 @@ void main() {
       expect(ids(lib.liked.value), ['a']);
     });
 
+    test('the library changed during a sync: that sync changes nothing, '
+        'the change goes, the next sync merges', () async {
+      remote.liked.add('r');
+      final hold = youtube.hold = Completer();
+      final result = sync.sync();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      lib.toggleLike(song('mine'));
+      youtube.hold = null;
+      hold.complete();
+      expect(await result, contains('changed while syncing'));
+      expect(ids(lib.liked.value), ['mine'], reason: 'not merged');
+      await sync.idle;
+      expect(remote.liked, contains('mine'));
+      expect(await syncNow(), isNull);
+      expect(ids(lib.liked.value).toSet(), {'mine', 'r'});
+    });
+
     test('signed out meanwhile: the sync changes nothing', () async {
       remote.liked.add('r');
       final hold = youtube.hold = Completer();

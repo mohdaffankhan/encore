@@ -17,6 +17,11 @@ var openSignIn = openSignInPage;
 @visibleForTesting
 var pasteSignIn = askForPastedCookies;
 
+/// Whether this device can show Google's sign-in page in Encore: Android
+/// and Windows. Linux signs in with the browser instead (tests change it).
+@visibleForTesting
+var hasSignInWindow = Platform.isAndroid || Platform.isWindows;
+
 /// Settings' account rows: sign in to YouTube Music (optional), who is
 /// signed in, their channels, signing out.
 class AccountSettings extends StatefulWidget {
@@ -31,6 +36,28 @@ class _AccountSettingsState extends State<AccountSettings> {
   var _busy = false;
 
   bool get _desktop => Platform.isWindows || Platform.isLinux;
+
+  /// The ways in this device has, best first.
+  List<Widget> _signInButtons(String label) => [
+    if (hasSignInWindow)
+      FilledButton.icon(
+        onPressed: _busy ? null : _signIn,
+        icon: const Icon(Icons.login_rounded),
+        label: Text(label),
+      )
+    else
+      // Linux: no sign-in window (see sign_in.dart); the browser's.
+      FilledButton.icon(
+        onPressed: _busy ? null : () => _signIn(paste: true),
+        icon: const Icon(Icons.login_rounded),
+        label: const Text('Sign in with your browser'),
+      ),
+    if (_desktop && hasSignInWindow)
+      TextButton(
+        onPressed: _busy ? null : () => _signIn(paste: true),
+        child: const Text('Sign in with your browser'),
+      ),
+  ];
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -193,16 +220,7 @@ class _AccountSettingsState extends State<AccountSettings> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    FilledButton.icon(
-                      onPressed: _busy ? null : _signIn,
-                      icon: const Icon(Icons.login_rounded),
-                      label: const Text('Sign in'),
-                    ),
-                    if (_desktop)
-                      TextButton(
-                        onPressed: _busy ? null : () => _signIn(paste: true),
-                        child: const Text('Sign in with your browser'),
-                      ),
+                    ..._signInButtons('Sign in'),
                     ?busy,
                   ],
                 ),
@@ -256,18 +274,9 @@ class _AccountSettingsState extends State<AccountSettings> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (ended) ...[
-                    FilledButton.icon(
-                      onPressed: _busy ? null : _signIn,
-                      icon: const Icon(Icons.login_rounded),
-                      label: const Text('Sign in again'),
-                    ),
-                    if (_desktop)
-                      TextButton(
-                        onPressed: _busy ? null : () => _signIn(paste: true),
-                        child: const Text('Sign in with your browser'),
-                      ),
-                  ] else
+                  if (ended)
+                    ..._signInButtons('Sign in again')
+                  else
                     OutlinedButton(
                       onPressed: _busy ? null : _pickChannel,
                       child: const Text('Switch channel'),

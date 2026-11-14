@@ -35,7 +35,7 @@ Future<String> _desktopProfile() async =>
 Future<void> clearSignInBrowser() async {
   if (Platform.isAndroid) {
     await _cookies.invokeMethod('clear');
-  } else if (Platform.isWindows || Platform.isLinux) {
+  } else if (Platform.isWindows) {
     await WebviewWindow.clearAll(
       windows: WindowsWebviewOptions(userDataFolder: await _desktopProfile()),
     );
@@ -56,10 +56,12 @@ Future<YouTubeCookies?> openSignInPage(BuildContext context) async {
   return _desktopSignIn();
 }
 
-/// Desktop: a browser window of its own (WebView2 on Windows, WebKitGTK on
-/// Linux), on a profile kept apart from the user's browsers.
+/// Windows: a browser window of its own (WebView2), on a profile kept apart
+/// from the user's browsers.
 Future<YouTubeCookies?> _desktopSignIn() async {
-  if (!await WebviewWindow.isWebviewAvailable()) {
+  // Linux has no sign-in window (it would need WebKitGTK to start Encore at
+  // all): it signs in with the browser.
+  if (!Platform.isWindows || !await WebviewWindow.isWebviewAvailable()) {
     throw const SignInUnavailable();
   }
   // Start from a clean page: a session left from before would be shared.

@@ -10,7 +10,10 @@ dependencies:
   audio_service: ^0.18.19
   audio_service_mpris: ^0.2.1
   crypto: ^3.0.8
-  desktop_webview_window: ^0.4.3
+  # The YouTube Music sign-in window, Windows only: see
+  # third_party/desktop_webview_window/ENCORE_PATCH.md.
+  desktop_webview_window:
+    path: third_party/desktop_webview_window
   ffi: ^2.2.0
   flutter:
     sdk: flutter
