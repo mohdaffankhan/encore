@@ -64,6 +64,10 @@ class FakeLibrary {
     h['browse'] = (r, signed) {
       final id = r.body['browseId'] as String?;
       if (!signed) return {};
+      if (r.body['continuation'] case final String token) {
+        return continuation(token);
+      }
+      if (r.query['ctoken'] case final String token) return continuation(token);
       if (id == null) return {};
       if (id == 'VLLM') return _playlistPage('LM', 'Liked Music', liked, owned: false, auto: true);
       if (id == 'FEmusic_liked_playlists') return _grid(_libraryCards());
@@ -268,6 +272,15 @@ class FakeLibrary {
     final header = {
       'musicResponsiveHeaderRenderer': {'title': _runs(title)},
     };
+    final rows = [
+      for (var i = 0; i < songs.length; i++)
+        _row(songs[i], entries?[i].setId),
+    ];
+    // As the real page: songs in pages of [pageSize] (a "load more" item
+    // at the end), and for the account's own playlists a suggestions shelf
+    // below, loaded by the section list's own continuation.
+    final first = rows.take(pageSize).toList();
+    if (rows.length > pageSize) first.add(_more(id, pageSize));
     return {
       'header': owned
           ? {
@@ -275,29 +288,93 @@ class FakeLibrary {
             }
           : header,
       if (!owned && !auto) 'bookmark': _bookmark(id, true),
-      'contents': [
-        for (var i = 0; i < songs.length; i++)
-          {
-            'musicResponsiveListItemRenderer': {
-              'playlistItemData': {
-                'videoId': songs[i],
-                if (entries != null) 'playlistSetVideoId': entries[i].setId,
-              },
-              'flexColumns': [
+      'contents': {
+        'twoColumnBrowseResultsRenderer': {
+          'secondaryContents': {
+            'sectionListRenderer': {
+              'contents': [
                 {
-                  'musicResponsiveListItemFlexColumnRenderer': {
-                    'text': _runs('Song ${songs[i]}'),
-                  },
-                },
-                {
-                  'musicResponsiveListItemFlexColumnRenderer': {
-                    'text': _runs('Artist'),
-                  },
+                  'musicPlaylistShelfRenderer': {'contents': first},
                 },
               ],
+              if (owned)
+                'continuations': [
+                  {
+                    'nextContinuationData': {'continuation': 'suggestions'},
+                  },
+                ],
             },
           },
+        },
+      },
+    };
+  }
+
+  /// Songs per page (YouTube's is 100).
+  var pageSize = 100;
+
+  Map<String, Object> _more(String playlist, int from) => {
+    'continuationItemRenderer': {
+      'continuationEndpoint': {
+        'continuationCommand': {'token': 'page:$playlist:$from'},
+      },
+    },
+  };
+
+  /// The next page of a playlist, or its suggestions.
+  Object continuation(String token) {
+    if (token == 'suggestions') {
+      return {
+        'continuationContents': {
+          'sectionListContinuation': {
+            'contents': [
+              {
+                'musicShelfRenderer': {
+                  'title': _runs('Suggestions'),
+                  'contents': [_row('suggested1', null), _row('suggested2', null)],
+                },
+              },
+            ],
+          },
+        },
+      };
+    }
+    final [_, id, from] = token.split(':');
+    final p = id == 'LM' ? null : playlists[id];
+    final songs = p?.songs ?? liked;
+    final start = int.parse(from);
+    final rows = [
+      for (var i = start; i < songs.length && i < start + pageSize; i++)
+        _row(songs[i], p?.entries[i].setId),
+    ];
+    if (start + pageSize < songs.length) rows.add(_more(id, start + pageSize));
+    return {
+      'onResponseReceivedActions': [
+        {
+          'appendContinuationItemsAction': {'continuationItems': rows},
+        },
       ],
     };
   }
+
+  static Map<String, Object> _row(String videoId, String? setId) => {
+    'musicResponsiveListItemRenderer': {
+      'playlistItemData': {
+        'videoId': videoId,
+        'playlistSetVideoId': ?setId,
+      },
+      'flexColumns': [
+        {
+          'musicResponsiveListItemFlexColumnRenderer': {
+            'text': _runs('Song $videoId'),
+          },
+        },
+        {
+          'musicResponsiveListItemFlexColumnRenderer': {
+            'text': _runs('Artist'),
+          },
+        },
+      ],
+    },
+  };
 }

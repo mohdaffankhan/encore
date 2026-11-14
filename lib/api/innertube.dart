@@ -330,20 +330,37 @@ Future<Collection> collection(String browseId, {int maxPages = 10}) async {
   );
 
   final tracks = <Track>[];
-  // Playlists arrive in pages of 100; stop at 1000 songs.
+  // The songs are one shelf; the page also has others (an owned playlist's
+  // suggestions, an album's other versions), which aren't its songs.
+  final shelf =
+      _findAll(json, 'musicPlaylistShelfRenderer').firstOrNull ??
+      _findAll(json, 'musicShelfRenderer').firstOrNull;
+  List items = shelf is Map ? shelf['contents'] as List? ?? const [] : const [];
+  Object? holder = shelf;
+  // Playlists arrive in pages of 100; up to [maxPages] of them.
   for (var page = 0; page < maxPages; page++) {
-    for (final item in _findAll(json, 'musicResponsiveListItemRenderer')) {
-      if (_listItem(item, defaults) case final Track t) {
+    for (final item in items) {
+      final row = item is Map ? item['musicResponsiveListItemRenderer'] : null;
+      if (row is! Map<String, dynamic>) continue;
+      if (_listItem(row, defaults) case final Track t) {
         tracks.add(t);
-        if (item['playlistItemData']?['playlistSetVideoId']
+        if (row['playlistItemData']?['playlistSetVideoId']
             case final String entry) {
           (entryIds[t.id] ??= []).add(entry);
         }
       }
     }
-    final next = _continuation(json);
+    final next = _shelfContinuation(items, holder);
     if (next == null) break;
     json = await next();
+    final more =
+        _findAll(json, 'appendContinuationItemsAction').firstOrNull ??
+        _findAll(json, 'musicPlaylistShelfContinuation').firstOrNull ??
+        _findAll(json, 'musicShelfContinuation').firstOrNull;
+    if (more is! Map) break;
+    items =
+        (more['continuationItems'] ?? more['contents']) as List? ?? const [];
+    holder = more;
   }
   return Collection(
     title: title,
@@ -360,6 +377,30 @@ Future<Collection> collection(String browseId, {int maxPages = 10}) async {
     owned: owned,
     entryIds: entryIds,
   );
+}
+
+/// The next page of a shelf's songs: a "load more" item at the end of
+/// [items], or (older pages) a continuation on the shelf itself.
+Future<Map<String, dynamic>> Function()? _shelfContinuation(
+  List items,
+  Object? shelf,
+) {
+  final last = items.lastOrNull;
+  final more = last is Map ? last['continuationItemRenderer'] : null;
+  if (_findAll(more, 'token').firstOrNull case final String token) {
+    return () => _post('browse', {'continuation': token});
+  }
+  final legacy = shelf is Map
+      ? _findAll(shelf['continuations'], 'continuation').firstOrNull
+      : null;
+  if (legacy case final String token) {
+    return () => _post(
+      'browse',
+      {},
+      query: '&ctoken=$token&continuation=$token&type=next',
+    );
+  }
+  return null;
 }
 
 /// The request for the next page of a browse result, if there is one.
@@ -664,11 +705,27 @@ Future<void> rateSong(String videoId, Rating rating) => _post(
 
 /// Where YouTube counts a play of [videoId] (and adds it to the account's
 /// history), or null if it doesn't say.
-Future<Uri?> playbackStatsUrl(String videoId) async {
+///
+/// YouTube Music only answers with it given its player's version (its
+/// build day, counted from 1970: the `signatureTimestamp`); any from the
+/// last months will do (tried 2026-11: 70 to 0 days old, and newer, all
+/// work; a year old doesn't), so a week before today is used.
+Future<Uri?> playbackStatsUrl(
+  String videoId, {
+  int? signatureTimestamp,
+  DateTime? now,
+}) async {
+  signatureTimestamp ??=
+      (now ?? DateTime.now()).toUtc().millisecondsSinceEpoch ~/
+          Duration.millisecondsPerDay -
+      7;
   final json = await _post('player', {
     'videoId': videoId,
     'playbackContext': {
-      'contentPlaybackContext': {'html5Preference': 'HTML5_PREF_WANTS'},
+      'contentPlaybackContext': {
+        'html5Preference': 'HTML5_PREF_WANTS',
+        'signatureTimestamp': signatureTimestamp,
+      },
     },
   });
   final url =

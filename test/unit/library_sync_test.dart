@@ -297,6 +297,30 @@ void main() {
       });
     });
 
+    test("the account's suggestions under its own playlist aren't songs "
+        'of it (found on YouTube Music: they were taken in)', () async {
+      remote.playlists['PL1'] = FakePlaylist('PL1', 'Mine', ['a', 'b']);
+      await syncNow();
+      expect(ids(lib.playlists.value.single.tracks), ['a', 'b']);
+      expect(remote.writes, isEmpty);
+    });
+
+    test('long playlists and liked songs come in full, page by page', () async {
+      remote.pageSize = 3;
+      remote.liked.addAll([for (var i = 0; i < 8; i++) 'l$i']);
+      remote.playlists['PL1'] =
+          FakePlaylist('PL1', 'Long', [for (var i = 0; i < 10; i++) 's$i']);
+      await syncNow();
+      expect(ids(lib.liked.value), [for (var i = 0; i < 8; i++) 'l$i']);
+      expect(ids(lib.playlists.value.single.tracks), [
+        for (var i = 0; i < 10; i++) 's$i',
+      ]);
+      // Removing the last song finds its entry on the last page.
+      lib.removeFromPlaylist(lib.playlists.value.single.id, song('s9'));
+      await sync.idle;
+      expect(remote.playlists['PL1']!.songs, hasLength(9));
+    });
+
     test('a playlist made in Encore is made on the account, with its songs',
         () async {
       await syncNow();
