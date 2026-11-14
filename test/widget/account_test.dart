@@ -37,7 +37,12 @@ Future<void> openSettingsPage(WidgetTester tester, {bool phone = false}) async {
 }
 
 void main() {
-  setUp(resetAccount);
+  setUp(() {
+    resetAccount();
+    // As on Windows and Android: the tests run on Linux too (CI), where
+    // signing in is with the browser only; that has a test of its own.
+    hasSignInWindow = true;
+  });
   tearDown(() {
     account.reset(store: MemoryStore());
     openSignIn = openSignInPage;
