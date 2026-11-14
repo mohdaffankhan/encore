@@ -53,11 +53,11 @@ else
   sleep 3
 fi
 
-log "--- Linux: tar.gz, AUR package and Flatpak in clean containers"
-# The Flatpak isn't on the release (Flathub publishes it): it is built here
-# from the draft's tar.gz, as Flathub will build it, and played.
-sh tool/flatpak_build.sh "$dir" || fail=1
-sh tool/linux_release_check.sh "$dir" "tar aur flatpak" || fail=1
+log "--- Linux: tar.gz and AUR package in clean containers"
+# The Flatpak isn't checked here while Flathub is on hold (it isn't on the
+# release; CI still builds it): tool/flatpak_build.sh and
+# tool/linux_release_check.sh <dir> flatpak check it by hand.
+sh tool/linux_release_check.sh "$dir" "tar aur" || fail=1
 log "--- Linux: AppImage on another Linux, nothing installed"
 sh tool/linux_appimage_check.sh "$dir" || fail=1
 
