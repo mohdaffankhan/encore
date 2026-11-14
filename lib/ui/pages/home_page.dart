@@ -237,11 +237,21 @@ class PlaySomething extends StatelessWidget {
             icon: const Icon(Icons.shuffle_rounded),
           );
         }
+        // Quiet, and shorter than the greeting: it shouldn't outshine it.
         return Padding(
           padding: const EdgeInsets.only(right: 8),
-          child: FilledButton.tonalIcon(
+          child: TextButton.icon(
             onPressed: play,
-            icon: const Icon(Icons.shuffle_rounded, size: 20),
+            style: TextButton.styleFrom(
+              foregroundColor: EncoreColors.textSecondary,
+              backgroundColor: EncoreColors.surfaceHigh,
+              minimumSize: const Size(0, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              visualDensity: VisualDensity.compact,
+              textStyle: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            icon: const Icon(Icons.shuffle_rounded, size: 16),
             label: const Text('Play something'),
           ),
         );

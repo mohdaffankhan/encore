@@ -209,7 +209,11 @@ class PageTitle extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineMedium,
             ),
           ),
-          ?trailing,
+          // Level with the title's letters, which sit low in their line
+          // (this font's ascent is tall): centred alone, buttons looked
+          // higher than the text.
+          if (trailing case final trailing?)
+            Padding(padding: const EdgeInsets.only(top: 4), child: trailing),
         ],
       ),
     );

@@ -141,6 +141,7 @@ void main() {
       sync.stop();
       await sync.idle;
       await sync.saved;
+      await acc.signOut();
       yt.signIn = null;
       await youtube.stop();
       for (var i = 0; ; i++) {
@@ -333,6 +334,22 @@ void main() {
         expect(sync.notice.value, contains('where it left off'));
         expect(sync.total.value, 2);
       });
+    });
+
+    test('stopped mid-send, a failure does not start sending again', () async {
+      await syncNow();
+      final hold = youtube.hold = Completer();
+      youtube.failWith = 503;
+      lib.toggleLike(song('a'));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      sync.stop();
+      youtube.hold = null;
+      hold.complete();
+      await sync.idle;
+      youtube.failWith = null;
+      youtube.requests.clear();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(youtube.requests, isEmpty, reason: 'no retry after stopping');
     });
 
     test('a second sync brings removals across, both ways', () async {

@@ -595,6 +595,8 @@ class YouTubeSync {
   }
 
   void _kick() {
+    // Stopped: nothing more is sent (a retry can't start it again).
+    if (!_started) return;
     if (_running != null || !_acc.signedIn || pending.value.isEmpty) return;
     if (_retry?.isActive ?? false) return;
     _running = _send().whenComplete(() => _running = null);
@@ -792,6 +794,7 @@ class YouTubeSync {
   void _failed(SyncOp op, Object e) {
     debugPrint('Sending $op failed, trying later: $e');
     waiting.value = true;
+    if (!_started) return;
     final wait = retryAfter * pow(2, min(_failures, 5)).toInt();
     _failures++;
     _retry = Timer(wait, () {

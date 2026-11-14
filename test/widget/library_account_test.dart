@@ -442,6 +442,9 @@ void main() {
       expect(find.text('Play something'), findsNothing, reason: 'an icon');
       final row = tester.getCenter(find.byTooltip('Settings')).dy;
       expect(tester.getCenter(button).dy, row);
+      // Level with the greeting's letters, which sit low in their line.
+      final greeting = tester.getCenter(find.textContaining(RegExp(r'^Good ')));
+      expect(row - greeting.dy, inInclusiveRange(1, 4));
     });
 
     testWidgets('desktop: a button at the end of the greeting row', (
@@ -449,9 +452,16 @@ void main() {
     ) async {
       userLibrary.history.value = [_song];
       await pumpApp(tester, const Size(1400, 900));
-      final button = find.widgetWithText(FilledButton, 'Play something');
+      // Quiet (not a filled button) and shorter than the greeting.
+      final button = find.widgetWithText(TextButton, 'Play something');
       expect(button, findsOneWidget);
       final greeting = find.textContaining(RegExp(r'^Good '));
+      // (Its pill, that is: clicking it reaches a little further.)
+      final pill = find.descendant(of: button, matching: find.byType(Material));
+      expect(
+        tester.getSize(pill.first).height,
+        lessThan(tester.getSize(greeting).height),
+      );
       expect(
         (tester.getCenter(button).dy - tester.getCenter(greeting).dy).abs(),
         lessThan(8),

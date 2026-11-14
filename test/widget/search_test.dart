@@ -1,5 +1,7 @@
 import 'package:encore/services/library.dart';
+import 'package:encore/ui/pages/search_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'shell_test.dart' show pumpApp;
@@ -38,4 +40,79 @@ void main() {
     expect(find.byType(ChoiceChip), findsNothing);
     expect(userLibrary.searches.value, isEmpty, reason: 'not a search');
   });
+
+  group('phone: Search again (as in the Play Store)', () {
+    final nav = find.byType(NavigationBar);
+    Future<void> tapSearchTab(WidgetTester tester) async {
+      await tester.tap(find.descendant(of: nav, matching: find.text('Search')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the first tap opens Search; again puts the cursor in the box',
+        (tester) async {
+      await pumpApp(tester, const Size(400, 860));
+      await tapSearchTab(tester);
+      expect(searchField.hasFocus, isFalse, reason: 'just opened');
+      await tapSearchTab(tester);
+      expect(searchField.hasFocus, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue, reason: 'keyboard up');
+    });
+
+    testWidgets('keyboard put away while the box has the cursor: it comes '
+        'back', (tester) async {
+      await pumpApp(tester, const Size(400, 860));
+      await tapSearchTab(tester);
+      await tapSearchTab(tester);
+      tester.testTextInput.hide();
+      expect(tester.testTextInput.isVisible, isFalse);
+      final shown = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.textInput,
+        (call) async {
+          shown.add(call.method);
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.textInput,
+          null,
+        ),
+      );
+      await tapSearchTab(tester);
+      expect(shown, contains('TextInput.show'));
+    });
+  });
+
+  group('recent searches', () {
+    testWidgets('Clear all clears them, Undo brings them back', (
+      tester,
+    ) async {
+      userLibrary.searches.value = ['arijit', 'pritam', 'sanam'];
+      await pumpApp(tester, const Size(400, 860));
+      await tester.tap(find.text('Search').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Recent searches'), findsOneWidget);
+      // On the right of its heading.
+      expect(
+        tester.getCenter(find.text('Clear all')).dx,
+        greaterThan(tester.getCenter(find.text('Recent searches')).dx),
+      );
+      expect(
+        (tester.getCenter(find.text('Clear all')).dy -
+                tester.getCenter(find.text('Recent searches')).dy)
+            .abs(),
+        lessThan(6),
+      );
+      await tester.tap(find.text('Clear all'));
+      await tester.pumpAndSettle();
+      expect(userLibrary.searches.value, isEmpty);
+      expect(find.text('Recent searches'), findsNothing);
+      expect(find.text('Recent searches cleared'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(userLibrary.searches.value, ['arijit', 'pritam', 'sanam']);
+    });
+  });
 }
+

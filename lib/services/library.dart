@@ -148,6 +148,8 @@ class UserLibrary {
     ...searches.value.where((q) => q != query),
   ].take(10).toList();
 
+  void clearSearches() => searches.value = const [];
+
   void removeSearch(String query) =>
       searches.value = searches.value.where((q) => q != query).toList();
 

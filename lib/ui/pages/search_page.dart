@@ -324,7 +324,29 @@ class _SearchPageState extends State<SearchPage> {
         }
         return ListView(
           children: [
-            const SectionHeader('Recent searches'),
+            SectionHeader(
+              'Recent searches',
+              action: TextButton(
+                onPressed: () {
+                  final cleared = userLibrary.searches.value;
+                  userLibrary.clearSearches();
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text('Recent searches cleared'),
+                        behavior: SnackBarBehavior.floating,
+                        action: SnackBarAction(
+                          label: 'Undo',
+                          onPressed: () =>
+                              userLibrary.searches.value = cleared,
+                        ),
+                      ),
+                    );
+                },
+                child: const Text('Clear all'),
+              ),
+            ),
             for (final (i, q) in searches.indexed)
               _SimpleRow(
                 icon: Icons.history_rounded,

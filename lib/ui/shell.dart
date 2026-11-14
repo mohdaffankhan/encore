@@ -192,10 +192,23 @@ class ShellState extends State<Shell> {
         _tab = tab;
       });
     } else if (tab == _tab) {
-      // Selecting the current tab again returns to its first page.
+      // Selecting the current tab again returns to its first page; Search
+      // again also puts the cursor in the search box, keyboard up (as in
+      // the Play Store).
       _navigators[tab]!.currentState?.popUntil((route) => route.isFirst);
+      if (tab == AppTab.search) _typeInSearch();
     } else {
       setState(() => _tab = tab);
+    }
+  }
+
+  /// The cursor in the search box, and the keyboard up even if the box
+  /// had the cursor already (the keyboard was put away).
+  void _typeInSearch() {
+    if (searchField.hasFocus) {
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    } else {
+      searchField.requestFocus();
     }
   }
 
