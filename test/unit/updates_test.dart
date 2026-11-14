@@ -109,10 +109,14 @@ void main() {
 
     test('a newer version: yes; the same or older: no', () {
       expect(remind(const UpdateState(), r030), isTrue);
-      expect(policy.shouldRemind(const UpdateState(), r030, '0.3.0', now),
-          isFalse);
-      expect(policy.shouldRemind(const UpdateState(), r030, '0.4.0', now),
-          isFalse);
+      expect(
+        policy.shouldRemind(const UpdateState(), r030, '0.3.0', now),
+        isFalse,
+      );
+      expect(
+        policy.shouldRemind(const UpdateState(), r030, '0.4.0', now),
+        isFalse,
+      );
     });
 
     test('skipped: not again for 10 days, then again', () {
@@ -202,10 +206,7 @@ void main() {
         await req.response.close();
       });
       dir = await Directory.systemTemp.createTemp('encore_updates');
-      u = Updates(
-        latestUrl: 'http://127.0.0.1:${server.port}/latest',
-        dir: dir,
-      )
+      u = Updates(latestUrl: 'http://127.0.0.1:${server.port}/latest', dir: dir)
         ..way = (() => UpdateWay.windowsInstaller)
         ..currentVersion = (() async => '0.2.1')
         ..now = (() => clock);
@@ -229,12 +230,10 @@ void main() {
     test('skipped: 10 days of quiet for it, kept across restarts', () async {
       final r = (await u.check())!;
       await u.skip(r);
-      final again = Updates(
-        latestUrl: 'http://127.0.0.1:${server.port}/latest',
-        dir: dir,
-      )
-        ..way = (() => UpdateWay.windowsInstaller)
-        ..currentVersion = (() async => '0.2.1');
+      final again =
+          Updates(latestUrl: 'http://127.0.0.1:${server.port}/latest', dir: dir)
+            ..way = (() => UpdateWay.windowsInstaller)
+            ..currentVersion = (() async => '0.2.1');
       for (final days in [1, 4, 9]) {
         again.now = () => clock.add(Duration(days: days));
         expect(await again.check(), isNull, reason: 'day $days');
@@ -264,16 +263,18 @@ void main() {
       expect(asked, 0);
     });
 
-    test('Check for updates in Settings asks now, whatever was answered',
-        () async {
-      final r = (await u.check())!;
-      await u.skip(r);
-      expect((await u.checkNow())?.version, '0.3.0');
-      u.currentVersion = () async => '0.3.0';
-      expect(await u.checkNow(), isNull);
-      await server.close(force: true);
-      await expectLater(u.checkNow(), throwsA(isA<UpdateFailed>()));
-    });
+    test(
+      'Check for updates in Settings asks now, whatever was answered',
+      () async {
+        final r = (await u.check())!;
+        await u.skip(r);
+        expect((await u.checkNow())?.version, '0.3.0');
+        u.currentVersion = () async => '0.3.0';
+        expect(await u.checkNow(), isNull);
+        await server.close(force: true);
+        await expectLater(u.checkNow(), throwsA(isA<UpdateFailed>()));
+      },
+    );
   });
 
   group('the file for this copy', () {
@@ -286,22 +287,26 @@ void main() {
           .setMockMethodCallHandler(channel, (call) async => abi);
     });
 
-    test("Android: the APK for the phone's processor, else the one for all",
-        () async {
-      final u = Updates()..way = (() => UpdateWay.androidApk);
-      abi = 'arm64-v8a';
-      expect((await u.fileFor(r))?.name, 'encore-android-arm64-v8a.apk');
-      abi = 'x86_64';
-      expect((await u.fileFor(r))?.name, 'encore-android.apk');
-    });
+    test(
+      "Android: the APK for the phone's processor, else the one for all",
+      () async {
+        final u = Updates()..way = (() => UpdateWay.androidApk);
+        abi = 'arm64-v8a';
+        expect((await u.fileFor(r))?.name, 'encore-android-arm64-v8a.apk');
+        abi = 'x86_64';
+        expect((await u.fileFor(r))?.name, 'encore-android.apk');
+      },
+    );
 
-    test('Windows (installed): the installer; elsewhere: none (the page)',
-        () async {
-      final u = Updates()..way = (() => UpdateWay.windowsInstaller);
-      expect((await u.fileFor(r))?.name, 'encore-windows-setup.exe');
-      u.way = () => UpdateWay.page;
-      expect(await u.fileFor(r), isNull);
-    });
+    test(
+      'Windows (installed): the installer; elsewhere: none (the page)',
+      () async {
+        final u = Updates()..way = (() => UpdateWay.windowsInstaller);
+        expect((await u.fileFor(r))?.name, 'encore-windows-setup.exe');
+        u.way = () => UpdateWay.page;
+        expect(await u.fileFor(r), isNull);
+      },
+    );
   });
 
   group('downloading', () {
@@ -337,20 +342,30 @@ void main() {
       for (final f in dir.listSync()) f.uri.pathSegments.last,
     ];
 
-    test('the whole file, checked against the checksum, with progress',
-        () async {
-      final seen = <double>[];
-      final f = await Updates().download(file(), dir: dir, progress: seen.add);
-      expect(await f.readAsBytes(), data);
-      expect(seen.last, 1);
-      expect(left(), ['encore-windows-setup.exe']);
-    });
+    test(
+      'the whole file, checked against the checksum, with progress',
+      () async {
+        final seen = <double>[];
+        final f = await Updates().download(
+          file(),
+          dir: dir,
+          progress: seen.add,
+        );
+        expect(await f.readAsBytes(), data);
+        expect(seen.last, 1);
+        expect(left(), ['encore-windows-setup.exe']);
+      },
+    );
 
     Future<void> fails(ReleaseFile f, String why) async {
       await expectLater(
         Updates().download(f, dir: dir),
         throwsA(
-          isA<UpdateFailed>().having((e) => e.message, 'message', contains(why)),
+          isA<UpdateFailed>().having(
+            (e) => e.message,
+            'message',
+            contains(why),
+          ),
         ),
       );
       expect(left(), isEmpty, reason: 'nothing half-downloaded is left');
@@ -393,5 +408,35 @@ void main() {
       final f = await Updates().download(file(), dir: dir);
       expect(await f.length(), data.length);
     });
+  });
+
+  group('Windows: running the installer', () {
+    test('silent, closing what holds the files, then Encore reopens: '
+        'the installer is started directly (through cmd, the quoted paths '
+        'broke and nothing was installed)', () {
+      expect(Updates.installerArgs, [
+        '/VERYSILENT',
+        '/SUPPRESSMSGBOXES',
+        '/NORESTART',
+        '/CLOSEAPPLICATIONS',
+        '/RELAUNCH',
+      ]);
+      final source = File('lib/services/updates.dart').readAsStringSync();
+      expect(source, isNot(contains("'cmd'")));
+    });
+
+    test(
+      'the installer reopens Encore only for an update Encore started '
+      '(/RELAUNCH, or the /CLOSEAPPLICATIONS of 0.3.0), not for release checks',
+      () {
+        final iss = File('windows/installer.iss').readAsStringSync();
+        expect(iss, contains('Check: UpdatedFromEncore'));
+        expect(iss, contains("'/RELAUNCH'"));
+        expect(iss, contains("'/CLOSEAPPLICATIONS'"));
+        final checks = File('tool/release_check.sh').readAsStringSync();
+        expect(checks, isNot(contains('RELAUNCH')));
+        expect(checks, isNot(contains('CLOSEAPPLICATIONS')));
+      },
+    );
   });
 }

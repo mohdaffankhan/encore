@@ -442,24 +442,28 @@ class Updates {
   static Future<bool> installApk(File apk) async =>
       await _android.invokeMethod<bool>('install', {'path': apk.path}) ?? false;
 
-  /// Windows: runs [setup] silently once Encore has closed, then opens
-  /// Encore again; Encore closes right after.
+  /// Windows: runs the installer [setup] silently and closes Encore; the
+  /// installer opens Encore again once done (its /RELAUNCH). Started
+  /// directly, not through cmd: quoting the paths through cmd failed
+  /// ("Windows cannot find '\'") and flashed a console window.
   static Future<void> runInstaller(File setup) async {
-    final app = Platform.resolvedExecutable;
     await Process.start(
-      'cmd',
-      [
-        '/c',
-        // A moment for Encore to close; the installer closes it anyway.
-        'timeout /t 2 /nobreak >nul & '
-            '"${setup.path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART '
-            '/CLOSEAPPLICATIONS & start "" "$app"',
-      ],
+      setup.path,
+      installerArgs,
       mode: ProcessStartMode.detached,
-      runInShell: false,
     );
     exit(0);
   }
+
+  /// Silent, closes what holds Encore's files, reopens Encore after.
+  @visibleForTesting
+  static const installerArgs = [
+    '/VERYSILENT',
+    '/SUPPRESSMSGBOXES',
+    '/NORESTART',
+    '/CLOSEAPPLICATIONS',
+    '/RELAUNCH',
+  ];
 }
 
 /// How this copy was installed, so how it updates.
