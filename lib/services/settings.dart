@@ -37,6 +37,9 @@ class Settings {
   /// Encore starts at it (never muted).
   final volume = ValueNotifier(1.0);
 
+  /// Told at startup when a new version is out (not often).
+  final updateReminders = ValueNotifier(true);
+
   /// The speeds offered.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -50,6 +53,7 @@ class Settings {
     'equalizerOn': equalizerOn,
     'equalizerGains': equalizerGains,
     'volume': volume,
+    'updateReminders': updateReminders,
   };
 
   File? _file;
@@ -80,6 +84,9 @@ class Settings {
         equalizerGains.value = [
           for (final g in gains) (g as num).toDouble().clamp(-12.0, 12.0),
         ];
+      }
+      if (json['updateReminders'] case final bool on) {
+        updateReminders.value = on;
       }
       if (json['volume'] case final num v when v > 0 && v <= 1) {
         volume.value = v.toDouble();
