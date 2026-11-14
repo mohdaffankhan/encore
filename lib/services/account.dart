@@ -89,6 +89,8 @@ class Account implements yt.YouTubeSignIn {
 
   Future<void> load() async {
     yt.signIn = this;
+    // Test builds stay signed out (see usingTestData).
+    if (usingTestData) return;
     String? text;
     try {
       text = await _store.read();

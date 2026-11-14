@@ -9,6 +9,7 @@ import 'package:encore/ui/pages/artist_page.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/home_page.dart';
 import 'package:encore/ui/pages/library_page.dart';
+import 'package:encore/ui/pages/removal_question.dart';
 import 'package:encore/ui/pages/sync_question.dart';
 import 'package:encore/ui/player/player_ui.dart';
 import 'package:encore/ui/shell.dart';
@@ -218,6 +219,49 @@ void main() {
       await tester.pump();
       expect(find.textContaining('Waiting for a connection'), findsOneWidget);
       expect(find.text('Try now'), findsOneWidget);
+    });
+  });
+
+  group('many removals at once', () {
+    tearDown(() => youtubeSync.removals.value = null);
+
+    test('says what would go', () {
+      expect(
+        RemovalQuestionDialog.what(
+          const RemovalQuestion(songs: 228, playlists: 1, playlistSongs: 30),
+        ),
+        '228 liked songs, 1 playlist and 30 songs from playlists',
+      );
+      expect(
+        RemovalQuestionDialog.what(const RemovalQuestion(saved: 1)),
+        '1 saved album or playlist',
+      );
+    });
+
+    testWidgets('asked over the app; Keep them is the main button', (
+      tester,
+    ) async {
+      await pumpApp(tester, const Size(400, 860));
+      youtubeSync.removals.value = const RemovalQuestion(songs: 228);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Remove 228 liked songs from YouTube Music?'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Keep them'), findsOneWidget);
+      await tester.tap(find.text('Keep them'));
+      await tester.pumpAndSettle();
+      expect(youtubeSync.removals.value, isNull);
+      expect(find.byType(RemovalQuestionDialog), findsNothing);
+    });
+
+    testWidgets('dismissed (tapped outside): kept', (tester) async {
+      await pumpApp(tester, const Size(400, 860));
+      youtubeSync.removals.value = const RemovalQuestion(songs: 30);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(youtubeSync.removals.value, isNull);
     });
   });
 

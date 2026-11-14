@@ -185,6 +185,30 @@ class SyncPlan {
       (spacing + const Duration(milliseconds: 400)) * requests;
 }
 
+/// Many removals at once, held until the user says (see
+/// [YouTubeSync.askAbove]): how many of each.
+@immutable
+class RemovalQuestion {
+  const RemovalQuestion({
+    this.songs = 0,
+    this.saved = 0,
+    this.artists = 0,
+    this.playlists = 0,
+    this.playlistSongs = 0,
+  });
+
+  final int songs;
+  final int saved;
+  final int artists;
+  final int playlists;
+  final int playlistSongs;
+
+  int get total => songs + saved + artists + playlists + playlistSongs;
+}
+
+/// Ops that take something away from the account.
+const _removing = {'unlike', 'unsave', 'unfollow', 'delete', 'remove'};
+
 /// Three-way merge of a set: what is in [local] and [remote] now, against
 /// [base], what they last agreed on (null: never; then nothing is taken
 /// away, both are combined). Something added on either side is kept;
@@ -348,6 +372,151 @@ class YouTubeSync {
   /// Something to tell the user (shown once, then cleared).
   final notice = ValueNotifier<String?>(null);
 
+  /// More removals than this from one change (in Encore, or found by a
+  /// sync) are held until the user agrees ([removals]): a library that
+  /// suddenly lost songs (a test emptying it, a damaged file, an older
+  /// Encore) mustn't empty the account. A test once unliked 228 songs.
+  static const askAbove = 20;
+
+  /// Removals held for the user's answer ([answerRemovals]).
+  final removals = ValueNotifier<RemovalQuestion?>(null);
+  List<SyncOp> _held = const [];
+
+  /// While a change is worked out: the removals it makes, to send or hold
+  /// once it is done (null: sent at once).
+  List<SyncOp>? _batch;
+
+  // What the library had, to put back what the user keeps.
+  final _knownTracks = <String, Track>{};
+  final _knownRefs = <String, MediaRef>{};
+  final _knownPlaylists = <String, Playlist>{};
+
+  /// The user's answer about held removals: true sends them; false keeps
+  /// everything (put back in Encore).
+  void answerRemovals(bool remove) {
+    final held = _held;
+    _held = const [];
+    removals.value = null;
+    if (held.isEmpty) return;
+    if (remove) {
+      for (final op in held) {
+        _add(op);
+      }
+      return;
+    }
+    applyingRemote(() {
+      for (final op in held) {
+        _restore(op);
+      }
+    });
+    _save();
+  }
+
+  /// Puts back in Encore what [op] would have taken from the account.
+  void _restore(SyncOp op) {
+    switch (op.kind) {
+      case 'unlike':
+        final t = _knownTracks[op.id];
+        if (t != null && !_lib.liked.value.contains(t)) {
+          _lib.liked.value = [..._lib.liked.value, t];
+        }
+      case 'unsave':
+        final ref = _knownRefs[op.id];
+        if (ref != null && !_lib.isSaved(ref.id)) {
+          _lib.savedMedia.value = [..._lib.savedMedia.value, ref];
+        }
+      case 'unfollow':
+        final ref = _knownRefs[op.id];
+        if (ref != null && !_lib.isFollowed(ref.id)) {
+          _lib.artists.value = [..._lib.artists.value, ref];
+        }
+      case 'delete':
+        final p = _knownPlaylists[op.id];
+        if (p != null &&
+            !_lib.playlists.value.any((q) => q.remoteId == op.id)) {
+          _lib.playlists.value = [..._lib.playlists.value, p];
+        }
+      case 'remove':
+        _lib.playlists.value = [
+          for (final p in _lib.playlists.value)
+            if (p.remoteId == op.id)
+              p.copyWith(
+                tracks: [
+                  ...p.tracks,
+                  for (final id in op.ids)
+                    if (_knownTracks[id] case final t?
+                        when !p.tracks.contains(t))
+                      t,
+                ],
+              )
+            else
+              p,
+        ];
+    }
+  }
+
+  /// Runs [work] (a change, or a sync's merge), then sends its removals,
+  /// or holds them for the user when there are many.
+  void _collectRemovals(void Function() work, {bool merge = false}) {
+    final outer = _batch == null;
+    _batch ??= [];
+    try {
+      work();
+    } finally {
+      if (outer) {
+        final batch = _batch!;
+        _batch = null;
+        final count = batch.fold<int>(
+          0,
+          (n, op) => n + (op.kind == 'remove' ? op.ids.length : 1),
+        );
+        if (count <= askAbove) {
+          for (final op in batch) {
+            _add(op);
+          }
+        } else {
+          _hold(batch, merge: merge);
+        }
+      }
+    }
+  }
+
+  void _hold(List<SyncOp> ops, {required bool merge}) {
+    _held = [..._held, ...ops];
+    if (merge) {
+      // Not agreed as gone yet: asked again at the next sync if
+      // unanswered (Encore closed meanwhile).
+      for (final op in ops) {
+        switch (op.kind) {
+          case 'unlike':
+            _likedBase?.add(op.id);
+          case 'unsave':
+            _savedBase?.add(op.id);
+          case 'unfollow':
+            _artistsBase?.add(op.id);
+          case 'remove':
+            if (_playlistBase?[op.id] case final b?) {
+              _playlistBase![op.id] = PlaylistBase(b.name, [
+                ...b.ids,
+                for (final id in op.ids)
+                  if (!b.ids.contains(id)) id,
+              ]);
+            }
+        }
+      }
+    }
+    int n(String kind) => _held.where((o) => o.kind == kind).length;
+    removals.value = RemovalQuestion(
+      songs: n('unlike'),
+      saved: n('unsave'),
+      artists: n('unfollow'),
+      playlists: n('delete'),
+      playlistSongs: _held
+          .where((o) => o.kind == 'remove')
+          .fold(0, (sum, o) => sum + o.ids.length),
+    );
+  }
+
   /// The user's answer to [question]: true to sync, false to sign out
   /// (nothing has been sent).
   void answer(bool sync) {
@@ -383,7 +552,8 @@ class YouTubeSync {
   Timer? _first;
 
   Future<void> start() async {
-    if (_started) return;
+    // Test builds never sync (see usingTestData).
+    if (_started || usingTestData) return;
     _started = true;
     await _load();
     _snapshot();
@@ -429,6 +599,18 @@ class YouTubeSync {
   }
 
   void _snapshot() {
+    for (final t in _lib.liked.value) {
+      _knownTracks[t.id] = t;
+    }
+    for (final p in _lib.playlists.value) {
+      for (final t in p.tracks) {
+        _knownTracks[t.id] = t;
+      }
+      if (p.remoteId case final id?) _knownPlaylists[id] = p;
+    }
+    for (final ref in [..._lib.savedMedia.value, ..._lib.artists.value]) {
+      _knownRefs[ref.id] = ref;
+    }
     _liked = {for (final t in _lib.liked.value) t.id};
     _playlists = {for (final p in _lib.playlists.value) p.id: p};
     _saved = {for (final r in _lib.savedMedia.value) r.id};
@@ -455,6 +637,22 @@ class YouTubeSync {
     final artists = {for (final r in _lib.artists.value) r.id};
     final playlists = {for (final p in _lib.playlists.value) p.id: p};
     if (send) {
+      _collectRemovals(() => _sendChanges(liked, saved, artists, playlists));
+    }
+    _liked = liked;
+    _saved = saved;
+    _artists = artists;
+    _playlists = playlists;
+    _snapshot();
+  }
+
+  void _sendChanges(
+    Set<String> liked,
+    Set<String> saved,
+    Set<String> artists,
+    Map<String, Playlist> playlists,
+  ) {
+    {
       for (final id in liked.difference(_liked)) {
         _add(SyncOp('like', id));
       }
@@ -475,10 +673,6 @@ class YouTubeSync {
       }
       _playlistsChanged(_playlists, playlists);
     }
-    _liked = liked;
-    _saved = saved;
-    _artists = artists;
-    _playlists = playlists;
   }
 
   void _playlistsChanged(
@@ -533,6 +727,10 @@ class YouTubeSync {
   /// Queues [op]; it replaces anything pending with the same key (only the
   /// last word counts).
   void _add(SyncOp op) {
+    if (_batch case final batch? when _removing.contains(op.kind)) {
+      batch.add(op);
+      return;
+    }
     _changes++;
     final key = op.key;
     final before = pending.value.length;
@@ -570,6 +768,8 @@ class YouTubeSync {
     waiting.value = false;
     // Signed out while the first sync was asking: no answer needed.
     answer(false);
+    _held = const [];
+    removals.value = null;
     _likedBase = null;
     _playlistBase = null;
     _savedBase = null;
@@ -737,7 +937,7 @@ class YouTubeSync {
   /// The account's playlist [id]: its songs in order, and each song's
   /// entries (what removing or moving it takes).
   Future<(List<String>, Map<String, List<String>>)> _entries(String id) async {
-    final c = await yt.collection('VL$id', maxPages: 50);
+    final c = await yt.collection('VL$id', maxPages: 50, complete: true);
     final order = <String>[];
     for (final t in c.tracks) {
       if (!order.contains(t.id)) order.add(t.id);
@@ -887,12 +1087,16 @@ class YouTubeSync {
       return request();
     }
 
-    final liked = await read(() => yt.collection('VLLM', maxPages: 50));
+    final liked = await read(
+      () => yt.collection('VLLM', maxPages: 50, complete: true),
+    );
     final library = await read(yt.libraryPlaylists);
     final own = <String, Collection>{};
     final savedPlaylists = <MediaRef>[];
     for (final p in library) {
-      final c = await read(() => yt.collection('VL${p.id}', maxPages: 50));
+      final c = await read(
+        () => yt.collection('VL${p.id}', maxPages: 50, complete: true),
+      );
       if (c.owned) {
         own[p.id] = c;
       } else {
@@ -973,6 +1177,19 @@ class YouTubeSync {
   }
 
   void _merge(_Remote remote) {
+    for (final t in [
+      ...remote.liked,
+      for (final c in remote.playlists.values) ...c.tracks,
+    ]) {
+      _knownTracks.putIfAbsent(t.id, () => t);
+    }
+    for (final ref in [...remote.saved, ...remote.artists]) {
+      _knownRefs.putIfAbsent(ref.id, () => ref);
+    }
+    _collectRemovals(() => _mergeAll(remote), merge: true);
+  }
+
+  void _mergeAll(_Remote remote) {
     applyingRemote(() {
       _mergeLiked(remote.liked);
       _mergePlaylists(remote.playlists);
@@ -1019,18 +1236,22 @@ class YouTubeSync {
     for (final MapEntry(key: id, value: c) in remote.entries) {
       final remoteIds = _unique([for (final t in c.tracks) t.id]);
       final was = base?[id];
-      final local = linked[id];
+      var local = linked[id];
       if (local == null) {
-        final unchanged =
-            was != null &&
-            was.name == c.title &&
-            listEquals(was.ids, remoteIds);
-        if (unchanged) {
-          // Deleted in Encore (while signed out): delete it there.
-          _add(SyncOp('delete', id));
-          continue;
+        // Its link lost (e.g. the library saved by an older Encore, which
+        // doesn't keep links): the Encore playlist of the same name, not
+        // linked yet, is it. (Deleting the account's playlist and making
+        // it again from Encore's lost the original.)
+        final i = playlists.indexWhere(
+          (p) => p.remoteId == null && p.name == c.title,
+        );
+        if (i >= 0) {
+          local = playlists[i] = playlists[i].copyWith(remoteId: id);
         }
-        // New on the account (or changed there since): in Encore too.
+      }
+      if (local == null) {
+        // On the account, not in Encore: in Encore too. Never deleted
+        // there for not being here: only deleting it in Encore does.
         final made = Playlist(
           id: 'yt-$id-${DateTime.now().microsecondsSinceEpoch}',
           name: c.title.isEmpty ? 'My playlist' : c.title,
@@ -1062,7 +1283,8 @@ class YouTubeSync {
         name: name,
         tracks: [for (final id in order) byId[id]!],
       );
-      final i = playlists.indexWhere((p) => p.id == local.id);
+      final localId = local.id;
+      final i = playlists.indexWhere((p) => p.id == localId);
       playlists[i] = merged;
       // What the account still needs.
       final remoteSet = remoteIds.toSet();
@@ -1227,7 +1449,17 @@ class YouTubeSync {
         final file = await _path();
         final temp = File('${file.path}.tmp');
         await temp.writeAsString(json, flush: true);
-        await temp.rename(file.path);
+        // Windows: antivirus or the search indexer can hold the file a
+        // moment; a lost save would forget what was agreed.
+        for (var i = 0; ; i++) {
+          try {
+            await temp.rename(file.path);
+            break;
+          } on FileSystemException {
+            if (i == 9) rethrow;
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+          }
+        }
       } catch (e) {
         debugPrint('Saving the sync state failed: $e');
       }

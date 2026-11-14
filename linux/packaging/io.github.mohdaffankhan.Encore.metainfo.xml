@@ -73,6 +73,19 @@
   </recommends>
 
   <releases>
+    <release version="0.3.0" date="2026-11-14">
+      <description>
+        <p>Optional YouTube Music sign-in: recommendations made for you, and your library kept in sync.</p>
+        <ul>
+          <li>Sign in to YouTube Music for a home feed, mixes and radio made for you (optional)</li>
+          <li>Liked songs, playlists, saved albums and followed artists stay in sync with your account</li>
+          <li>Save albums and playlists to your library, and follow artists</li>
+          <li>Add to playlist from the player, and Play something on Home</li>
+          <li>Age-restricted music videos play as their song version</li>
+          <li>Tap Search again to start typing; clear all recent searches</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-11-14">
       <description>
         <p>Update notifications, artist radio, faster downloads, and many fixes.</p>

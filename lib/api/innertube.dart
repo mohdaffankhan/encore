@@ -319,7 +319,15 @@ Future<Artist> artist(String browseId) async {
 
 /// An album (`MPRE…`) or playlist (`VL…`) with all its songs (up to
 /// [maxPages] pages of 100).
-Future<Collection> collection(String browseId, {int maxPages = 10}) async {
+///
+/// With [complete] (syncing), a page that doesn't come as expected, or more
+/// pages than [maxPages], is an error: a list cut short would look like
+/// songs removed. Browsing shows what came instead.
+Future<Collection> collection(
+  String browseId, {
+  int maxPages = 10,
+  bool complete = false,
+}) async {
   var json = await browse(browseId);
   final signedIn = signedInReply(json) == true;
   final owned =
@@ -380,12 +388,20 @@ Future<Collection> collection(String browseId, {int maxPages = 10}) async {
     }
     final next = _shelfContinuation(items, holder);
     if (next == null) break;
+    if (complete && page == maxPages - 1) {
+      throw YouTubeError('browse $browseId (more than $maxPages pages)', 200);
+    }
     json = await next();
     final more =
         _findAll(json, 'appendContinuationItemsAction').firstOrNull ??
         _findAll(json, 'musicPlaylistShelfContinuation').firstOrNull ??
         _findAll(json, 'musicShelfContinuation').firstOrNull;
-    if (more is! Map) break;
+    if (more is! Map) {
+      if (complete) {
+        throw YouTubeError('browse $browseId (a page cut short)', 200);
+      }
+      break;
+    }
     items =
         (more['continuationItems'] ?? more['contents']) as List? ?? const [];
     holder = more;
@@ -847,8 +863,13 @@ Future<List<MediaRef>> savedAlbums() async => [
 Future<List<MediaRef>> followedArtists() async {
   var json = await browse('FEmusic_library_corpus_artists');
   final artists = <MediaRef>[];
-  for (var page = 0; page < 20; page++) {
-    for (final item in _findAll(json, 'musicResponsiveListItemRenderer')) {
+  // Used by syncing: a page cut short would look like artists unfollowed.
+  for (var page = 0; ; page++) {
+    final rows = _findAll(json, 'musicResponsiveListItemRenderer').toList();
+    if (page > 0 && rows.isEmpty) {
+      throw YouTubeError('followed artists (a page cut short)', 200);
+    }
+    for (final item in rows.whereType<Map<String, dynamic>>()) {
       if (_listItem(item) case final MediaRef ref
           when ref.kind == MediaKind.artist) {
         artists.add(ref.withId(channelOf(ref.id)));
@@ -856,6 +877,9 @@ Future<List<MediaRef>> followedArtists() async {
     }
     final next = _continuation(json);
     if (next == null) break;
+    if (page == 19) {
+      throw YouTubeError('followed artists (more than 20 pages)', 200);
+    }
     json = await next();
   }
   return artists;
@@ -868,15 +892,22 @@ String channelOf(String id) => id.startsWith('MPLA') ? id.substring(4) : id;
 Future<List<Map<String, dynamic>>> _libraryItems(String browseId) async {
   var json = await browse(browseId);
   final items = <Map<String, dynamic>>[];
-  for (var page = 0; page < 20; page++) {
-    items.addAll(
-      _findAll(
-        json,
-        'musicTwoRowItemRenderer',
-      ).whereType<Map<String, dynamic>>(),
-    );
+  // Used by syncing: a list cut short would look like things removed, so
+  // a page without items, or more pages than expected, is an error.
+  for (var page = 0; ; page++) {
+    final found = _findAll(
+      json,
+      'musicTwoRowItemRenderer',
+    ).whereType<Map<String, dynamic>>().toList();
+    if (page > 0 && found.isEmpty) {
+      throw YouTubeError('browse $browseId (a page cut short)', 200);
+    }
+    items.addAll(found);
     final next = _continuation(json);
     if (next == null) break;
+    if (page == 19) {
+      throw YouTubeError('browse $browseId (more than 20 pages)', 200);
+    }
     json = await next();
   }
   return items;

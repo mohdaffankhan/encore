@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -6,6 +7,7 @@ import 'package:encore/api/innertube.dart' as yt;
 import 'package:encore/models.dart';
 import 'package:encore/services/account.dart';
 import 'package:encore/services/library.dart';
+import 'package:encore/services/storage.dart';
 import 'package:encore/services/youtube_sync.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -779,6 +781,157 @@ void main() {
       expect(ids(lib.liked.value).toSet(), {'n', 'r'});
       expect(remote.liked.toSet(), {'n', 'r'});
     });
+
+    // 2026-11-14: a test build signed in to a real account emptied its
+    // liked songs, and 228 were unliked on the account before it was
+    // noticed; Encore 0.2.1 saved the library without its playlist links,
+    // and the next sync deleted the account's playlist and made a copy.
+    group('never empties the account', () {
+      final fifty = [for (var i = 0; i < 50; i++) 's$i'];
+
+      setUp(() async {
+        remote.liked.addAll(fifty);
+        await syncNow();
+        expect(lib.liked.value, hasLength(50));
+        remote.writes.clear();
+      });
+
+      test(
+        'liked songs emptied in Encore: nothing sent, the user is asked',
+        () async {
+          lib.liked.value = [];
+          await sync.idle;
+          expect(remote.writes, isEmpty);
+          expect(sync.pending.value, isEmpty);
+          expect(sync.removals.value?.songs, 50);
+        },
+      );
+
+      test('"Keep them": all back in Encore, nothing sent', () async {
+        lib.liked.value = [];
+        sync.answerRemovals(false);
+        await sync.idle;
+        expect(ids(lib.liked.value).toSet(), fifty.toSet());
+        expect(remote.writes, isEmpty);
+        expect(sync.removals.value, isNull);
+        // And a sync after changes nothing either.
+        await syncNow();
+        expect(remote.liked, hasLength(50));
+        expect(remote.writes, isEmpty);
+      });
+
+      test('"Remove from YouTube Music": then they go', () async {
+        lib.liked.value = [];
+        sync.answerRemovals(true);
+        await sync.idle;
+        expect(remote.liked, isEmpty);
+        expect(
+          remote.writes.where((w) => w.startsWith('unlike')),
+          hasLength(50),
+        );
+      });
+
+      test('a few removed (up to ${YouTubeSync.askAbove}): sent at once, '
+          'no question', () async {
+        lib.liked.value = lib.liked.value.skip(YouTubeSync.askAbove).toList();
+        await sync.idle;
+        expect(sync.removals.value, isNull);
+        expect(remote.liked, hasLength(50 - YouTubeSync.askAbove));
+      });
+
+      test(
+        'a library found emptied at a sync (a damaged file, a restart '
+        'between saves): asked, nothing sent; unanswered, asked again',
+        () async {
+          sync.applyingRemote(() => lib.liked.value = []);
+          await syncNow();
+          expect(remote.writes, isEmpty);
+          expect(sync.removals.value?.songs, 50);
+          // Encore closed without an answer.
+          sync.stop();
+          sync = await startSync();
+          expect(sync.removals.value, isNull);
+          await syncNow();
+          expect(remote.writes, isEmpty);
+          expect(sync.removals.value?.songs, 50, reason: 'asked again');
+          sync.answerRemovals(false);
+          expect(
+            lib.liked.value,
+            hasLength(50),
+            reason: 'back from the account',
+          );
+        },
+      );
+
+      test('a test build never signs in, nor syncs', () async {
+        useTestData();
+        addTearDown(useRealData);
+        final again = Account(store: MemoryStore());
+        await acc.saved;
+        expect(await acc.signInWith(goodCookies()), isNull);
+        // What a test build would load: signed out, whatever is saved.
+        final store = MemoryStore()..value = jsonEncode(goodCookies().toJson());
+        final testBuild = Account(store: store);
+        await testBuild.load();
+        expect(testBuild.status.value, AccountStatus.signedOut);
+        expect(again.status.value, AccountStatus.signedOut);
+        final testSync = YouTubeSync(account: acc, library: lib, dir: dir);
+        await testSync.start();
+        lib.liked.value = [];
+        await testSync.idle;
+        expect(testSync.pending.value, isEmpty);
+        testSync.stop();
+      });
+    });
+
+    test('a library saved by an older Encore (playlist links lost): the '
+        "playlist is linked again, not deleted and copied", () async {
+      remote.playlists['PL1'] = FakePlaylist('PL1', 'Road trip', ['a', 'b']);
+      await syncNow();
+      // As Encore 0.2.1 saves it.
+      sync.applyingRemote(
+        () => lib.playlists.value = [
+          for (final p in lib.playlists.value) p.copyWith(unlink: true),
+        ],
+      );
+      remote.writes.clear();
+      await syncNow();
+      expect(remote.writes, isEmpty);
+      expect(remote.playlists.keys, ['PL1']);
+      expect(lib.playlists.value.single.remoteId, 'PL1');
+    });
+
+    test('a playlist gone from the account is never deleted there for not '
+        'being in Encore', () async {
+      remote.playlists['PL1'] = FakePlaylist('PL1', 'Road trip', ['a']);
+      await syncNow();
+      sync.applyingRemote(() => lib.playlists.value = []);
+      remote.writes.clear();
+      await syncNow();
+      expect(remote.writes, isEmpty);
+      expect(lib.playlists.value.single.remoteId, 'PL1', reason: 'back');
+    });
+
+    test(
+      'a page of the account cut short fails the sync: nothing removed',
+      () async {
+        remote.pageSize = 3;
+        remote.liked.addAll([for (var i = 0; i < 8; i++) 'l$i']);
+        await syncNow();
+        expect(lib.liked.value, hasLength(8));
+        final browse = youtube.handlers['browse']!;
+        youtube.handlers['browse'] = (r, s) {
+          final token = r.body['continuation'];
+          if (token is String && token.startsWith('page:LM')) {
+            return {'unexpected': true};
+          }
+          return browse(r, s);
+        };
+        expect(await sync.sync(), isNotNull);
+        expect(lib.liked.value, hasLength(8), reason: 'not cut to 3');
+        expect(remote.writes, isEmpty);
+      },
+    );
 
     test('signing in starts a sync by itself', () async {
       await acc.signOut();

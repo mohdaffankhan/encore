@@ -11,6 +11,7 @@ import 'pages/artist_page.dart';
 import 'pages/collection_page.dart';
 import 'pages/home_page.dart';
 import 'pages/library_page.dart';
+import 'pages/removal_question.dart';
 import 'pages/search_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sync_question.dart';
@@ -97,6 +98,7 @@ class ShellState extends State<Shell> {
       errors.addListener(_showErrors);
     }
     youtubeSync.question.addListener(_ask);
+    youtubeSync.removals.addListener(_askRemovals);
     // Some come before the app shows (the library loads first).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -120,6 +122,22 @@ class ShellState extends State<Shell> {
   }
 
   var _asking = false;
+  var _askingRemovals = false;
+
+  /// Many removals at once are held until the user says (keep by default).
+  Future<void> _askRemovals() async {
+    final question = youtubeSync.removals.value;
+    if (question == null || _askingRemovals || !mounted) return;
+    _askingRemovals = true;
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (_) => RemovalQuestionDialog(question),
+    );
+    _askingRemovals = false;
+    if (youtubeSync.removals.value != null) {
+      youtubeSync.answerRemovals(remove ?? false);
+    }
+  }
 
   /// The first sync after signing in asks before sending anything.
   Future<void> _ask() async {
@@ -141,6 +159,7 @@ class ShellState extends State<Shell> {
       errors.removeListener(_showErrors);
     }
     youtubeSync.question.removeListener(_ask);
+    youtubeSync.removals.removeListener(_askRemovals);
     super.dispose();
   }
 

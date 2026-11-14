@@ -83,6 +83,9 @@ final _screens = <String, Future<void> Function(WidgetTester)>{
     await tester.pumpAndSettle();
     ScaffoldMessenger.of(tester.element(find.byType(Shell))).clearSnackBars();
   },
+  'many removals at once': (tester) async {
+    youtubeSync.removals.value = const RemovalQuestion(songs: 228);
+  },
   'first sync question': (tester) async {
     youtubeSync.question.value = const SyncPlan(
       likes: 450,
@@ -160,6 +163,7 @@ void main() {
   tearDown(() {
     account.reset(store: MemoryStore());
     youtubeSync.question.value = null;
+    youtubeSync.removals.value = null;
     youtubeSync.pending.value = const [];
     youtubeSync.total.value = 0;
     userLibrary.savedMedia.value = [];

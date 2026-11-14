@@ -9,6 +9,14 @@ var _isTest = const bool.fromEnvironment('ENCORE_TEST');
 
 void useTestData() => _isTest = true;
 
+@visibleForTesting
+void useRealData() => _isTest = false;
+
+/// A test build or `--self-test`: never signed in to YouTube Music, so
+/// nothing a test does to its library reaches anyone's account (a test
+/// emptying its liked songs once unliked 228 songs on a real account).
+bool get usingTestData => _isTest;
+
 Directory? _dir;
 
 @visibleForTesting
