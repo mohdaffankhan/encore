@@ -2,6 +2,7 @@ import 'package:encore/api/innertube.dart' as yt;
 import 'package:encore/models.dart';
 import 'package:encore/services/player.dart';
 import 'package:encore/ui/pages/artist_page.dart';
+import 'package:encore/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The artist page's Radio played their top song's radio: now the artist's
@@ -21,6 +22,7 @@ Artist _artist({bool radio = true, List<Track>? top}) => Artist(
 );
 
 void main() {
+  heroShadeTests();
   late List<String> asked;
 
   setUp(() => asked = []);
@@ -54,5 +56,23 @@ void main() {
     fetchArtistRadio = (r) async => const [];
     await playArtistRadio(_artist(top: [_song('top2')]));
     expect(player.queue.value.first.id, 'top2');
+  });
+}
+
+void heroShadeTests() {
+  test("the shade over an artist's photo follows the theme (a fixed grey "
+      'stood out in the tinted ones)', () {
+    final was = EncoreColors.theme;
+    addTearDown(() => EncoreColors.theme = was);
+    for (final theme in encoreThemes) {
+      EncoreColors.theme = theme;
+      final colors = heroShade().colors;
+      expect(colors.last, EncoreColors.surface, reason: theme.name);
+      expect(
+        colors[1],
+        EncoreColors.surface.withValues(alpha: 0.6),
+        reason: theme.name,
+      );
+    }
   });
 }

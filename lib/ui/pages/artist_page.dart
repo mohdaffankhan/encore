@@ -89,20 +89,7 @@ class _Hero extends StatelessWidget {
               alignment: const Alignment(0, -0.35),
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x33000000),
-                  Color(0x99111114),
-                  EncoreColors.surface,
-                ],
-                stops: [0, 0.65, 1],
-              ),
-            ),
-          ),
+          DecoratedBox(decoration: BoxDecoration(gradient: heroShade())),
           Positioned(
             left: pad,
             right: pad,
@@ -172,4 +159,18 @@ Future<void> playArtistRadio(Artist artist) async {
   }
   if (artist.topSongs.firstOrNull case final top?) await player.playRadio(top);
 }
+
+/// The shade over an artist's photo, into the page: from the theme's own
+/// colour (a fixed grey stood out as a band in the tinted themes).
+@visibleForTesting
+LinearGradient heroShade() => LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    const Color(0x33000000),
+    EncoreColors.surface.withValues(alpha: 0.6),
+    EncoreColors.surface,
+  ],
+  stops: const [0, 0.65, 1],
+);
 
