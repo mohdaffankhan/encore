@@ -113,6 +113,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(userLibrary.searches.value, ['arijit', 'pritam', 'sanam']);
     });
+
+    Future<void> clearAll(WidgetTester tester) async {
+      userLibrary.searches.value = ['arijit'];
+      await pumpApp(tester, const Size(400, 860));
+      await tester.tap(find.text('Search').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear all'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Recent searches cleared'), findsOneWidget);
+    }
+
+    testWidgets('the message goes by itself after 4 seconds (it stayed)', (
+      tester,
+    ) async {
+      await clearAll(tester);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('Recent searches cleared'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Recent searches cleared'), findsNothing);
+      expect(userLibrary.searches.value, isEmpty, reason: 'not undone');
+    });
+
+    testWidgets('swiped away, it goes at once', (tester) async {
+      await clearAll(tester);
+      await tester.drag(
+        find.text('Recent searches cleared'),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Recent searches cleared'), findsNothing);
+    });
   });
 }
 

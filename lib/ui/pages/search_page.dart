@@ -330,19 +330,11 @@ class _SearchPageState extends State<SearchPage> {
                 onPressed: () {
                   final cleared = userLibrary.searches.value;
                   userLibrary.clearSearches();
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: const Text('Recent searches cleared'),
-                        behavior: SnackBarBehavior.floating,
-                        action: SnackBarAction(
-                          label: 'Undo',
-                          onPressed: () =>
-                              userLibrary.searches.value = cleared,
-                        ),
-                      ),
-                    );
+                  showUndoToast(
+                    context,
+                    'Recent searches cleared',
+                    () => userLibrary.searches.value = cleared,
+                  );
                 },
                 child: const Text('Clear all'),
               ),

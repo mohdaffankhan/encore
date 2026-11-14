@@ -28,6 +28,24 @@ void showToast(BuildContext context, String message) {
     );
 }
 
+/// A short message with Undo. It goes by itself after 4 seconds (a message
+/// with a button otherwise stays until tapped), or at once when swiped
+/// away.
+void showUndoToast(BuildContext context, String message, VoidCallback undo) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        persist: false,
+        dismissDirection: DismissDirection.horizontal,
+        action: SnackBarAction(label: 'Undo', onPressed: undo),
+      ),
+    );
+}
+
 /// Horizontal padding for page content.
 double pagePadding(BuildContext context) => isWide(context) ? 28 : 16;
 
