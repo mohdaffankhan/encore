@@ -335,6 +335,41 @@ void main() {
       expect(lib.playlists.value, hasLength(1));
     });
 
+    test('a big playlist (an import of 1000 songs) is made, then filled 50 '
+        'songs at a time, all of them in order', () async {
+      await syncNow();
+      final songs = [for (var i = 0; i < 1000; i++) song('s$i')];
+      final p = lib.createPlaylist('Imported', tracks: songs);
+      await sync.idle;
+      final made = lib.playlist(p.id)!.remoteId!;
+      expect(remote.playlists[made]!.songs, ids(songs));
+      final edits = youtube.to('browse/edit_playlist');
+      expect(edits, hasLength(19));
+      expect(edits.every((r) => (r.body['actions'] as List).length <= 50), isTrue);
+    });
+
+    test('offline part way through filling a big playlist: not made twice, '
+        'filled when back online', () async {
+      await syncNow();
+      final edit = youtube.handlers['browse/edit_playlist']!;
+      var fail = true;
+      youtube.handlers['browse/edit_playlist'] = (r, s) {
+        if (fail) return 503;
+        return edit(r, s);
+      };
+      final songs = [for (var i = 0; i < 120; i++) song('s$i')];
+      final p = lib.createPlaylist('Imported', tracks: songs);
+      await sync.idle;
+      final made = lib.playlist(p.id)!.remoteId;
+      expect(made, isNotNull, reason: 'linked as soon as it was made');
+      expect(remote.playlists[made]!.songs, hasLength(50));
+      fail = false;
+      sync.retryNow();
+      await sync.idle;
+      expect(remote.playlists, hasLength(1));
+      expect(remote.playlists[made]!.songs, ids(songs));
+    });
+
     test('a playlist deleted before it was made there is not made', () async {
       await syncNow();
       youtube.failWith = 503;

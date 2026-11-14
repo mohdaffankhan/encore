@@ -663,8 +663,12 @@ class YouTubeSync {
   Future<void> _create(String localId) async {
     final p = _lib.playlist(localId);
     if (p == null || p.remoteId != null) return; // Deleted, or made.
+    // Made with its first 50 songs (one request with a thousand may be
+    // refused), and linked at once; the rest go as changes after it, so a
+    // failure part way never makes it twice.
+    final first = p.tracks.take(50).toList();
     final remote = await yt.createPlaylist(p.name, [
-      for (final t in p.tracks) t.id,
+      for (final t in first) t.id,
     ]);
     final now = _lib.playlist(localId);
     if (now == null) {
@@ -679,11 +683,11 @@ class YouTubeSync {
       ],
     );
     (_playlistBase ??= {})[remote] = PlaylistBase(p.name, [
-      for (final t in p.tracks) t.id,
+      for (final t in first) t.id,
     ]);
-    // Changed while it was being made: those changes go too.
+    // The rest of its songs, and changes made while it was being made.
     _playlistsChanged(
-      {localId: p.copyWith(remoteId: remote)},
+      {localId: p.copyWith(remoteId: remote, tracks: first)},
       {localId: now.copyWith(remoteId: remote)},
     );
     _save();

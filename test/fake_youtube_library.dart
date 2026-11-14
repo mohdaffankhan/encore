@@ -56,6 +56,10 @@ class FakeLibrary {
 
   var _created = 0;
 
+  /// Songs a playlist can be made with in one request (a guess: YouTube's
+  /// own limit isn't known; Encore sends 50).
+  var createLimit = 50;
+
   /// The account's writes, in order, as `kind id…`.
   final writes = <String>[];
 
@@ -108,6 +112,7 @@ class FakeLibrary {
     h['like/like'] = (r, s) => _rate(r, true);
     h['like/removelike'] = (r, s) => _rate(r, false);
     h['playlist/create'] = (r, s) {
+      if ((r.body['videoIds'] as List? ?? []).length > createLimit) return 400;
       final id = 'PLnew${_created++}';
       playlists[id] = FakePlaylist(
         id,
