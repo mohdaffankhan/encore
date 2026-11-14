@@ -19,7 +19,12 @@ import 'package:flutter_test/flutter_test.dart';
 import '../unit/account_test.dart' show MemoryStore, goodCookies;
 import 'shell_test.dart' show pumpApp;
 
-const _song = Track(id: 'abc', title: 'A Song', artist: 'An Artist', artUrl: '');
+const _song = Track(
+  id: 'abc',
+  title: 'A Song',
+  artist: 'An Artist',
+  artUrl: '',
+);
 
 const _album = MediaRef(
   kind: MediaKind.album,
@@ -48,8 +53,10 @@ Future<void> signIn() async {
   expect(await account.signInWith(goodCookies()), isNull);
 }
 
-Widget _app(Widget child) =>
-    MaterialApp(theme: appTheme(), home: Scaffold(body: Center(child: child)));
+Widget _app(Widget child) => MaterialApp(
+  theme: appTheme(),
+  home: Scaffold(body: Center(child: child)),
+);
 
 void main() {
   tearDown(() {
@@ -128,13 +135,14 @@ void main() {
   test('sync status says what is going on', () {
     final now = DateTime.now();
     String d(SyncState s, DateTime? at, int n) => SyncStatus.describe(s, at, n);
-    String p(int left, int total, {bool offline = false}) => SyncStatus.describe(
-      SyncState.idle,
-      now,
-      left,
-      total: total,
-      offline: offline,
-    );
+    String p(int left, int total, {bool offline = false}) =>
+        SyncStatus.describe(
+          SyncState.idle,
+          now,
+          left,
+          total: total,
+          offline: offline,
+        );
     expect(d(SyncState.syncing, null, 0), 'Syncing with YouTube Music…');
     expect(p(3, 5), 'Sending to YouTube Music: 2 of 5');
     expect(p(5, 0), 'Sending to YouTube Music: 0 of 5');
@@ -232,18 +240,19 @@ void main() {
         'playlists and 1 followed artist',
       );
       expect(SyncQuestion.bringing(plan), '712 liked songs and 1 playlist');
-      expect(
-        SyncQuestion.bringing(const SyncPlan(requests: 1)),
-        'nothing',
-      );
+      expect(SyncQuestion.bringing(const SyncPlan(requests: 1)), 'nothing');
       expect(
         SyncQuestion.sending(const SyncPlan(playlistSongs: 3, requests: 1)),
         '3 songs in playlists',
       );
-      expect(SyncQuestion.duration(const Duration(seconds: 40)),
-          'under a minute');
-      expect(SyncQuestion.duration(const Duration(seconds: 500)),
-          'about 9 minutes');
+      expect(
+        SyncQuestion.duration(const Duration(seconds: 40)),
+        'under a minute',
+      );
+      expect(
+        SyncQuestion.duration(const Duration(seconds: 500)),
+        'about 9 minutes',
+      );
     });
 
     Future<void> ask(WidgetTester tester) async {
@@ -414,7 +423,13 @@ void main() {
 
     testWidgets("a new user: from the home feed's songs", (tester) async {
       await tester.pumpWidget(
-        _app(const PlaySomething(feed: [Shelf('Quick picks', tracks: [_song])])),
+        _app(
+          const PlaySomething(
+            feed: [
+              Shelf('Quick picks', tracks: [_song]),
+            ],
+          ),
+        ),
       );
       await tester.tap(find.text('Play something'));
       await tester.pump();
@@ -433,8 +448,9 @@ void main() {
       expect(seeds.length, 3);
     });
 
-    testWidgets('phone: an icon by search and settings in the greeting row',
-        (tester) async {
+    testWidgets('phone: an icon by search and settings in the greeting row', (
+      tester,
+    ) async {
       userLibrary.history.value = [_song];
       await pumpApp(tester, const Size(400, 860));
       final button = find.byTooltip('Play something');

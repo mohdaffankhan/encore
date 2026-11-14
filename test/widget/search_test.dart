@@ -48,15 +48,17 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('the first tap opens Search; again puts the cursor in the box',
-        (tester) async {
-      await pumpApp(tester, const Size(400, 860));
-      await tapSearchTab(tester);
-      expect(searchField.hasFocus, isFalse, reason: 'just opened');
-      await tapSearchTab(tester);
-      expect(searchField.hasFocus, isTrue);
-      expect(tester.testTextInput.isVisible, isTrue, reason: 'keyboard up');
-    });
+    testWidgets(
+      'the first tap opens Search; again puts the cursor in the box',
+      (tester) async {
+        await pumpApp(tester, const Size(400, 860));
+        await tapSearchTab(tester);
+        expect(searchField.hasFocus, isFalse, reason: 'just opened');
+        await tapSearchTab(tester);
+        expect(searchField.hasFocus, isTrue);
+        expect(tester.testTextInput.isVisible, isTrue, reason: 'keyboard up');
+      },
+    );
 
     testWidgets('keyboard put away while the box has the cursor: it comes '
         'back', (tester) async {
@@ -85,9 +87,7 @@ void main() {
   });
 
   group('recent searches', () {
-    testWidgets('Clear all clears them, Undo brings them back', (
-      tester,
-    ) async {
+    testWidgets('Clear all clears them, Undo brings them back', (tester) async {
       userLibrary.searches.value = ['arijit', 'pritam', 'sanam'];
       await pumpApp(tester, const Size(400, 860));
       await tester.tap(find.text('Search').last);
@@ -148,4 +148,3 @@ void main() {
     });
   });
 }
-

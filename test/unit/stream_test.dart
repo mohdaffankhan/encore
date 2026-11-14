@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:encore/api/clients.dart';
 import 'package:encore/api/stream.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -145,5 +147,81 @@ void main() {
       throwsA(isA<HttpException>()),
     );
     expect(renewals, 1);
+  });
+
+  group('asking YouTube for the song', () {
+    late HttpServer server;
+    late Uri was;
+
+    /// What the player endpoint answers each client (by its name).
+    late Map<String, (int, String)> answers;
+
+    setUp(() async {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((req) async {
+        final body = jsonDecode(await utf8.decodeStream(req)) as Map;
+        final name = body['context']['client']['clientName'] as String;
+        final (status, text) = answers[name] ?? (500, 'no');
+        req.response
+          ..statusCode = status
+          ..write(text);
+        await req.response.close();
+      });
+      was = playerEndpoint;
+      playerEndpoint = Uri.parse('http://127.0.0.1:${server.port}/player');
+      applyClients(
+        jsonEncode({
+          'player': [
+            {
+              'clientName': 'FIRST',
+              'clientId': 1,
+              'clientVersion': '1.0',
+              'userAgent': 'First',
+            },
+          ],
+        }),
+      );
+    });
+
+    tearDown(() async {
+      playerEndpoint = was;
+      resetClients();
+      await server.close(force: true);
+    });
+
+    final playable = jsonEncode({
+      'playabilityStatus': {'status': 'OK'},
+      'streamingData': {
+        'adaptiveFormats': [
+          {
+            'itag': 251,
+            'mimeType': 'audio/webm; codecs="opus"',
+            'bitrate': 140000,
+            'contentLength': '1000',
+            'url': 'https://example.invalid/audio',
+          },
+        ],
+      },
+    });
+
+    for (final (what, status, text) in [
+      ('an error page', 503, '<html>Service unavailable</html>'),
+      ('a page that is not an answer', 200, '<html>sorry</html>'),
+      ('an answer of the wrong shape', 200, '[1, 2]'),
+    ]) {
+      test('$what from one client: the next one is asked', () async {
+        answers = {'FIRST': (status, text), 'VISIONOS': (200, playable)};
+        final stream = await audioStream('abc');
+        expect(stream.url.toString(), 'https://example.invalid/audio');
+      });
+    }
+
+    test(
+      'all of them failing: an HttpException, not a FormatException',
+      () async {
+        answers = {'FIRST': (503, '<html/>'), 'VISIONOS': (200, '<html/>')};
+        await expectLater(audioStream('abc'), throwsA(isA<HttpException>()));
+      },
+    );
   });
 }

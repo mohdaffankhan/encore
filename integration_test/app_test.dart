@@ -80,19 +80,34 @@ void main() {
     }
     expect(homeSongs, findsAtLeast(2), reason: 'a section of songs on home');
     final sectionSong = homeSongs.at(1);
-    // All of it on screen: scrolling stops once it shows, which can leave
-    // it under the player bar.
-    await tester.ensureVisible(sectionSong);
-    await tester.pumpAndSettle();
     // Read just before the tap: the feed shown first (from the last visit)
-    // is replaced by the new one as it arrives.
-    final section = tester
-        .widget<ShelfView>(
-          find.ancestor(of: sectionSong, matching: find.byType(ShelfView)),
-        )
-        .shelf
-        .tracks;
-    final tapped = tester.widget<TrackTile>(sectionSong).track;
+    // is replaced by the new one as it arrives, which can happen between
+    // finding the song and reading it: then it is found again.
+    late List<Track> section;
+    late Track tapped;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        // All of it on screen: scrolling stops once it shows, which can
+        // leave it under the player bar.
+        await tester.ensureVisible(sectionSong);
+        await tester.pumpAndSettle();
+        section = tester
+            .widget<ShelfView>(
+              find.ancestor(of: sectionSong, matching: find.byType(ShelfView)),
+            )
+            .shelf
+            .tracks;
+        tapped = tester.widget<TrackTile>(sectionSong).track;
+        break;
+      } on Object catch (e) {
+        if (attempt == 5 || (e is! RangeError && e is! StateError)) rethrow;
+        await tester.pump(const Duration(seconds: 1));
+        for (var i = 0; i < 60 && homeSongs.evaluate().length < 2; i++) {
+          await tester.drag(homeList, const Offset(0, -300));
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+    }
     await tester.tap(sectionSong);
     await tester.pump(const Duration(seconds: 2));
     await _step(

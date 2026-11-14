@@ -73,10 +73,21 @@ class FakeLibrary {
       }
       if (r.query['ctoken'] case final String token) return continuation(token);
       if (id == null) return {};
-      if (id == 'VLLM') return _playlistPage('LM', 'Liked Music', liked, owned: false, auto: true);
+      if (id == 'VLLM') {
+        return _playlistPage(
+          'LM',
+          'Liked Music',
+          liked,
+          owned: false,
+          auto: true,
+        );
+      }
       if (id == 'FEmusic_liked_playlists') return _grid(_libraryCards());
       if (id == 'FEmusic_liked_albums') {
-        return _grid([for (final a in savedAlbums) _card(a, 'Album $a', 'MUSIC_PAGE_TYPE_ALBUM')]);
+        return _grid([
+          for (final a in savedAlbums)
+            _card(a, 'Album $a', 'MUSIC_PAGE_TYPE_ALBUM'),
+        ]);
       }
       if (id == 'FEmusic_library_corpus_artists') {
         return {
@@ -88,13 +99,17 @@ class FakeLibrary {
       if (id.startsWith('VL')) {
         final p = playlists[id.substring(2)];
         if (p == null) return 404;
-        return _playlistPage(p.id, p.title, p.songs, owned: p.owned, entries: p.entries);
+        return _playlistPage(
+          p.id,
+          p.title,
+          p.songs,
+          owned: p.owned,
+          entries: p.entries,
+        );
       }
       if (id.startsWith('MPRE')) {
         return {
-          'contents': [
-            _bookmark(albumPlaylist(id), savedAlbums.contains(id)),
-          ],
+          'contents': [_bookmark(albumPlaylist(id), savedAlbums.contains(id))],
         };
       }
       if (id.startsWith('UC')) {
@@ -114,11 +129,9 @@ class FakeLibrary {
     h['playlist/create'] = (r, s) {
       if ((r.body['videoIds'] as List? ?? []).length > createLimit) return 400;
       final id = 'PLnew${_created++}';
-      playlists[id] = FakePlaylist(
-        id,
-        r.body['title'] as String,
-        [for (final v in r.body['videoIds'] as List? ?? []) v as String],
-      );
+      playlists[id] = FakePlaylist(id, r.body['title'] as String, [
+        for (final v in r.body['videoIds'] as List? ?? []) v as String,
+      ]);
       writes.add('create $id ${r.body['title']}');
       return {'playlistId': id};
     };
@@ -143,7 +156,9 @@ class FakeLibrary {
             p.title = a['playlistName'] as String;
             writes.add('rename ${p.id} ${p.title}');
           case 'ACTION_MOVE_VIDEO_BEFORE':
-            final moved = p.entries.firstWhere((e) => e.setId == a['setVideoId']);
+            final moved = p.entries.firstWhere(
+              (e) => e.setId == a['setVideoId'],
+            );
             p.entries.remove(moved);
             final before = a['movedSetVideoIdSuccessor'];
             final at = before == null
@@ -186,7 +201,9 @@ class FakeLibrary {
       savedAlbums.remove(album);
       if (like) savedAlbums.insert(0, album);
     } else if (like) {
-      playlists[list] ??= FakePlaylist(list, 'Saved $list', ['x'], owned: false);
+      playlists[list] ??= FakePlaylist(list, 'Saved $list', [
+        'x',
+      ], owned: false);
     } else {
       playlists.remove(list);
     }
@@ -278,8 +295,7 @@ class FakeLibrary {
       'musicResponsiveHeaderRenderer': {'title': _runs(title)},
     };
     final rows = [
-      for (var i = 0; i < songs.length; i++)
-        _row(songs[i], entries?[i].setId),
+      for (var i = 0; i < songs.length; i++) _row(songs[i], entries?[i].setId),
     ];
     // As the real page: songs in pages of [pageSize] (a "load more" item
     // at the end), and for the account's own playlists a suggestions shelf
@@ -336,7 +352,10 @@ class FakeLibrary {
               {
                 'musicShelfRenderer': {
                   'title': _runs('Suggestions'),
-                  'contents': [_row('suggested1', null), _row('suggested2', null)],
+                  'contents': [
+                    _row('suggested1', null),
+                    _row('suggested2', null),
+                  ],
                 },
               },
             ],
@@ -364,10 +383,7 @@ class FakeLibrary {
 
   static Map<String, Object> _row(String videoId, String? setId) => {
     'musicResponsiveListItemRenderer': {
-      'playlistItemData': {
-        'videoId': videoId,
-        'playlistSetVideoId': ?setId,
-      },
+      'playlistItemData': {'videoId': videoId, 'playlistSetVideoId': ?setId},
       'flexColumns': [
         {
           'musicResponsiveListItemFlexColumnRenderer': {

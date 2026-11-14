@@ -219,10 +219,7 @@ class _AccountSettingsState extends State<AccountSettings> {
                   spacing: 8,
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    ..._signInButtons('Sign in'),
-                    ?busy,
-                  ],
+                  children: [..._signInButtons('Sign in'), ?busy],
                 ),
               ],
             ),

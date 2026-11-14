@@ -69,6 +69,37 @@ void main() {
     expect(againAudio.playing, isTrue);
   });
 
+  test('shuffled, then restarted: turning shuffle off still puts the '
+      'songs back in order', () async {
+    final (player, audio, session) = await start();
+    final songs = [for (final id in 'abcdefgh'.split('')) _song(id)];
+    await player.playList(songs, 0);
+    player.toggleShuffle();
+    expect(player.queue.value, isNot(songs), reason: 'shuffled (8 songs)');
+    await audio.pause();
+    await session.saved;
+
+    final (again, _, _) = await start();
+    expect(again.shuffle.value, isTrue);
+    expect(again.queue.value, player.queue.value);
+    again.toggleShuffle();
+    expect(again.queue.value, songs);
+    expect(again.current, _song('a'));
+  });
+
+  test('a session saved before (no original order) still opens shuffled', () async {
+    await File('${dir.path}/session.json').writeAsString(
+      '{"queue":[${[
+        for (final id in ['b', 'a']) '{"id":"$id","title":"$id","artist":"x","artUrl":""}',
+      ].join(',')}],'
+      '"index":0,"position":0,"shuffle":true,"repeat":"off"}',
+    );
+    final (player, _, _) = await start();
+    expect(player.shuffle.value, isTrue);
+    player.toggleShuffle();
+    expect(player.queue.value.map((t) => t.id), ['b', 'a']);
+  });
+
   test('seeking before playing moves where it will play from', () async {
     final (player, audio, session) = await start();
     await player.playList([_song('a'), _song('b')], 0);

@@ -2,6 +2,7 @@ import 'package:encore/app.dart';
 import 'package:encore/models.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
+import 'package:encore/services/player.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/settings_page.dart';
 import 'package:encore/ui/shell.dart';
@@ -159,5 +160,22 @@ void main() {
     expect(find.byType(CollectionPage), findsNothing);
     expect(find.text('New playlist'), findsWidgets, reason: 'Library');
   });
-}
 
+  testWidgets("a song in Home's quick grid plays with its radio, not the "
+      'whole history after it', (tester) async {
+    final history = [
+      for (var i = 0; i < 50; i++)
+        Track(id: 'h$i', title: 'Played $i', artist: 'A', artUrl: ''),
+    ];
+    userLibrary.history.value = history;
+    addTearDown(() {
+      userLibrary.history.value = [];
+      player.queue.value = [];
+      player.index.value = -1;
+    });
+    await pumpApp(tester, const Size(400, 860));
+    await tester.tap(find.text('Played 1'));
+    await tester.pump();
+    expect(player.queue.value, [history[1]], reason: 'its radio follows');
+  });
+}

@@ -61,6 +61,27 @@ void main() {
       expect(after.speed.value, 1.25);
     });
 
+    test(
+      'the volume is there the next time; a wrong one is left out',
+      () async {
+        final before = Settings();
+        await before.load();
+        expect(before.volume.value, 1);
+        before.volume.value = 0.35;
+        await before.saved;
+        final after = Settings();
+        await after.load();
+        expect(after.volume.value, 0.35);
+        for (final wrong in ['0', '1.5', '"loud"', '-1']) {
+          await File('${dir.path}/settings.json')
+              .writeAsString('{"volume": $wrong}');
+          final s = Settings();
+          await s.load();
+          expect(s.volume.value, 1, reason: wrong);
+        }
+      },
+    );
+
     test('a damaged file leaves the defaults', () async {
       await File('${dir.path}/settings.json').writeAsString('{"stream');
       final settings = Settings();

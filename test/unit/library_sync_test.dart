@@ -13,7 +13,8 @@ import '../fake_youtube.dart';
 import '../fake_youtube_library.dart';
 import 'account_test.dart' show MemoryStore, goodCookies;
 
-Track song(String id) => Track(id: id, title: 'Song $id', artist: 'A', artUrl: '');
+Track song(String id) =>
+    Track(id: id, title: 'Song $id', artist: 'A', artUrl: '');
 
 MediaRef album(String id) => MediaRef(
   kind: MediaKind.album,
@@ -42,26 +43,38 @@ void main() {
     test('added on either side is kept; removed on either side goes', () {
       final base = {'a', 'b', 'c'};
       // Encore: removed a, added d. Account: removed b, added e.
-      expect(
-        mergeSets({'b', 'c', 'd'}, {'a', 'c', 'e'}, base),
-        {'c', 'd', 'e'},
-      );
+      expect(mergeSets({'b', 'c', 'd'}, {'a', 'c', 'e'}, base), {
+        'c',
+        'd',
+        'e',
+      });
     });
 
     test("the account's order, unless only Encore's changed", () {
       final keep = {'a', 'b', 'c'};
-      expect(mergeOrder(['a', 'b', 'c'], ['c', 'b', 'a'], ['a', 'b', 'c'], keep),
-          ['c', 'b', 'a']);
-      expect(mergeOrder(['c', 'a', 'b'], ['a', 'b', 'c'], ['a', 'b', 'c'], keep),
-          ['c', 'a', 'b']);
+      expect(
+        mergeOrder(['a', 'b', 'c'], ['c', 'b', 'a'], ['a', 'b', 'c'], keep),
+        ['c', 'b', 'a'],
+      );
+      expect(
+        mergeOrder(['c', 'a', 'b'], ['a', 'b', 'c'], ['a', 'b', 'c'], keep),
+        ['c', 'a', 'b'],
+      );
       // Both moved: the account's.
-      expect(mergeOrder(['c', 'a', 'b'], ['b', 'a', 'c'], ['a', 'b', 'c'], keep),
-          ['b', 'a', 'c']);
+      expect(
+        mergeOrder(['c', 'a', 'b'], ['b', 'a', 'c'], ['a', 'b', 'c'], keep),
+        ['b', 'a', 'c'],
+      );
     });
 
     test('songs new in Encore go at the end, new on the account in place', () {
       expect(
-        mergeOrder(['a', 'b', 'x'], ['a', 'y', 'b'], ['a', 'b'], {'a', 'b', 'x', 'y'}),
+        mergeOrder(
+          ['a', 'b', 'x'],
+          ['a', 'y', 'b'],
+          ['a', 'b'],
+          {'a', 'b', 'x', 'y'},
+        ),
         ['a', 'y', 'b', 'x'],
       );
     });
@@ -217,8 +230,10 @@ void main() {
         expect(plan.requests, 2 + 3 + 2 + 2);
         expect(plan.newLikes, 1);
         expect(plan.newPlaylists, 1);
-        expect(plan.estimate(const Duration(seconds: 1)),
-            const Duration(milliseconds: 1400) * 9);
+        expect(
+          plan.estimate(const Duration(seconds: 1)),
+          const Duration(milliseconds: 1400) * 9,
+        );
       });
 
       test('nothing is sent or changed until the user agrees', () async {
@@ -244,16 +259,18 @@ void main() {
         expect(lib.playlists.value.single.remoteId, isNull);
       });
 
-      test('signed out while it asks: the question goes, nothing is sent',
-          () async {
-        answer = null;
-        final result = sync.sync();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-        await acc.signOut();
-        expect(sync.question.value, isNull);
-        expect(await result, isNotNull);
-        expect(remote.writes, isEmpty);
-      });
+      test(
+        'signed out while it asks: the question goes, nothing is sent',
+        () async {
+          answer = null;
+          final result = sync.sync();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await acc.signOut();
+          expect(sync.question.value, isNull);
+          expect(await result, isNotNull);
+          expect(remote.writes, isEmpty);
+        },
+      );
 
       test('closed before answering: asked again next time', () async {
         answer = null;
@@ -320,20 +337,22 @@ void main() {
         expect(sync.total.value, 1);
       });
 
-      test('after a restart with changes waiting: says it carries on',
-          () async {
-        await syncNow();
-        youtube.failWith = 503;
-        lib.toggleLike(song('a'));
-        lib.toggleLike(song('b'));
-        await sync.idle;
-        await sync.saved;
-        sync.stop();
-        sync = await startSync();
-        expect(sync.notice.value, contains('Sending 2 changes'));
-        expect(sync.notice.value, contains('where it left off'));
-        expect(sync.total.value, 2);
-      });
+      test(
+        'after a restart with changes waiting: says it carries on',
+        () async {
+          await syncNow();
+          youtube.failWith = 503;
+          lib.toggleLike(song('a'));
+          lib.toggleLike(song('b'));
+          await sync.idle;
+          await sync.saved;
+          sync.stop();
+          sync = await startSync();
+          expect(sync.notice.value, contains('Sending 2 changes'));
+          expect(sync.notice.value, contains('where it left off'));
+          expect(sync.total.value, 2);
+        },
+      );
     });
 
     test('stopped mid-send, a failure does not start sending again', () async {
@@ -394,28 +413,35 @@ void main() {
         expect(ids(now.tracks), ['b', 'c']);
       });
 
-      test('songs added, removed, renamed and moved in Encore go at once',
-          () async {
-        lib.addToPlaylist(linked.id, [song('d')]);
-        lib.removeFromPlaylist(linked.id, song('a'));
-        lib.renamePlaylist(linked.id, 'Calm');
-        lib.moveInPlaylist(linked.id, 2, 0); // d first
-        await sync.idle;
-        final p = remote.playlists['PL1']!;
-        expect(p.title, 'Calm');
-        expect(p.songs, ['d', 'b', 'c']);
-        // And a sync after agrees, changing nothing.
-        remote.writes.clear();
-        await syncNow();
-        expect(remote.writes, isEmpty);
-        expect(ids(lib.playlist(linked.id)!.tracks), ['d', 'b', 'c']);
-      });
+      test(
+        'songs added, removed, renamed and moved in Encore go at once',
+        () async {
+          lib.addToPlaylist(linked.id, [song('d')]);
+          lib.removeFromPlaylist(linked.id, song('a'));
+          lib.renamePlaylist(linked.id, 'Calm');
+          lib.moveInPlaylist(linked.id, 2, 0); // d first
+          await sync.idle;
+          final p = remote.playlists['PL1']!;
+          expect(p.title, 'Calm');
+          expect(p.songs, ['d', 'b', 'c']);
+          // And a sync after agrees, changing nothing.
+          remote.writes.clear();
+          await syncNow();
+          expect(remote.writes, isEmpty);
+          expect(ids(lib.playlist(linked.id)!.tracks), ['d', 'b', 'c']);
+        },
+      );
 
       test('a song removed takes all its entries (duplicates) away', () async {
-        remote.playlists['PL1']!.entries.add(FakePlaylist('x', '', ['a']).entries.first);
+        remote.playlists['PL1']!.entries.add(
+          FakePlaylist('x', '', ['a']).entries.first,
+        );
         await syncNow();
-        expect(ids(lib.playlist(linked.id)!.tracks), ['a', 'b', 'c'],
-            reason: 'Encore keeps each song once');
+        expect(ids(lib.playlist(linked.id)!.tracks), [
+          'a',
+          'b',
+          'c',
+        ], reason: 'Encore keeps each song once');
         lib.removeFromPlaylist(linked.id, song('a'));
         await sync.idle;
         expect(remote.playlists['PL1']!.songs, ['b', 'c']);
@@ -427,11 +453,14 @@ void main() {
         expect(remote.playlists, isNot(contains('PL1')));
       });
 
-      test('deleted on the account, unchanged in Encore: deleted here', () async {
-        remote.playlists.remove('PL1');
-        await syncNow();
-        expect(lib.playlists.value, isEmpty);
-      });
+      test(
+        'deleted on the account, unchanged in Encore: deleted here',
+        () async {
+          remote.playlists.remove('PL1');
+          await syncNow();
+          expect(lib.playlists.value, isEmpty);
+        },
+      );
 
       test('deleted on the account but changed in Encore since: kept, and '
           'made there again', () async {
@@ -453,7 +482,9 @@ void main() {
       });
 
       test('both sides changed: both kept', () async {
-        remote.playlists['PL1']!.entries.add(FakePlaylist('x', '', ['r']).entries.first);
+        remote.playlists['PL1']!.entries.add(
+          FakePlaylist('x', '', ['r']).entries.first,
+        );
         youtube.failWith = 503; // Encore's change waits (offline)
         lib.addToPlaylist(linked.id, [song('l')]);
         await sync.idle;
@@ -465,8 +496,9 @@ void main() {
 
       test("someone else's playlist saved on the account is a saved "
           'playlist here, not one of Encore\'s', () async {
-        remote.playlists['PLother'] =
-            FakePlaylist('PLother', 'Hits', ['h'], owned: false);
+        remote.playlists['PLother'] = FakePlaylist('PLother', 'Hits', [
+          'h',
+        ], owned: false);
         await syncNow();
         expect(lib.playlists.value.map((p) => p.name), ['Chill']);
         expect(lib.savedMedia.value.map((r) => r.id), ['VLPLother']);
@@ -484,8 +516,9 @@ void main() {
     test('long playlists and liked songs come in full, page by page', () async {
       remote.pageSize = 3;
       remote.liked.addAll([for (var i = 0; i < 8; i++) 'l$i']);
-      remote.playlists['PL1'] =
-          FakePlaylist('PL1', 'Long', [for (var i = 0; i < 10; i++) 's$i']);
+      remote.playlists['PL1'] = FakePlaylist('PL1', 'Long', [
+        for (var i = 0; i < 10; i++) 's$i',
+      ]);
       await syncNow();
       expect(ids(lib.liked.value), [for (var i = 0; i < 8; i++) 'l$i']);
       expect(ids(lib.playlists.value.single.tracks), [
@@ -497,19 +530,21 @@ void main() {
       expect(remote.playlists['PL1']!.songs, hasLength(9));
     });
 
-    test('a playlist made in Encore is made on the account, with its songs',
-        () async {
-      await syncNow();
-      final p = lib.createPlaylist('New one', tracks: [song('a'), song('b')]);
-      await sync.idle;
-      final made = lib.playlist(p.id)!.remoteId!;
-      expect(remote.playlists[made]!.title, 'New one');
-      expect(remote.playlists[made]!.songs, ['a', 'b']);
-      remote.writes.clear();
-      await syncNow();
-      expect(remote.writes, isEmpty, reason: 'not made twice');
-      expect(lib.playlists.value, hasLength(1));
-    });
+    test(
+      'a playlist made in Encore is made on the account, with its songs',
+      () async {
+        await syncNow();
+        final p = lib.createPlaylist('New one', tracks: [song('a'), song('b')]);
+        await sync.idle;
+        final made = lib.playlist(p.id)!.remoteId!;
+        expect(remote.playlists[made]!.title, 'New one');
+        expect(remote.playlists[made]!.songs, ['a', 'b']);
+        remote.writes.clear();
+        await syncNow();
+        expect(remote.writes, isEmpty, reason: 'not made twice');
+        expect(lib.playlists.value, hasLength(1));
+      },
+    );
 
     test('a big playlist (an import of 1000 songs) is made, then filled 50 '
         'songs at a time, all of them in order', () async {
@@ -521,7 +556,10 @@ void main() {
       expect(remote.playlists[made]!.songs, ids(songs));
       final edits = youtube.to('browse/edit_playlist');
       expect(edits, hasLength(19));
-      expect(edits.every((r) => (r.body['actions'] as List).length <= 50), isTrue);
+      expect(
+        edits.every((r) => (r.body['actions'] as List).length <= 50),
+        isTrue,
+      );
     });
 
     test('offline part way through filling a big playlist: not made twice, '
@@ -589,16 +627,18 @@ void main() {
       expect(remote.followed, ['UCy']);
     });
 
-    test('liked in Encore, then unliked on YouTube Music: stays unliked',
-        () async {
-      await syncNow();
-      lib.toggleLike(song('x'));
-      await sync.idle;
-      remote.liked.remove('x');
-      await syncNow();
-      expect(lib.liked.value, isEmpty);
-      expect(remote.liked, isEmpty);
-    });
+    test(
+      'liked in Encore, then unliked on YouTube Music: stays unliked',
+      () async {
+        await syncNow();
+        lib.toggleLike(song('x'));
+        await sync.idle;
+        remote.liked.remove('x');
+        await syncNow();
+        expect(lib.liked.value, isEmpty);
+        expect(remote.liked, isEmpty);
+      },
+    );
 
     test('added to a playlist in Encore, then removed on YouTube Music: '
         'stays removed', () async {
@@ -646,18 +686,20 @@ void main() {
       expect(remote.followed, ['UCchannel']);
     });
 
-    test('while changes wait (offline), a sync waits too, changing nothing',
-        () async {
-      remote.liked.add('a');
-      await syncNow();
-      youtube.failWith = 503;
-      lib.toggleLike(song('b'));
-      await sync.idle;
-      remote.liked.remove('a');
-      expect(await sync.sync(), isNotNull);
-      expect(ids(lib.liked.value), ['b', 'a'], reason: 'untouched');
-      expect(sync.state.value, SyncState.failed);
-    });
+    test(
+      'while changes wait (offline), a sync waits too, changing nothing',
+      () async {
+        remote.liked.add('a');
+        await syncNow();
+        youtube.failWith = 503;
+        lib.toggleLike(song('b'));
+        await sync.idle;
+        remote.liked.remove('a');
+        expect(await sync.sync(), isNotNull);
+        expect(ids(lib.liked.value), ['b', 'a'], reason: 'untouched');
+        expect(sync.state.value, SyncState.failed);
+      },
+    );
 
     test('offline, a sync fails and changes nothing', () async {
       lib.liked.value = [song('a')];
@@ -708,19 +750,21 @@ void main() {
       expect(ids(lib.liked.value), ['b']);
     });
 
-    test('an unreadable sync file starts over (combines, removes nothing)',
-        () async {
-      remote.liked.addAll(['a']);
-      await syncNow();
-      await sync.saved;
-      sync.stop();
-      File('${dir.path}/youtube_sync.json').writeAsStringSync('nonsense');
-      sync = await startSync();
-      remote.liked.clear();
-      await syncNow();
-      expect(ids(lib.liked.value), ['a']);
-      expect(remote.liked, ['a'], reason: 'sent back, not removed here');
-    });
+    test(
+      'an unreadable sync file starts over (combines, removes nothing)',
+      () async {
+        remote.liked.addAll(['a']);
+        await syncNow();
+        await sync.saved;
+        sync.stop();
+        File('${dir.path}/youtube_sync.json').writeAsStringSync('nonsense');
+        sync = await startSync();
+        remote.liked.clear();
+        await syncNow();
+        expect(ids(lib.liked.value), ['a']);
+        expect(remote.liked, ['a'], reason: 'sent back, not removed here');
+      },
+    );
 
     test('changes made signed out are merged at the next sign-in, nothing '
         'removed', () async {
@@ -744,17 +788,19 @@ void main() {
       expect(ids(lib.liked.value), ['r']);
     });
 
-    test('everything sent is signed in and spaced: never two at once',
-        () async {
-      for (var i = 0; i < 5; i++) {
-        lib.toggleLike(song('s$i'));
-      }
-      lib.createPlaylist('P', tracks: [song('a')]);
-      await sync.idle;
-      expect(remote.writes, hasLength(6));
-      for (final r in youtube.requests) {
-        expect(youtube.signedIn(r), isTrue, reason: r.endpoint);
-      }
-    });
+    test(
+      'everything sent is signed in and spaced: never two at once',
+      () async {
+        for (var i = 0; i < 5; i++) {
+          lib.toggleLike(song('s$i'));
+        }
+        lib.createPlaylist('P', tracks: [song('a')]);
+        await sync.idle;
+        expect(remote.writes, hasLength(6));
+        for (final r in youtube.requests) {
+          expect(youtube.signedIn(r), isTrue, reason: r.endpoint);
+        }
+      },
+    );
   });
 }

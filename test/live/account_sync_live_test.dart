@@ -54,110 +54,135 @@ void main() {
     yt.signIn = null;
   });
 
-  test('a playlist: made, songs added, moved, removed, renamed, deleted',
-      () async {
-    final id = await yt.createPlaylist('Encore sync check', _songs.take(2).toList());
-    try {
-      await pause();
-      final made = await yt.collection('VL$id');
-      expect(made.owned, isTrue);
-      expect(made.title, 'Encore sync check');
-      expect([for (final t in made.tracks) t.id], _songs.take(2));
+  test(
+    'a playlist: made, songs added, moved, removed, renamed, deleted',
+    () async {
+      final id = await yt.createPlaylist(
+        'Encore sync check',
+        _songs.take(2).toList(),
+      );
+      try {
+        await pause();
+        final made = await yt.collection('VL$id');
+        expect(made.owned, isTrue);
+        expect(made.title, 'Encore sync check');
+        expect([for (final t in made.tracks) t.id], _songs.take(2));
 
-      await yt.editPlaylist(id, [yt.addAction(_songs[2])]);
-      await pause();
-      expect(await songsOf(id), _songs.take(3));
+        await yt.editPlaylist(id, [yt.addAction(_songs[2])]);
+        await pause();
+        expect(await songsOf(id), _songs.take(3));
 
-      // Move the third song to the front.
-      final entries = (await yt.collection('VL$id')).entryIds;
-      await yt.editPlaylist(id, [
-        yt.moveAction(entries[_songs[2]]!.first, entries[_songs[0]]!.first),
-      ]);
-      await pause();
-      expect(await songsOf(id), [_songs[2], _songs[0], _songs[1]]);
+        // Move the third song to the front.
+        final entries = (await yt.collection('VL$id')).entryIds;
+        await yt.editPlaylist(id, [
+          yt.moveAction(entries[_songs[2]]!.first, entries[_songs[0]]!.first),
+        ]);
+        await pause();
+        expect(await songsOf(id), [_songs[2], _songs[0], _songs[1]]);
 
-      await yt.editPlaylist(id, [
-        yt.removeAction(_songs[0], entries[_songs[0]]!.first),
-        yt.renameAction('Encore sync check 2'),
-      ]);
+        await yt.editPlaylist(id, [
+          yt.removeAction(_songs[0], entries[_songs[0]]!.first),
+          yt.renameAction('Encore sync check 2'),
+        ]);
+        await pause();
+        final after = await yt.collection('VL$id');
+        expect([for (final t in after.tracks) t.id], [_songs[2], _songs[1]]);
+        expect(after.title, 'Encore sync check 2');
+        expect((await yt.libraryPlaylists()).map((p) => p.id), contains(id));
+      } finally {
+        await yt.deletePlaylist(id);
+      }
       await pause();
-      final after = await yt.collection('VL$id');
-      expect([for (final t in after.tracks) t.id], [_songs[2], _songs[1]]);
-      expect(after.title, 'Encore sync check 2');
       expect(
         (await yt.libraryPlaylists()).map((p) => p.id),
-        contains(id),
+        isNot(contains(id)),
       );
-    } finally {
-      await yt.deletePlaylist(id);
-    }
-    await pause();
-    expect((await yt.libraryPlaylists()).map((p) => p.id), isNot(contains(id)));
-  }, skip: _dir.isEmpty, timeout: const Timeout(Duration(minutes: 3)));
+    },
+    skip: _dir.isEmpty,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
-  test('a song liked, then unliked', () async {
-    final song = _songs[3];
-    final before = await yt.collection('VLLM', maxPages: 50);
-    expect(before.tracks.map((t) => t.id), isNot(contains(song)),
-        reason: "only a song the account hadn't liked");
-    await yt.rateSong(song, yt.Rating.like);
-    await pause();
-    try {
+  test(
+    'a song liked, then unliked',
+    () async {
+      final song = _songs[3];
+      final before = await yt.collection('VLLM', maxPages: 50);
+      expect(
+        before.tracks.map((t) => t.id),
+        isNot(contains(song)),
+        reason: "only a song the account hadn't liked",
+      );
+      await yt.rateSong(song, yt.Rating.like);
+      await pause();
+      try {
+        await eventually(() async {
+          final liked = await yt.collection('VLLM', maxPages: 50);
+          expect(liked.tracks.map((t) => t.id), contains(song));
+        });
+      } finally {
+        await yt.rateSong(song, yt.Rating.none);
+      }
       await eventually(() async {
-        final liked = await yt.collection('VLLM', maxPages: 50);
-        expect(liked.tracks.map((t) => t.id), contains(song));
+        final after = await yt.collection('VLLM', maxPages: 50);
+        expect(after.tracks.map((t) => t.id), isNot(contains(song)));
       });
-    } finally {
-      await yt.rateSong(song, yt.Rating.none);
-    }
-    await eventually(() async {
-      final after = await yt.collection('VLLM', maxPages: 50);
-      expect(after.tracks.map((t) => t.id), isNot(contains(song)));
-    });
-  }, skip: _dir.isEmpty, timeout: const Timeout(Duration(minutes: 2)));
+    },
+    skip: _dir.isEmpty,
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 
-  test('an album saved, then removed', () async {
-    final album = await yt.collection(_album, maxPages: 0);
-    expect(album.playlistId, startsWith('OLAK5uy_'));
-    expect(album.saved, isFalse, reason: "only an album the account hadn't");
-    await yt.savePlaylist(album.playlistId!, true);
-    await pause();
-    try {
-      await eventually(() async {
-        expect((await yt.savedAlbums()).map((r) => r.id), contains(_album));
-        expect((await yt.collection(_album, maxPages: 0)).saved, isTrue);
-      });
-    } finally {
-      await yt.savePlaylist(album.playlistId!, false);
-    }
-    await eventually(
-      () async => expect(
-        (await yt.savedAlbums()).map((r) => r.id),
-        isNot(contains(_album)),
-      ),
-    );
-  }, skip: _dir.isEmpty, timeout: const Timeout(Duration(minutes: 2)));
+  test(
+    'an album saved, then removed',
+    () async {
+      final album = await yt.collection(_album, maxPages: 0);
+      expect(album.playlistId, startsWith('OLAK5uy_'));
+      expect(album.saved, isFalse, reason: "only an album the account hadn't");
+      await yt.savePlaylist(album.playlistId!, true);
+      await pause();
+      try {
+        await eventually(() async {
+          expect((await yt.savedAlbums()).map((r) => r.id), contains(_album));
+          expect((await yt.collection(_album, maxPages: 0)).saved, isTrue);
+        });
+      } finally {
+        await yt.savePlaylist(album.playlistId!, false);
+      }
+      await eventually(
+        () async => expect(
+          (await yt.savedAlbums()).map((r) => r.id),
+          isNot(contains(_album)),
+        ),
+      );
+    },
+    skip: _dir.isEmpty,
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 
-  test('an artist followed, then unfollowed', () async {
-    final artist = await yt.artist(_artist);
-    expect(artist.channelId, isNotNull);
-    expect(artist.subscribed, isFalse, reason: "only one it didn't follow");
-    await yt.followArtist(artist.channelId!, true);
-    await pause();
-    try {
-      await eventually(() async {
-        expect((await yt.artist(_artist)).subscribed, isTrue);
-        // Listed by the artist's page id (what Encore follows by).
-        final followed = await yt.followedArtists();
-        expect(followed.map((r) => r.id), contains(_artist));
-      });
-    } finally {
-      await yt.followArtist(artist.channelId!, false);
-    }
-    await eventually(
-      () async => expect((await yt.artist(_artist)).subscribed, isFalse),
-    );
-  }, skip: _dir.isEmpty, timeout: const Timeout(Duration(minutes: 2)));
+  test(
+    'an artist followed, then unfollowed',
+    () async {
+      final artist = await yt.artist(_artist);
+      expect(artist.channelId, isNotNull);
+      expect(artist.subscribed, isFalse, reason: "only one it didn't follow");
+      await yt.followArtist(artist.channelId!, true);
+      await pause();
+      try {
+        await eventually(() async {
+          expect((await yt.artist(_artist)).subscribed, isTrue);
+          // Listed by the artist's page id (what Encore follows by).
+          final followed = await yt.followedArtists();
+          expect(followed.map((r) => r.id), contains(_artist));
+        });
+      } finally {
+        await yt.followArtist(artist.channelId!, false);
+      }
+      await eventually(
+        () async => expect((await yt.artist(_artist)).subscribed, isFalse),
+      );
+    },
+    skip: _dir.isEmpty,
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 
   test('a play is counted', () async {
     // Without a player version YouTube Music gives no stats address.
@@ -166,38 +191,46 @@ void main() {
     await yt.reportPlayback(stats!);
   }, skip: _dir.isEmpty);
 
-  test('a full sync into an empty library takes everything, changes '
-      'nothing on the account', () async {
-    final dir = await Directory.systemTemp.createTemp('encore_live_sync');
-    final lib = UserLibrary();
-    final sync = YouTubeSync(
-      account: acc,
-      library: lib,
-      dir: dir,
-      firstSync: null,
-    );
-    await sync.start();
-    expect(await sync.sync(), isNull);
-    expect(sync.pending.value, isEmpty, reason: 'nothing to send back');
-    expect(lib.liked.value, isNotEmpty);
-    expect(lib.playlists.value.map((p) => p.remoteId), everyElement(isNotNull));
-    // #playsong has 30 songs (not its suggestions too).
-    final remote = await yt.libraryPlaylists();
-    for (final p in lib.playlists.value) {
-      final page = await yt.collection('VL${p.remoteId}', maxPages: 50);
-      expect(p.tracks.length, page.tracks.toSet().length, reason: p.name);
-    }
-    expect(remote, isNotEmpty);
-    final likedPage = await yt.collection('VLLM', maxPages: 50);
-    expect(lib.liked.value.length, likedPage.tracks.toSet().length);
-    // ignore: avoid_print
-    print(
-      'liked ${lib.liked.value.length}, playlists '
-      '${lib.playlists.value.map((p) => '${p.name} (${p.tracks.length})')}, '
-      'saved ${lib.savedMedia.value.length}, artists ${lib.artists.value.length}',
-    );
-    sync.stop();
-    await sync.saved;
-    await dir.delete(recursive: true);
-  }, skip: _dir.isEmpty, timeout: const Timeout(Duration(minutes: 5)));
+  test(
+    'a full sync into an empty library takes everything, changes '
+    'nothing on the account',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('encore_live_sync');
+      final lib = UserLibrary();
+      final sync = YouTubeSync(
+        account: acc,
+        library: lib,
+        dir: dir,
+        firstSync: null,
+      );
+      await sync.start();
+      expect(await sync.sync(), isNull);
+      expect(sync.pending.value, isEmpty, reason: 'nothing to send back');
+      expect(lib.liked.value, isNotEmpty);
+      expect(
+        lib.playlists.value.map((p) => p.remoteId),
+        everyElement(isNotNull),
+      );
+      // #playsong has 30 songs (not its suggestions too).
+      final remote = await yt.libraryPlaylists();
+      for (final p in lib.playlists.value) {
+        final page = await yt.collection('VL${p.remoteId}', maxPages: 50);
+        expect(p.tracks.length, page.tracks.toSet().length, reason: p.name);
+      }
+      expect(remote, isNotEmpty);
+      final likedPage = await yt.collection('VLLM', maxPages: 50);
+      expect(lib.liked.value.length, likedPage.tracks.toSet().length);
+      // ignore: avoid_print
+      print(
+        'liked ${lib.liked.value.length}, playlists '
+        '${lib.playlists.value.map((p) => '${p.name} (${p.tracks.length})')}, '
+        'saved ${lib.savedMedia.value.length}, artists ${lib.artists.value.length}',
+      );
+      sync.stop();
+      await sync.saved;
+      await dir.delete(recursive: true);
+    },
+    skip: _dir.isEmpty,
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 }

@@ -89,6 +89,8 @@ Future<void> main([List<String> args = const []]) async {
     nowPlaying: player.nowPlaying,
     positions: player.audio.positionStream,
   );
+  // At the volume it was left at.
+  unawaited(player.audio.setVolume(settings.volume.value));
   equalizer.start();
   await playbackSession.restore();
   await loadLastHome();

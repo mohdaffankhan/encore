@@ -86,6 +86,7 @@ class Player {
     this.audio.positionStream.listen((position) {
       if (position > Duration.zero && (this.audio.currentIndex ?? 0) == 0) {
         _heard = position;
+        _countPlayed(position);
       }
     });
     queue.addListener(_updateNowPlaying);
@@ -125,6 +126,10 @@ class Player {
   /// While shuffled: the queue in its original order, to go back to when
   /// shuffle is turned off.
   List<Track>? _ordered;
+
+  /// While shuffled, the original order (kept with the session, so shuffle
+  /// can still be turned off after a restart).
+  List<Track>? get ordered => _ordered;
   final error = ValueNotifier<String?>(null);
 
   /// Bumped whenever the queue is replaced, so late radio results for an
@@ -311,6 +316,7 @@ class Player {
     int at,
     Duration position, {
     bool shuffled = false,
+    List<Track>? ordered,
     Repeat repeat = Repeat.off,
   }) {
     if (current != null || at < 0 || at >= tracks.length) return;
@@ -318,6 +324,9 @@ class Player {
     index.value = at;
     _resumeAt = position;
     shuffle.value = shuffled;
+    // Without it (sessions saved before), turning shuffle off keeps the
+    // shuffled order.
+    _ordered = shuffled ? ordered : null;
     this.repeat.value = repeat;
   }
 
@@ -369,7 +378,15 @@ class Player {
   }
 
   void changeVolume(double delta) =>
-      audio.setVolume((audio.volume + delta).clamp(0, 1));
+      setVolume((audio.volume + delta).clamp(0, 1));
+
+  /// The volume the user picked: kept for next time (when above zero:
+  /// Encore never starts muted). The sleep timer's fade isn't, as it sets
+  /// [audio]'s own volume.
+  void setVolume(double volume) {
+    audio.setVolume(volume);
+    if (volume > 0) settings.volume.value = volume;
+  }
 
   /// The level to go back to when unmuting.
   double _beforeMute = 1;
@@ -377,7 +394,29 @@ class Player {
   void toggleMute() {
     final volume = audio.volume;
     if (volume > 0) _beforeMute = volume;
-    audio.setVolume(volume > 0 ? 0 : _beforeMute);
+    setVolume(volume > 0 ? 0 : _beforeMute);
+  }
+
+  /// The song playing, until it has been heard long enough to be in
+  /// History.
+  Track? _toCount;
+
+  /// How long a song plays before it counts as played (and goes in
+  /// History): 30 seconds, or half of it if shorter (at least 5 seconds),
+  /// as YouTube counts a play.
+  static Duration playedAfter(Duration? length) {
+    const most = Duration(seconds: 30);
+    final half = (length ?? most * 2) ~/ 2;
+    final at = half < most ? half : most;
+    return at < const Duration(seconds: 5) ? const Duration(seconds: 5) : at;
+  }
+
+  void _countPlayed(Duration position) {
+    final track = _toCount;
+    if (track == null || current != track) return;
+    if (position < playedAfter(audio.duration ?? track.duration)) return;
+    _toCount = null;
+    userLibrary.addPlayed(track);
   }
 
   void toggleLikeCurrent() {
@@ -464,7 +503,7 @@ class Player {
     _recoveries = 0;
     _skippedInRow = 0;
     index.value = index.value + 1 < queue.value.length ? index.value + 1 : 0;
-    userLibrary.addPlayed(track);
+    _toCount = track;
     // The song that ended goes; the new one is first again.
     unawaited(_inZone(() => audio.removeAudioSourceAt(0)));
     if (index.value == queue.value.length - 1 && repeat.value != Repeat.all) {
@@ -606,7 +645,8 @@ class Player {
       }
       if (autoplay) {
         audio.play();
-        if (start == null) userLibrary.addPlayed(track);
+        // In History once heard for a while (a skipped song isn't).
+        if (start == null) _toCount = track;
       }
       if (i == queue.value.length - 1 && repeat.value != Repeat.all) {
         unawaited(_extendWithRadio(track));

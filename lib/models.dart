@@ -218,6 +218,7 @@ class Artist {
     required this.shelves,
     this.channelId,
     this.subscribed,
+    this.radio,
   });
 
   final String name;
@@ -231,6 +232,10 @@ class Artist {
 
   /// Signed in: whether the account follows the artist.
   final bool? subscribed;
+
+  /// The artist's own radio (YouTube Music's "Mix", `RDEM…`): where it
+  /// starts, the playlist and its parameters for `next`.
+  final ({String videoId, String playlistId, String? params})? radio;
 }
 
 /// How good songs sound, against how much data they use.

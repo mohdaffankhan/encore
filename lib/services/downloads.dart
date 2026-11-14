@@ -11,7 +11,7 @@ import 'track_stream.dart';
 
 final downloads = Downloads();
 
-/// Saves songs for offline playback, one at a time. Finished downloads are
+/// Saves songs for offline playback, a few at a time. Finished downloads are
 /// listed in [UserLibrary.downloads]; files live in the app support folder.
 class Downloads {
   /// Songs waiting or downloading, with progress from 0 to 1.
@@ -24,9 +24,19 @@ class Downloads {
   bool _running = false;
   Directory? _dir;
 
-  /// The song downloading now.
-  Track? _current;
-  Track? get current => _current;
+  /// How many download at once (one at a time was slow for an album; more
+  /// would only share the same connection).
+  static const parallel = 3;
+
+  /// The songs downloading now, in the order they started.
+  final _active = <Track>[];
+
+  /// The song downloading now (the first started, of those downloading).
+  Track? get current => _active.firstOrNull;
+
+  /// Songs that couldn't be saved since the downloads last ran out: said
+  /// once when they do (one message per song flooded the screen).
+  final _failed = <Track>[];
 
   /// Songs saved and failed since the downloads last ran out (shown in
   /// Android's notification: "2 of 5", "Downloaded 5 songs").
@@ -63,7 +73,7 @@ class Downloads {
   /// Keeps the songs left to download, so closing the app doesn't lose
   /// them (an album's worth, with nothing said).
   void _savePending() {
-    final json = jsonEncode([?_current, ..._queue]);
+    final json = jsonEncode([..._active, ..._queue]);
     _lastWrite = _lastWrite.then((_) async {
       try {
         final file = await _pendingFile();
@@ -141,23 +151,15 @@ class Downloads {
   Future<void> _run() async {
     if (_running) return;
     _running = true;
-    while (_queue.isNotEmpty) {
-      final track = _current = _queue.removeAt(0);
-      _setProgress(track.id, 0); // says which song is downloading
-      try {
-        await fetch(track);
-        userLibrary.downloads.value = [track, ...userLibrary.downloads.value];
-        done++;
-      } catch (e) {
-        notDone++;
-        debugPrint('Download failed for ${track.id}: $e');
-        error.value = 'Couldn\'t download "${track.title}"';
-      }
-      progress.value = {...progress.value}..remove(track.id);
-      _current = null;
-      _savePending();
-    }
+    _failed.clear();
+    await Future.wait([for (var i = 0; i < parallel; i++) _worker()]);
     _running = false;
+    if (_failed.isNotEmpty) {
+      error.value = _failed.length == 1
+          ? "Couldn't download \"${_failed.single.title}\""
+          : "Couldn't download ${_failed.length} songs";
+      _failed.clear();
+    }
   }
 
   Future<void> _fetch(Track track) async {
@@ -187,6 +189,26 @@ class Downloads {
       rethrow;
     }
     await part.rename('${dir.path}${Platform.pathSeparator}${track.id}');
+  }
+
+  Future<void> _worker() async {
+    while (_queue.isNotEmpty) {
+      final track = _queue.removeAt(0);
+      _active.add(track);
+      _setProgress(track.id, 0); // says which song is downloading
+      try {
+        await fetch(track);
+        userLibrary.downloads.value = [track, ...userLibrary.downloads.value];
+        done++;
+      } catch (e) {
+        notDone++;
+        _failed.add(track);
+        debugPrint('Download failed for ${track.id}: $e');
+      }
+      _active.remove(track);
+      progress.value = {...progress.value}..remove(track.id);
+      _savePending();
+    }
   }
 
   void _setProgress(String id, double p) =>
