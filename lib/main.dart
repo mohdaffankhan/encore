@@ -21,6 +21,7 @@ import 'services/session.dart';
 import 'services/settings.dart';
 import 'services/storage.dart';
 import 'services/windows_media_controls.dart';
+import 'services/youtube_sync.dart';
 import 'ui/art_colors.dart';
 import 'ui/pages/sign_in.dart';
 
@@ -82,6 +83,12 @@ Future<void> main([List<String> args = const []]) async {
   account.clearBrowser = clearSignInBrowser;
   clearHomeOnAccountChange(account.generation);
   await account.load();
+  // Signed in: likes go to the account, and plays count there.
+  await youtubeSync.start();
+  PlayReporter(
+    nowPlaying: player.nowPlaying,
+    positions: player.audio.positionStream,
+  );
   equalizer.start();
   await playbackSession.restore();
   await loadLastHome();

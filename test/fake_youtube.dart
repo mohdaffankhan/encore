@@ -119,6 +119,12 @@ class FakeYouTube {
     final signed = signedIn(r);
     final handler = handlers[endpoint] ?? _defaults[endpoint];
     final body = handler?.call(r, signed) ?? {};
+    // A handler answering with a number fails with that HTTP status.
+    if (body is int) {
+      res.statusCode = body;
+      await res.close();
+      return;
+    }
     res.headers.contentType = ContentType.json;
     res.write(
       jsonEncode({
