@@ -156,3 +156,20 @@ calling it done. Releases also go through the owner's own testing.
 | Linux app id is `io.github.mohdaffankhan.Encore`; the library moves over from the old `dev.encore.app` folder once, never over an existing one | Linux | unit `storage_test` |
 | Package versions (PKGBUILD, metainfo) match `pubspec.yaml` | Linux | CI test job |
 | **Bug fixed:** Settings opened on top of the current tab, which kept showing it, so Home or Library seemed stuck on Settings: on desktop Settings is a place of its own in the sidebar (highlighted while open), left by picking anything else there; the sidebar headings are readable (contrast 4.5:1) | desktop | widget `shell_test` "Settings is a place of its own", `accessibility_test` "desktop: settings" |
+
+## YouTube Music account (branch youtube-account, not released)
+
+| Feature | Platforms | Tests |
+|---|---|---|
+| Optional sign-in from Settings: Google's own page in the app (Android WebView, a WebView2 / WebKitGTK window on desktop); Encore never sees the password | all | widget `account_test` "signing in shows who is signed in"; manual: Windows sign-in check 2026-11-14 |
+| Desktop: "Sign in with your browser": paste a Cookie header or cookies.txt; empty or wrong text is refused in the dialog | Windows, Linux | unit `account_test` "a pasted …"; widget `account_test` group "signing in with a browser" |
+| Signed-in requests carry the cookies and a SAPISIDHASH Authorization (time + sha1 of time, SAPISID, origin), X-Origin and X-Goog-AuthUser; signed out, none of it | all | unit `account_test` "SAPISIDHASH …", "signing in checks with YouTube…", "signed out, requests carry no sign-in" |
+| A sign-in is checked with YouTube first: refused, incomplete or offline sign-ins say so and keep what was before | all | unit + widget `account_test` "refused", "incomplete", "offline while signing in" |
+| Cookies YouTube replaces in its replies are used from then on and saved (a malformed one doesn't lose the others) | all | unit `account_test` "cookies YouTube replaces…", "a malformed Set-Cookie…" |
+| A sign-in that ended (signed out elsewhere, expired) is noticed, confirmed once with YouTube, said once, and Encore carries on signed out; server errors and one odd reply don't end it | all | unit `account_test` "a sign-in that ended…", "one signed-out reply alone…", "server errors…", "many signed-out replies make one check" |
+| The sign-in is kept in the system's secret store (a private file where there is none), read back at start and checked; broken or unreadable: signed out | all | unit `account_test` "a saved sign-in is used after a restart", "a broken or unreadable store…" |
+| Signing out asks first, keeps the library, forgets the sign-in, the sign-in page's cookies and the home feed made for the account; replies to requests made before can't bring it back | all | unit `account_test` "signing out forgets…", "a reply arriving after…"; widget "signing out asks first" |
+| Brand channels: Switch channel lists the account's own and brand channels (not other Google accounts); requests then go as that channel (X-Goog-PageId, onBehalfOfUser), kept on restart | all | unit `account_test` "a brand channel…", "channels: own and brand…" |
+| Home reloads for the new account when signing in or out; a feed loaded for the old account isn't saved | all | unit `account_test` "signing out forgets…"; widget `account_test` |
+| Account rows, signed in, ended, and the paste dialog work with screen readers | all | widget `accessibility_test` "settings, signed in", "settings, sign-in ended", "sign in with a browser" |
+| **Bug fixed:** Home's pull-to-refresh and the artist, album and Settings retry/re-measure handed setState a Future (a debug-build error) | all | widget `account_test` "signing in shows who is signed in" |

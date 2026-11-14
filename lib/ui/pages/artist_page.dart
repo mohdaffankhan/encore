@@ -31,8 +31,9 @@ class _ArtistPageState extends State<ArtistPage> {
           if (snapshot.hasError) {
             return ErrorRetry(
               message: "Couldn't load this artist.",
-              onRetry: () =>
-                  setState(() => _artist = yt.artist(widget.browseId)),
+              onRetry: () => setState(() {
+                _artist = yt.artist(widget.browseId);
+              }),
             );
           }
           if (!snapshot.hasData) {

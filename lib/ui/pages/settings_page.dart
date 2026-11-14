@@ -13,6 +13,7 @@ import '../../services/settings.dart';
 import '../shortcuts.dart';
 import '../theme.dart';
 import '../widgets/widgets.dart';
+import 'account_settings.dart';
 
 /// Sound quality, data, storage and about: only what is worth choosing.
 class SettingsPage extends StatefulWidget {
@@ -29,7 +30,9 @@ class _SettingsPageState extends State<SettingsPage> {
   static Future<(int, int)> _measure() async =>
       (await downloads.size(), await artCacheSize());
 
-  void _remeasure() => setState(() => _sizes = _measure());
+  void _remeasure() => setState(() {
+    _sizes = _measure();
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +51,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             children: [
               const PageTitle('Settings'),
+              const SectionHeader('Account'),
+              const AccountSettings(),
               const SectionHeader('Appearance'),
               const _ThemePicker(),
               const SectionHeader('Sound and data'),

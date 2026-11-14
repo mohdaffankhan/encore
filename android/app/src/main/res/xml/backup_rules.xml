@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and before: the YouTube Music sign-in never leaves the
+     phone in a backup (it would sign in whoever restores it). -->
+<full-backup-content>
+    <exclude domain="file" path="account.json" />
+    <exclude domain="file" path="test_data/account.json" />
+    <exclude domain="root" path="app_webview" />
+</full-backup-content>

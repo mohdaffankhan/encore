@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/innertube.dart' as yt;
 import '../../models.dart';
+import '../../services/account.dart';
 import '../../services/home_cache.dart';
 import '../../services/library.dart';
 import '../shell.dart';
@@ -20,15 +21,40 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<Shelf>> _shelves = _load();
 
+  @override
+  void initState() {
+    super.initState();
+    account.generation.addListener(_accountChanged);
+  }
+
+  @override
+  void dispose() {
+    account.generation.removeListener(_accountChanged);
+    super.dispose();
+  }
+
+  /// Signed in or out: the feed is made for someone else now.
+  void _accountChanged() {
+    // Shown by the FutureBuilder: a failure here isn't unhandled.
+    final next = _load()..ignore();
+    setState(() {
+      _shelves = next;
+    });
+  }
+
   Future<List<Shelf>> _load() async {
+    final at = account.generation.value;
     final shelves = await yt.home();
-    await saveHome(shelves);
+    // A feed made for whoever was signed in before isn't kept.
+    if (at == account.generation.value) await saveHome(shelves);
     return shelves;
   }
 
   Future<void> _refresh() async {
     final next = _load();
-    setState(() => _shelves = next);
+    setState(() {
+      _shelves = next;
+    });
     await next;
   }
 

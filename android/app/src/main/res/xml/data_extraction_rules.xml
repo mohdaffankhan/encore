@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: the YouTube Music sign-in is left out of cloud backups
+     and of moving to a new phone (it would sign in whoever restores it). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="account.json" />
+        <exclude domain="file" path="test_data/account.json" />
+        <exclude domain="root" path="app_webview" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="account.json" />
+        <exclude domain="file" path="test_data/account.json" />
+        <exclude domain="root" path="app_webview" />
+    </device-transfer>
+</data-extraction-rules>

@@ -111,8 +111,9 @@ class _CollectionPageState extends State<CollectionPage> {
           if (snapshot.hasError) {
             return ErrorRetry(
               message: "Couldn't load this page.",
-              onRetry: () =>
-                  setState(() => _loading = yt.collection(widget.browseId!)),
+              onRetry: () => setState(() {
+                _loading = yt.collection(widget.browseId!);
+              }),
             );
           }
           if (!snapshot.hasData) {

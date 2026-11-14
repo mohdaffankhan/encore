@@ -1,7 +1,9 @@
 import 'package:encore/models.dart';
+import 'package:encore/services/account.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/ui/pages/account_settings.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/library_page.dart';
 import 'package:encore/ui/player/player_ui.dart';
@@ -11,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../unit/account_test.dart' show MemoryStore, goodCookies;
 import 'shell_test.dart' show pumpApp;
 
 // Screen readers (TalkBack, Narrator, Orca): every screen is checked for
@@ -38,6 +41,29 @@ final _screens = <String, Future<void> Function(WidgetTester)>{
   'search': (tester) => tester.tap(find.text('Search').first),
   'library': (tester) => tester.tap(find.text('Library').first),
   'settings': (tester) async => openSettings(),
+  'settings, signed in': (tester) async {
+    account.reset(store: MemoryStore());
+    account.whoIs = () async =>
+        const AccountInfo(name: 'Test Listener', handle: '@test');
+    await account.signInWith(goodCookies());
+    openSettings();
+  },
+  'settings, sign-in ended': (tester) async {
+    account.reset(store: MemoryStore());
+    account.whoIs = () async => const AccountInfo(name: 'Test Listener');
+    await account.signInWith(goodCookies());
+    account.whoIs = () async => null;
+    account.replied(account.headers()!, const [], 401, null);
+    openSettings();
+    await tester.pumpAndSettle();
+    ScaffoldMessenger.of(tester.element(find.byType(Shell))).clearSnackBars();
+  },
+  'sign in with a browser': (tester) async {
+    openSettings();
+    await tester.pumpAndSettle();
+    // ignore: unawaited_futures
+    pasteSignIn(tester.element(find.text('Settings').first));
+  },
   'liked songs': (tester) async =>
       openPage(libraryCollections.first.page(), tab: AppTab.library),
   'a playlist': (tester) async {
@@ -88,6 +114,7 @@ void main() {
   });
 
   tearDown(() {
+    account.reset(store: MemoryStore());
     lastHome = null;
     userLibrary.liked.value = [];
     userLibrary.history.value = [];

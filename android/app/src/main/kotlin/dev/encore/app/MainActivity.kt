@@ -12,6 +12,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -54,6 +55,17 @@ class MainActivity : AudioServiceActivity() {
                 }
                 startActivity(Intent.createChooser(send, null))
                 result.success(null)
+            }
+        // YouTube Music sign-in: the sign-in page's cookies, including the
+        // HttpOnly ones a page's scripts can't read.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.encore.app/cookies")
+            .setMethodCallHandler { call, result ->
+                val cookies = CookieManager.getInstance()
+                when (call.method) {
+                    "get" -> result.success(cookies.getCookie(call.argument<String>("url")))
+                    "clear" -> cookies.removeAllCookies { cookies.flush(); result.success(it) }
+                    else -> result.notImplemented()
+                }
             }
         // Downloads: their progress notification, and running on after
         // Encore is closed. The engine outlives this activity, so the

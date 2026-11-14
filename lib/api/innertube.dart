@@ -1,13 +1,64 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 
 import '../models.dart';
+import 'auth.dart';
 import 'clients.dart';
 
 // YouTube Music's internal API, as used by music.youtube.com. Unofficial:
 // response shapes change occasionally, so parsing is defensive throughout.
 
-const _base = 'https://music.youtube.com/youtubei/v1';
+/// Where requests go: YouTube Music, or a test's fake server.
+@visibleForTesting
+var musicApiBase = '$musicOrigin/youtubei/v1';
+
+/// Signs requests in to the user's account (see services/account.dart);
+/// null while signed out, when every request is anonymous.
+abstract interface class YouTubeSignIn {
+  /// The headers that sign a request in, or null to send it anonymously
+  /// (signed out, or the sign-in has ended).
+  Map<String, String>? headers();
+
+  /// What a request signed in with [signed] got back: its new cookies, and
+  /// whether YouTube still treated it as signed in.
+  void replied(
+    Map<String, String> signed,
+    List<Cookie> cookies,
+    int status,
+    Map<String, dynamic>? json,
+  );
+}
+
+YouTubeSignIn? signIn;
+
+/// A reply that wasn't a usable answer, with its HTTP status.
+class YouTubeError extends HttpException {
+  YouTubeError(String endpoint, this.status)
+    : super('YouTube Music $endpoint: HTTP $status');
+
+  final int status;
+
+  /// The request itself was wrong (a song that doesn't exist): sending it
+  /// again won't help. Signed-out (401, 403) and busy (429) replies can.
+  bool get rejected =>
+      status >= 400 &&
+      status < 500 &&
+      status != 401 &&
+      status != 403 &&
+      status != 408 &&
+      status != 429;
+}
+
+/// Development only (`--dart-define=ENCORE_DUMP=<folder>`, never in
+/// release builds): every reply is saved there, to write tests from.
+const _dump = kReleaseMode ? '' : String.fromEnvironment('ENCORE_DUMP');
+var _dumped = 0;
+
+/// Forgets the anonymous visitor (when the account changes).
+void resetVisitor() => _visitorData = null;
 
 enum SearchFilter {
   songs('Songs', 'EgWKAQIIAWoSEAUQDhADEAkQChAEEBUQEBAR'),
@@ -40,8 +91,9 @@ Future<Map<String, dynamic>> _send(
   String query = '',
 }) async {
   final req = await youtubeHttp.postUrl(
-    Uri.parse('$_base/$endpoint?prettyPrint=false$query'),
+    Uri.parse('$musicApiBase/$endpoint?prettyPrint=false$query'),
   );
+  final signed = signIn?.headers();
   req.headers
     ..contentType = ContentType.json
     ..set('Origin', 'https://music.youtube.com')
@@ -50,6 +102,9 @@ Future<Map<String, dynamic>> _send(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     );
   if (_visitorData != null) req.headers.set('X-Goog-Visitor-Id', _visitorData!);
+  if (signed != null) {
+    signed.forEach(req.headers.set);
+  }
   req.write(
     jsonEncode({
       ...body,
@@ -61,16 +116,46 @@ Future<Map<String, dynamic>> _send(
           'hl': 'en',
           'visitorData': ?_visitorData,
         },
+        // A brand channel the account manages, when used as that.
+        if (signed?['X-Goog-PageId'] case final page?)
+          'user': {'onBehalfOfUser': page},
       },
     }),
   );
   final res = await req.close();
   final text = await utf8.decodeStream(res);
-  if (res.statusCode != HttpStatus.ok) {
-    throw HttpException('YouTube Music $endpoint: HTTP ${res.statusCode}');
+  Map<String, dynamic>? json;
+  try {
+    if (jsonDecode(text) case final Map<String, dynamic> map) json = map;
+  } on FormatException {
+    // An error page: said below.
   }
-  final json = jsonDecode(text);
+  if (signed != null) {
+    // One by one: a cookie Dart can't parse mustn't lose the others.
+    final cookies = <Cookie>[];
+    for (final value in res.headers[HttpHeaders.setCookieHeader] ?? []) {
+      try {
+        cookies.add(Cookie.fromSetCookieValue(value));
+      } catch (_) {}
+    }
+    signIn?.replied(signed, cookies, res.statusCode, json);
+  }
+  if (res.statusCode != HttpStatus.ok || json == null) {
+    throw YouTubeError(endpoint, res.statusCode);
+  }
   _visitorData ??= json['responseContext']?['visitorData'];
+  if (_dump.isNotEmpty) {
+    final what = '${body['browseId'] ?? body['videoId'] ?? body['query'] ?? ''}'
+        .replaceAll(RegExp(r'[^\w-]'), '_');
+    final name =
+        '${(++_dumped).toString().padLeft(3, '0')}_'
+        '${endpoint.replaceAll('/', '_')}_$what.json';
+    try {
+      File('$_dump${Platform.pathSeparator}$name')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(text);
+    } catch (_) {}
+  }
   return json;
 }
 
@@ -481,3 +566,117 @@ Iterable<dynamic> _findAll(dynamic node, String key) sync* {
     }
   }
 }
+
+/// The signed-in account, as YouTube Music's account menu shows it; null if
+/// the request wasn't signed in.
+Future<AccountInfo?> accountInfo() async {
+  final json = await _post('account/account_menu', {});
+  final header = _findAll(json, 'activeAccountHeaderRenderer').firstOrNull;
+  if (header is! Map || signedInReply(json) == false) return null;
+  final name = _text(header['accountName']);
+  if (name.isEmpty) return null;
+  return AccountInfo(
+    name: name,
+    handle: _text(header['channelHandle']),
+    photoUrl: _smallest(header['accountPhoto']),
+  );
+}
+
+/// The channels the account can use YouTube Music as: its own, and any
+/// brand channels it manages (each with its page id).
+Future<List<AccountChannel>> accountChannels() async {
+  final json = await _post('account/accounts_list', {});
+  return [
+    for (final item in _findAll(json, 'accountItem'))
+      if (item is Map && _text(item['accountName']).isNotEmpty)
+        AccountChannel(
+          name: _text(item['accountName']),
+          handle: _text(item['channelHandle']).isNotEmpty
+              ? _text(item['channelHandle'])
+              : _text(item['accountByline']),
+          photoUrl: _smallest(item['accountPhoto']),
+          pageId: _findAll(item, 'pageId').whereType<String>().firstOrNull,
+          selected: item['isSelected'] == true,
+          // Accounts not signed in here (other Google accounts) are listed
+          // with a sign-in link instead: those can't be switched to.
+          usable: _findAll(item, 'accountSigninToken').isEmpty,
+        ),
+  ].where((c) => c.usable).toList();
+}
+
+String _smallest(dynamic node) {
+  final thumbs = _findAll(node, 'thumbnails').firstOrNull as List?;
+  return (thumbs?.lastOrNull?['url'] as String?) ?? '';
+}
+
+enum Rating { like, none, dislike }
+
+/// Likes a song (or removes the like) on the signed-in account.
+Future<void> rateSong(String videoId, Rating rating) => _post(
+  switch (rating) {
+    Rating.like => 'like/like',
+    Rating.none => 'like/removelike',
+    Rating.dislike => 'like/dislike',
+  },
+  {
+    'target': {'videoId': videoId},
+  },
+);
+
+/// Where YouTube counts a play of [videoId] (and adds it to the account's
+/// history), or null if it doesn't say.
+Future<Uri?> playbackStatsUrl(String videoId) async {
+  final json = await _post('player', {
+    'videoId': videoId,
+    'playbackContext': {
+      'contentPlaybackContext': {'html5Preference': 'HTML5_PREF_WANTS'},
+    },
+  });
+  final url =
+      json['playbackTracking']?['videostatsPlaybackUrl']?['baseUrl'] as String?;
+  final uri = url == null ? null : Uri.tryParse(url);
+  // Only YouTube's own stats address gets the account's cookies.
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      !(uri.host == 'youtube.com' || uri.host.endsWith('.youtube.com'))) {
+    return null;
+  }
+  return uri;
+}
+
+/// Counts a play at [stats] (from [playbackStatsUrl]) as the website does.
+Future<void> reportPlayback(Uri stats, {Random? random}) async {
+  final signed = signIn?.headers();
+  if (signed == null) return;
+  const chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_';
+  final r = random ?? Random.secure();
+  final cpn = String.fromCharCodes([
+    for (var i = 0; i < 16; i++) chars.codeUnitAt(r.nextInt(64)),
+  ]);
+  final url = stats.replace(
+    queryParameters: {
+      ...stats.queryParameters,
+      'ver': '2',
+      'c': 'WEB_REMIX',
+      'cpn': cpn,
+    },
+  );
+  final req = await youtubeHttp.getUrl(
+    statsBase == null ? url : statsBase!(url),
+  );
+  signed.forEach(req.headers.set);
+  req.headers.set(
+    HttpHeaders.userAgentHeader,
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  );
+  final res = await req.close().timeout(const Duration(seconds: 15));
+  await res.drain<void>();
+  if (res.statusCode >= 400) {
+    throw YouTubeError('play report', res.statusCode);
+  }
+}
+
+/// Tests send play reports to their fake server instead.
+@visibleForTesting
+Uri Function(Uri)? statsBase;

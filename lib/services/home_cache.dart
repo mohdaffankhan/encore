@@ -37,3 +37,20 @@ Future<void> saveHome(List<Shelf> shelves) async {
     debugPrint('Saving the home feed failed: $e');
   }
 }
+
+/// Forgets the saved feed whenever the account changes: it was made for
+/// whoever was signed in before.
+void clearHomeOnAccountChange(ValueListenable<int> generation) =>
+    generation.addListener(clearHome);
+
+/// Forgets the saved feed (it was made for another account).
+Future<void> clearHome() async {
+  lastHome = null;
+  try {
+    await (await _file()).delete();
+  } on PathNotFoundException {
+    // None saved.
+  } catch (e) {
+    debugPrint('Removing the home feed failed: $e');
+  }
+}

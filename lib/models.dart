@@ -202,3 +202,61 @@ enum AudioQuality {
   final String label;
   final String detail;
 }
+
+/// The signed-in YouTube account, as shown in Settings.
+class AccountInfo {
+  const AccountInfo({required this.name, this.handle = '', this.photoUrl = ''});
+
+  final String name;
+
+  /// e.g. @someone (empty for accounts without a channel).
+  final String handle;
+  final String photoUrl;
+
+  Map<String, Object> toJson() => {
+    'name': name,
+    'handle': handle,
+    'photoUrl': photoUrl,
+  };
+
+  static AccountInfo? fromJson(Object? json) => switch (json) {
+    {'name': final String name} when name.isNotEmpty => AccountInfo(
+      name: name,
+      handle: json['handle'] is String ? json['handle'] as String : '',
+      photoUrl: json['photoUrl'] is String ? json['photoUrl'] as String : '',
+    ),
+    _ => null,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AccountInfo &&
+      other.name == name &&
+      other.handle == handle &&
+      other.photoUrl == photoUrl;
+
+  @override
+  int get hashCode => Object.hash(name, handle, photoUrl);
+}
+
+/// A channel an account can use YouTube Music as.
+class AccountChannel {
+  const AccountChannel({
+    required this.name,
+    this.handle = '',
+    this.photoUrl = '',
+    this.pageId,
+    this.selected = false,
+    this.usable = true,
+  });
+
+  final String name;
+  final String handle;
+  final String photoUrl;
+
+  /// A brand channel's id (sent as X-Goog-PageId); null for the account's
+  /// own channel.
+  final String? pageId;
+  final bool selected;
+  final bool usable;
+}

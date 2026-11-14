@@ -8,6 +8,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'api/clients.dart';
 import 'app.dart';
 import 'self_test.dart';
+import 'services/account.dart';
 import 'services/desktop_window.dart';
 import 'services/download_notice.dart';
 import 'services/downloads.dart';
@@ -21,6 +22,7 @@ import 'services/settings.dart';
 import 'services/storage.dart';
 import 'services/windows_media_controls.dart';
 import 'ui/art_colors.dart';
+import 'ui/pages/sign_in.dart';
 
 Future<void> main([List<String> args = const []]) async {
   final selfTest = args.contains('--self-test');
@@ -77,6 +79,9 @@ Future<void> main([List<String> args = const []]) async {
   // Which YouTube clients to ask for songs (an online file, kept current).
   await loadClients();
   await settings.load();
+  account.clearBrowser = clearSignInBrowser;
+  clearHomeOnAccountChange(account.generation);
+  await account.load();
   equalizer.start();
   await playbackSession.restore();
   await loadLastHome();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/account.dart';
 import '../services/downloads.dart';
 import '../services/library.dart';
 import '../services/player.dart';
@@ -99,7 +100,12 @@ class ShellState extends State<Shell> {
   }
 
   /// Error messages from the services, each shown once as a snackbar.
-  final _errors = [player.error, downloads.error, userLibrary.error];
+  final _errors = [
+    player.error,
+    downloads.error,
+    userLibrary.error,
+    account.notice,
+  ];
 
   void _showErrors() {
     for (final errors in _errors) {
