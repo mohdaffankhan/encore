@@ -12,6 +12,7 @@ import 'equalizer.dart';
 import 'library.dart';
 import 'settings.dart';
 import 'sleep_timer.dart';
+import 'track_stream.dart';
 import 'youtube_audio_source.dart';
 
 final player = Player();
@@ -23,13 +24,14 @@ Future<AudioSource> sourceFor(Track track) async {
   if (await downloads.fileFor(track) case final file?) {
     return AudioSource.file(file.path, tag: track);
   }
-  final ahead = _ahead.remove(track.id);
-  final quality = await settings.streamingQuality();
-  final stream = ahead == null
-      ? await audioStream(track.id, quality: quality)
-      : await ahead.catchError(
-          (Object _) => audioStream(track.id, quality: quality),
-        );
+  final stream = await trackStream(
+    track,
+    quality: await settings.streamingQuality(),
+    first: _ahead.remove(track.id),
+    onVersion: (_) => player.error.value =
+        'Playing the song version of "${track.title}": the video is '
+        'age-restricted.',
+  );
   return YouTubeAudioSource(stream, tag: track);
 }
 

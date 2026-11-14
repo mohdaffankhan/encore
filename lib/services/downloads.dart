@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../api/stream.dart';
 import '../models.dart';
 import 'library.dart';
 import 'settings.dart';
 import 'storage.dart';
+import 'track_stream.dart';
 
 final downloads = Downloads();
 
@@ -161,8 +161,9 @@ class Downloads {
   }
 
   Future<void> _fetch(Track track) async {
-    final stream = await audioStream(
-      track.id,
+    // Age-restricted: its song version's audio (see trackStream).
+    final stream = await trackStream(
+      track,
       quality: settings.downloadQuality.value,
     );
     final dir = await _folder();

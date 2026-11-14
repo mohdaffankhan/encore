@@ -922,3 +922,55 @@ Future<void> followArtist(String channelId, bool follow) =>
     _post(follow ? 'subscription/subscribe' : 'subscription/unsubscribe', {
       'channelIds': [channelId],
     });
+
+/// The song version of [track] (a music video, usually): the same title
+/// (without "(Official Video)" and the like), by the same artist, about as
+/// long; null if YouTube Music has none.
+Future<Track?> songVersion(Track track) async {
+  final title = baseTitle(track.title, artist: track.artist);
+  final found = await search('$title ${track.artist}', SearchFilter.songs);
+  final want = title.toLowerCase();
+  final artist = track.artist.toLowerCase();
+  for (final t in found.whereType<Track>()) {
+    if (t.id == track.id) continue;
+    if (baseTitle(t.title, artist: t.artist).toLowerCase() != want) continue;
+    final by = t.artist.toLowerCase();
+    if (artist.isNotEmpty &&
+        !by.contains(artist) &&
+        !artist.contains(by.split(RegExp(r'[,&]')).first.trim())) {
+      continue;
+    }
+    if (track.duration case final d?) {
+      if (t.duration case final e?
+          when (d - e).abs() > const Duration(seconds: 15)) {
+        continue;
+      }
+    }
+    return t;
+  }
+  return null;
+}
+
+/// [title] without what videos add to it: "(Official Video)", "[Explicit]",
+/// "(Lyrics)", "- Official Music Video", an "[artist] - " in front, quotes.
+@visibleForTesting
+String baseTitle(String title, {String artist = ''}) {
+  final extra = RegExp(
+    r'\s*[\(\[][^\)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|explicit|clean|hd|hq|4k|remaster(ed)?|mv|fixed|cc|subtitles)\b[^\)\]]*[\)\]]',
+    caseSensitive: false,
+  );
+  final tail = RegExp(
+    r'\s*[-|]\s*(official\s+)?(music\s+)?(video|audio|lyric video|visuali[sz]er)\s*$',
+    caseSensitive: false,
+  );
+  var t = title.replaceAll(extra, '').replaceAll(tail, '');
+  t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  final by = artist.trim().toLowerCase();
+  if (by.isNotEmpty && t.toLowerCase().startsWith('$by - ')) {
+    t = t.substring(by.length + 3);
+  }
+  // Trailing " -" left by removed parts, and quotes around the title.
+  t = t.replaceAll(RegExp(r'[\s\-|]+$'), '');
+  t = t.replaceAll(RegExp(r'''^["'“‘]+|["'”’]+$'''), '');
+  return t.trim();
+}

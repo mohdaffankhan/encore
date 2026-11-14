@@ -1,9 +1,9 @@
 import 'package:encore/models.dart';
 import 'package:encore/services/account.dart';
-import 'package:encore/services/youtube_sync.dart';
 import 'package:encore/services/home_cache.dart';
 import 'package:encore/services/library.dart';
 import 'package:encore/services/player.dart';
+import 'package:encore/services/youtube_sync.dart';
 import 'package:encore/ui/pages/account_settings.dart';
 import 'package:encore/ui/pages/collection_page.dart';
 import 'package:encore/ui/pages/library_page.dart';

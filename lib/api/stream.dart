@@ -133,6 +133,21 @@ class AudioStream {
   }
 }
 
+/// YouTube plays the song only to signed-in adults in its own apps: the
+/// age restriction (on a music video, usually; its song version plays).
+class AgeRestricted extends HttpException {
+  const AgeRestricted()
+    : super("it's age-restricted, and YouTube plays it only in its own apps");
+
+  static final _reason = RegExp(
+    r'confirm your age|age.restricted|inappropriate for some users',
+    caseSensitive: false,
+  );
+
+  /// Whether YouTube's [reason] for not playing is the age restriction.
+  static bool means(String reason) => _reason.hasMatch(reason);
+}
+
 /// The audio stream of [videoId] at [quality]; with [itag] (and the
 /// [client] that gave it), that format, to renew a link to the same bytes.
 /// Each of [playerClients] is asked in turn until one can play the song.
@@ -143,6 +158,7 @@ Future<AudioStream> audioStream(
   AudioQuality quality = AudioQuality.high,
 }) async {
   HttpException? refused;
+  var ageRestricted = false;
   for (final c in client == null ? playerClients : [client]) {
     try {
       return await _streamFrom(c, videoId, itag, quality);
@@ -151,8 +167,10 @@ Future<AudioStream> audioStream(
       // No connection is another matter, so that is thrown at once.
       debugPrint('${c.name}: $e');
       refused ??= e;
+      ageRestricted |= AgeRestricted.means(e.message);
     }
   }
+  if (ageRestricted) throw const AgeRestricted();
   throw refused!;
 }
 
