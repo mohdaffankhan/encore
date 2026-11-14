@@ -39,6 +39,68 @@ void main() {
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
 
+  group('History', () {
+    setUp(() => userLibrary.history.value = []);
+    tearDown(() => userLibrary.history.value = []);
+
+    test('a song is in History once heard for 30 seconds, not when it '
+        'starts', () async {
+      await player.playList([_song('x'), _song('y')], 0);
+      expect(userLibrary.history.value, isEmpty);
+      audio.playTo(const Duration(seconds: 29));
+      expect(userLibrary.history.value, isEmpty);
+      audio.playTo(const Duration(seconds: 30));
+      expect(userLibrary.history.value, [_song('x')]);
+      audio.playTo(const Duration(seconds: 90));
+      expect(userLibrary.history.value, [_song('x')], reason: 'once');
+    });
+
+    test('a skipped song is not in History', () async {
+      await player.playList([_song('x'), _song('y')], 0);
+      audio.playTo(const Duration(seconds: 8));
+      await player.next();
+      audio.playTo(const Duration(seconds: 31));
+      expect(userLibrary.history.value, [_song('y')]);
+    });
+
+    test('a song the player moved on to counts once heard', () async {
+      await player.playList([_song('x'), _song('y'), _song('z')], 0);
+      // The next song is lined up in the player meanwhile.
+      await settle();
+      audio.playTo(const Duration(seconds: 40));
+      audio.playOn();
+      await settle();
+      expect(player.current, _song('y'));
+      expect(userLibrary.history.value, [_song('x')]);
+      audio.playTo(const Duration(seconds: 30));
+      expect(userLibrary.history.value, [_song('y'), _song('x')]);
+    });
+
+    test('a short song counts at half its length', () {
+      expect(Player.playedAfter(const Duration(seconds: 40)),
+          const Duration(seconds: 20));
+      expect(Player.playedAfter(const Duration(minutes: 4)),
+          const Duration(seconds: 30));
+      expect(Player.playedAfter(const Duration(seconds: 6)),
+          const Duration(seconds: 5));
+      expect(Player.playedAfter(null), const Duration(seconds: 30));
+    });
+
+    test('a song restored at start (where it was left) is not counted again',
+        () async {
+      final fresh = FakeAudio();
+      final restored = Player(
+        audio: fresh,
+        source: (t) async => AudioSource.uri(Uri.parse('https://x/${t.id}')),
+        prepare: (_) {},
+      );
+      restored.restore([_song('x')], 0, const Duration(seconds: 50));
+      await restored.play();
+      fresh.playTo(const Duration(seconds: 80));
+      expect(userLibrary.history.value, isEmpty);
+    });
+  });
+
   group('volume', () {
     tearDown(() => settings.volume.value = 1);
 
@@ -189,7 +251,6 @@ void main() {
       expect(player.current, _song('b'));
       expect(audio.loads, hasLength(loads), reason: 'nothing loaded again');
       expect(lined(), ['b', 'c'], reason: 'the one after is lined up');
-      expect(userLibrary.history.value.first, _song('b'));
     });
 
     test('moving the next song lines up the new next one', () async {

@@ -134,10 +134,12 @@ class QuickGrid extends StatelessWidget {
             spacing: spacing,
             runSpacing: spacing,
             children: [
-              for (final (i, t) in tracks.take(columns * 2).indexed)
+              // A tile plays its song and then its radio, as a search
+              // result does (it queued the whole history, up to 200 songs).
+              for (final t in tracks.take(columns * 2))
                 SizedBox(
                   width: tileWidth,
-                  child: _QuickTile(t, () => player.playList(tracks, i)),
+                  child: _QuickTile(t, () => player.playRadio(t)),
                 ),
             ],
           ),
