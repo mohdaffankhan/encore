@@ -847,8 +847,11 @@ void main() {
           await syncNow();
           expect(remote.writes, isEmpty);
           expect(sync.removals.value?.songs, 50);
-          // Encore closed without an answer.
+          // Encore closed without an answer (after its last save: restarting
+          // while the file was mid-save made this flaky under load).
           sync.stop();
+          await sync.idle;
+          await sync.saved;
           sync = await startSync();
           expect(sync.removals.value, isNull);
           await syncNow();

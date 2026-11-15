@@ -60,7 +60,7 @@ void main() {
   // Phones showed two big cards across; YouTube Music's app shows about
   // two and a half (the next one peeks in, so it's clear the row scrolls).
   for (final (device, width, cardWidth, across) in [
-    ('phone', 412.0, MediaCard.phoneWidth, (2.4, 3.0)),
+    ('phone', 412.0, MediaCard.phoneWidth, (3.1, 3.8)),
     ('desktop', 1400.0, MediaCard.width, (0.0, 99.0)),
   ]) {
     testWidgets('$device: cards $cardWidth wide', (tester) async {

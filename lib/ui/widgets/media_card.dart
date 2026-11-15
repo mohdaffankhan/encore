@@ -16,9 +16,9 @@ class MediaCard extends StatefulWidget {
   /// Desktop; phones' are smaller (see [widthOf]).
   static const width = 168.0;
 
-  /// On phones as in YouTube Music's app: about two and a half cards across
+  /// On phones as in YouTube Music's app: about three and a half cards across
   /// (two big ones filled a phone's width).
-  static const phoneWidth = 136.0;
+  static const phoneWidth = 108.0;
 
   static double widthOf(BuildContext context) =>
       isWide(context) ? width : phoneWidth;
