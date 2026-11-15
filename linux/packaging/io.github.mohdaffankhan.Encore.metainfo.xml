@@ -12,16 +12,19 @@
 
   <description>
     <p>
-      Encore plays music from YouTube Music without ads, without an account
-      and without tracking. Everything you keep (likes, playlists, history,
-      downloads) stays on your device.
+      Encore plays music from YouTube Music without ads and without
+      tracking. No account is needed: everything you keep (likes,
+      playlists, history, downloads) stays on your device. Or sign in to
+      YouTube Music, optionally, for recommendations made for you and your
+      library kept in sync.
     </p>
     <ul>
       <li>Search songs, videos, albums, artists and playlists, or paste a YouTube link</li>
-      <li>Song radio, up next, shuffle, repeat and a sleep timer</li>
+      <li>Song and artist radio, up next, shuffle, repeat and a sleep timer</li>
       <li>Synced lyrics</li>
       <li>Your own playlists, and import public playlists from YouTube Music, YouTube or Spotify</li>
       <li>Downloads for offline listening</li>
+      <li>Optional YouTube Music sign-in: a home feed, mixes and radio made for you; liked songs, playlists, saved albums and followed artists kept in sync</li>
       <li>Keyboard shortcuts and media keys</li>
     </ul>
     <p>

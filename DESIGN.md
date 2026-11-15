@@ -7,7 +7,10 @@ Encore: an ad-free YouTube Music client. Flutter: Android, Windows, Linux.
   one warm accent (amber → coral) used sparingly. Players take their colour
   from the artwork.
 - One typeface: Plus Jakarta Sans (bundled, SIL OFL), heavy weights for titles.
-- No backend, no tracking. The app talks only to YouTube and LRCLIB.
+- No backend, no tracking. The app talks only to YouTube Music, LRCLIB,
+  Spotify (importing a playlist) and GitHub (new versions).
+- Signing in is optional; without it everything works, with the library
+  only on the device.
 - Plain Flutter state (`ValueNotifier`/streams), few dependencies.
 
 ## Brand
@@ -43,20 +46,33 @@ lib/
   models.dart                Track, MediaRef, Shelf, Collection, Artist
   api/                       network only, no Flutter (testable with plain Dart)
     innertube.dart           YouTube Music: home, search, suggestions, radio,
-                             artist, album/playlist pages
+                             artist, album/playlist pages; the account's
+                             library and its edits; play reports
+    auth.dart                sign-in cookies, SAPISIDHASH signed requests
+    clients.dart             InnerTube client versions
     stream.dart              audio streams (VISIONOS client, ranged reads)
     lyrics.dart              synced lyrics from LRCLIB
+    spotify.dart             public Spotify playlists, for importing
   services/                  app state, no widgets
     player.dart              queue, radio, shuffle/repeat, seek/volume
     library.dart             liked, history, searches, downloads (one JSON file)
     downloads.dart           offline files and download queue
+    account.dart             the YouTube Music sign-in, kept on the device
+                             (DPAPI on Windows, dpapi.dart)
+    youtube_sync.dart        two-way library sync with the account; play
+                             reports
+    track_stream.dart        a song's audio (song version for age-restricted
+                             videos)
+    updates.dart             new versions from GitHub; Android/Windows
+                             install them
     youtube_audio_source.dart  feeds the player via ranged reads
     storage.dart             data folder (separate one for test builds)
   ui/
     shell.dart               per-tab navigation, sidebar / bottom bar, openPage()
     shortcuts.dart           keyboard + media keys
     theme.dart, art_colors.dart
-    pages/                   home, search, library, collection, artist
+    pages/                   home, search, library, collection, artist,
+                             settings, sign-in, sync questions
     player/                  player bar, mini player, full player, controls,
                              lyrics, up next
     widgets/                 artwork, track tile + menu, cards, shelves, logo
@@ -98,6 +114,16 @@ boundaries around everything that updates with playback position.
 - Audio comes from the `VISIONOS` client of the player API. Most other clients now
   need a PO token and stop serving audio after ~1 MB. Mirrors yt-dlp's current
   defaults; when YouTube changes something, check yt-dlp's `_base.py` first.
+- Signed in, the `WEB_REMIX` requests carry the account's cookies and a
+  `SAPISIDHASH` header, as the website's do: home, radio, up next, likes,
+  the library and its edits are the account's. Audio stays anonymous; each
+  play is reported to the account separately (its playback stats URL), so
+  it counts in history and recommendations.
+- Sync is a three-way merge against what Encore and the account last agreed
+  on. Changes go out one at a time, spaced and backed off; more than 20
+  removals at once wait for the user; a playlist is never deleted on the
+  account because it is missing in Encore; a page cut short fails the sync.
+  Test builds (`ENCORE_TEST`) never sign in.
 
 ## Platform notes
 - Android allows plain HTTP only to 127.0.0.1 (`network_security_config.xml`):
@@ -111,10 +137,7 @@ boundaries around everything that updates with playback position.
 
 ## Done
 Offline downloads · synced lyrics · artist and album pages · search filters ·
-keyboard shortcuts · CI builds (`.github/workflows/build.yml`) · tests on
-Windows, Android and Linux (see README).
-
-## Later
-1. Google login → YouTube Music library and playlists (postponed).
-2. System media controls on desktop (Windows SMTC / Linux MPRIS), so media
-   keys work while the window is in the background.
+keyboard shortcuts · system media controls (Windows SMTC / Linux MPRIS) ·
+YouTube Music sign-in and library sync · updates from inside the app ·
+CI builds (`.github/workflows/build.yml`) · tests on Windows, Android and
+Linux (see README).

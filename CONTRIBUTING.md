@@ -41,7 +41,13 @@ See [DESIGN.md](DESIGN.md) for how the app is put together and why.
 | Frame timings | `flutter drive --profile --no-dds --no-uninstall --driver=test_driver/perf_driver.dart --target=integration_test/perf_test.dart -d <device>` |
 
 `ENCORE_TEST` keeps the tests' likes, playlists, history and downloads
-apart from your own.
+apart from your own, and a test build never signs in to YouTube Music, so
+nothing a test does reaches an account.
+
+The account checks in `test/live` (`account_*`) are skipped unless you
+point them at a signed-in **test** account, never your own:
+`--dart-define=ENCORE_ACCOUNT_DIR=<folder>`. They make changes on that
+account and undo them, and count one play in its history.
 
 > On a phone that has Encore installed, never run plain `flutter test` or
 > `flutter drive`: at the end Flutter uninstalls the app by its id, which

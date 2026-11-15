@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>An ad-free, open-source music player for YouTube Music.</b><br>
-  No ads. No account. No tracking. For Android, Windows and Linux.
+  No ads. No tracking. No account needed, or sign in to YouTube Music<br>
+  for recommendations made for you. For Android, Windows and Linux.
 </p>
 
 <p align="center">
@@ -56,21 +57,33 @@ Older versions and what changed in each: [Releases](https://github.com/mohdaffan
 - Everything on YouTube Music: songs, albums, artists, playlists, and
   videos such as covers and lyric videos
 - Paste a YouTube or YouTube Music link into search to play that exact song
-- Song radio, up next, shuffle and repeat; no gaps between songs
+- Song and artist radio, up next, shuffle and repeat; no gaps between songs
+- **Play something** on Home starts a radio picked for you
 - Synced lyrics that follow the song; tap a line to jump there
 - Equalizer with presets, and playback speed from 0.5× to 2×
 - Sleep timer (15 minutes to an hour, or the end of the song) that fades out
 - Swipe the player sideways for the next or previous song; on phones, swipe
   up for lyrics and down to close
 
-**Your library, on your device**
+**Your library**
 - Likes, history and your own playlists (add, reorder, rename), each one
-  searchable and sortable
+  searchable and sortable; add the playing song to a playlist from the player
+- Save albums and playlists, and follow artists
 - Import public playlists from **YouTube Music**, **YouTube** or **Spotify**
   by pasting their link
 - Save the queue as a playlist; share songs, albums and playlists
 - Downloads for offline listening (on Android they carry on after you close
   Encore)
+
+**Your YouTube Music account (optional)**
+- Sign in for a home feed, mixes and radio made for you; what you play and
+  like in Encore shapes your recommendations
+- Your liked songs, playlists, saved albums and followed artists stay the
+  same in Encore and on YouTube Music, both ways. The first sync shows what
+  it will do before anything changes, and Encore asks before removing many
+  things at once
+- Without signing in, everything else works the same, and your library stays
+  on your device
 
 **Everywhere**
 - Six themes: Ember, Ocean, Forest, Orchid, Rose and Graphite
@@ -79,6 +92,8 @@ Older versions and what changed in each: [Releases](https://github.com/mohdaffan
 - Windows and Linux: your system's media controls and media keys, the song
   in the window title; on Windows, keeps playing from the tray
 - Works with screen readers (TalkBack, Narrator, Orca)
+- Tells you when a new version is out; on Android and Windows it updates
+  itself in a tap
 
 ## Install
 
@@ -89,7 +104,9 @@ Older versions and what changed in each: [Releases](https://github.com/mohdaffan
 2. Open Encore and tap **Allow** when it asks to show notifications: that is
    what puts the player in your notification panel.
 
-To update, install the new APK over the old one. Your library stays.
+Encore tells you when a new version is out and installs it for you (the
+first time, Android asks you to allow Encore to install apps). You can also
+install a new APK over the old one. Either way, your library stays.
 
 The per-chip APKs are about a third of the size. Not sure which chip your
 phone has? Take `encore-android.apk`, which works on all of them; you can
@@ -101,8 +118,13 @@ Run **`encore-windows-setup.exe`**. It needs no admin rights and adds Encore
 to the Start menu. If SmartScreen says it protected your PC, click
 **More info → Run anyway** (the installer isn't code-signed).
 
+Encore tells you when a new version is out, then installs it and reopens
+itself. (Coming from 0.2.1 or 0.3.0, run the new installer by hand once:
+their updater didn't work.)
+
 Prefer no installer? Unzip **`encore-windows-portable.zip`** anywhere and run
-`encore.exe`.
+`encore.exe`. Encore tells you about new versions; unzip the new one over
+the old.
 
 ### Linux
 
@@ -134,7 +156,8 @@ mkdir encore && tar -xzf encore-linux-x64.tar.gz -C encore
 ./encore/install.sh           # ./encore/install.sh --uninstall to remove
 ```
 
-To update, do the same with the new download.
+To update, do the same with the new download. Encore tells you when a new
+version is out and opens its download page.
 
 Encore on Flathub (so GNOME Software and KDE Discover list it, and it
 updates by itself) and an AUR package are on the way.
@@ -164,19 +187,39 @@ Free, with no ads, ever. Encore is open source (GPL-3.0) and nobody makes
 money from it.
 
 **Do I need a Google or YouTube account?**
-No. Encore doesn't sign in to anything.
+No. Encore works fully without one. Signing in is optional: it makes your
+home feed, mixes and radio your own, and keeps your library in sync with
+YouTube Music.
+
+**How do I sign in?**
+In **Settings → Account**. On Android and Windows, YouTube Music's own
+sign-in page opens in a window: you type your password into Google's page,
+never into Encore. On Linux (or if you prefer, on Windows) choose **Sign in
+with your browser** and follow the steps to paste your browser's YouTube
+Music cookies. Each device signs in on its own. The sign-in stays on your
+device: encrypted on Windows, and left out of phone backups. Signing out
+removes it.
+
+**Can signing in get my account in trouble?**
+Encore is unofficial, and Google could limit accounts that use unofficial
+apps. Encore sends your library changes one at a time, spaced out, and asks
+before removing many things at once. If you'd rather not risk your main
+account, sign in with a second one, or don't sign in.
 
 **What does Encore know about me?**
-Nothing leaves your device except the searches and songs you ask
-YouTube Music for (and lyrics from [LRCLIB](https://lrclib.net)). There's no
-analytics and no Encore server. Your likes, playlists, history and downloads
-are kept in a file on your device.
+There's no analytics and no Encore server. Your likes, playlists, history
+and downloads are kept in a file on your device. Encore talks to
+YouTube Music for music (signed in as you if you signed in), to
+[LRCLIB](https://lrclib.net) for lyrics, to Spotify only when you import a
+Spotify playlist, and to GitHub to see if a new version is out (turn that
+off in **Settings → Tell me about new versions**).
 
 **Can I import my private playlists or Liked songs?**
-Not yet: importing works by link, which only reaches public playlists.
-Make a playlist public (or *unlisted* on YouTube), import it, then make it
-private again. Spotify shares only the first 100 songs of a playlist without
-signing in.
+Sign in: your liked songs and playlists, private ones too, come into Encore
+and stay in sync. Without signing in, importing works by link, which only
+reaches public playlists: make a playlist public (or *unlisted* on YouTube),
+import it, then make it private again. Spotify shares only the first 100
+songs of a playlist without signing in.
 
 **A song won't play.**
 YouTube changes how it serves music now and then, and Encore has to follow.
