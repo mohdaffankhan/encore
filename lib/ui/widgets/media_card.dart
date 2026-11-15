@@ -6,19 +6,28 @@ import '../../services/player.dart';
 import '../shell.dart';
 import '../theme.dart';
 import 'artwork.dart';
+import 'common.dart';
 
 /// Artwork with a title and subtitle for carousels: an album, playlist,
 /// artist (round) or video. On hover it lifts slightly and offers play.
 class MediaCard extends StatefulWidget {
   const MediaCard(this.item, {super.key});
 
+  /// Desktop; phones' are smaller (see [widthOf]).
   static const width = 168.0;
+
+  /// On phones as in YouTube Music's app: about two and a half cards across
+  /// (two big ones filled a phone's width).
+  static const phoneWidth = 136.0;
+
+  static double widthOf(BuildContext context) =>
+      isWide(context) ? width : phoneWidth;
 
   /// The card's height: the artwork and the text under it, which grows
   /// with the system font size.
   static double heightOf(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale;
-    return width +
+    return widthOf(context) +
         13 +
         2 * scale(14) * _titleLine +
         scale(12.5) * _subtitleLine;
@@ -43,6 +52,7 @@ class _MediaCardState extends State<MediaCard> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final item = widget.item;
+    final width = MediaCard.widthOf(context);
     final (art, title, subtitle, isArtist) = switch (item) {
       MediaRef r => (r.artUrl, r.title, r.subtitle, r.kind == MediaKind.artist),
       Track t => (t.artUrl, t.title, t.artist, false),
@@ -61,7 +71,7 @@ class _MediaCardState extends State<MediaCard> {
           excludeFromSemantics: true,
           onTap: () => openItem(item),
           child: SizedBox(
-            width: MediaCard.width,
+            width: width,
             child: Column(
               crossAxisAlignment: isArtist
                   ? CrossAxisAlignment.center
@@ -75,7 +85,7 @@ class _MediaCardState extends State<MediaCard> {
                     children: [
                       Artwork(
                         art,
-                        size: MediaCard.width,
+                        size: width,
                         radius: 12,
                         circle: isArtist,
                       ),
