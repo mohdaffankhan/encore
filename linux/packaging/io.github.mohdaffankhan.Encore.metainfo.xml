@@ -73,6 +73,15 @@
   </recommends>
 
   <releases>
+    <release version="0.3.1" date="2026-11-15">
+      <description>
+        <p>Fixes updating on Windows, and smaller cards on phones.</p>
+        <ul>
+          <li>Windows: Update now installs the new version and reopens Encore</li>
+          <li>Phones: smaller cards in Listen again and other scrolling rows, so more fit across</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-11-14">
       <description>
         <p>Optional YouTube Music sign-in: recommendations made for you, and your library kept in sync.</p>
